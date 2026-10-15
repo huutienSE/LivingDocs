@@ -19,6 +19,53 @@ Architecture and technology decisions are subject to the project's formal review
 
 This repository serves as the shared source-code and technical implementation workspace for the LivingDocs project.
 
+## Repository Structure
+
+LivingDocs uses an initial monorepo structure to support parallel development across different technical areas.
+
+```text
+LivingDocs/
+├── backend/
+├── ai-service/
+├── frontend/
+├── infrastructure/
+├── tests/
+├── docs/
+├── .github/
+├── .gitignore
+├── README.md
+└── LICENSE
+```
+
+### Directory Responsibilities
+
+| Directory | Purpose |
+|-----------|---------|
+| `backend/` | Backend application development and technical experiments. |
+| `ai-service/` | AI-related development, source-code analysis, and evaluation. |
+| `frontend/` | Frontend application development. |
+| `infrastructure/` | Infrastructure, local environment, and deployment configurations. |
+| `tests/` | Cross-component integration, end-to-end, and performance tests. |
+| `docs/` | Repository-local technical documentation and implementation guides. |
+| `.github/` | GitHub-specific configuration and future automation workflows. |
+
+### Architecture Status
+
+**Status: INITIAL STRUCTURE — NOT ARCHITECTURE BASELINED**
+
+This repository structure is an initial organizational scaffold, not a final system architecture.
+
+- Directory names do not define final microservice boundaries.
+- Backend and AI areas may contain multiple components or experimental implementations.
+- Technology selections and deployment topology remain subject to formal evaluation and approval.
+- The structure may evolve through future technical tasks and approved Architecture Decision Records (ADRs).
+- Confluence remains the source of truth for controlled project documentation and architecture decisions.
+
+
 ## Development
 
-Development environment, repository structure, and implementation instructions will be documented as the corresponding technical tasks are completed.
+The initial repository structure has been established as part of TECH-02 (LIV-54).
+
+Development environments, application-specific structures, build configurations, testing tools, and deployment instructions will be introduced progressively through subsequent technical tasks.
+
+Technical implementations and proof-of-concept activities must follow the project's governance and architecture decision process.
