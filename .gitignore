@@ -26,3 +26,11 @@ target/
 .env
 .env.*
 !.env.example
+
+# ============================
+# Python / FastAPI
+# ============================
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
