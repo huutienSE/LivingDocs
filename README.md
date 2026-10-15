@@ -17,6 +17,7 @@ Architecture and technology decisions are subject to the project's formal review
 
 ## Repository
 
+This repository serves as the shared source-code and technical implementation workspace for the LivingDocs project.
 
 ## Repository Structure
 
