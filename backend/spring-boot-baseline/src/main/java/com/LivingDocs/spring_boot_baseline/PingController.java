@@ -1,4 +1,4 @@
-package com.livingdocs.spring_boot_baseline;
+package com.LivingDocs.spring_boot_baseline;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
