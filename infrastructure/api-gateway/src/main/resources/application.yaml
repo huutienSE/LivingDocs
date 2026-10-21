@@ -1,0 +1,30 @@
+server: # nhóm cấu hình http server
+  # địa chỉ và port mà server listen
+  address: 127.0.0.1
+  port: ${GATEWAY_PORT:8081} # lấy biến cấu hình GATEWAY_PORT, nếu ko có thì lấy 8081
+
+spring:
+  application:
+    name: livingdocs-api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: spring-boot-baseline
+              uri: ${GATEWAY_BACKEND_URI:http://127.0.0.1:8080}
+              predicates:
+                - Path=/backend/**
+              filters:
+                - StripPrefix=1
+
+management:
+  endpoint:
+    gateway:
+      access: read-only
+
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
