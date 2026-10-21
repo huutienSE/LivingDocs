@@ -19,6 +19,22 @@ spring:
               filters:
                 - StripPrefix=1
 
+              #Demo Service A TECH-06
+            - id: demo-service-a
+              uri: ${DEMO_SERVICE_A_URI:http://127.0.0.1:8082}
+              predicates:
+                - Path=/service-a/**
+              filters:
+                - StripPrefix=1
+
+              #Demo Service B TECH-06
+            - id: demo-service-b
+              uri: ${DEMO_SERVICE_B_URI:http://127.0.0.1:8083}
+              predicates:
+                - Path=/service-b/**
+              filters:
+                - StripPrefix=1
+
 management:
   endpoint:
     gateway:
