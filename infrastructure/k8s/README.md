@@ -1,0 +1,1 @@
+# dự kiến cho Kubernetes deployment manifests
