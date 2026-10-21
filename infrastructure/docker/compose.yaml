@@ -1,0 +1,38 @@
+name: livingdocs-poc
+
+services:
+
+  demo-service-a:
+    build:
+      context: ../../backend/demo-service-a
+      dockerfile: Dockerfile
+
+    ports:
+      - "127.0.0.1:${DEMO_A_HOST_PORT:-8082}:8082"
+
+  demo-service-b:
+    build:
+      context: ../../backend/demo-service-b
+      dockerfile: Dockerfile
+
+    ports:
+      - "127.0.0.1:${DEMO_B_HOST_PORT:-8083}:8083"
+
+  api-gateway:
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile
+
+    ports:
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-8081}:8081"
+
+    environment:
+      SERVER_ADDRESS: "0.0.0.0"
+      GATEWAY_PORT: "8081"
+
+      DEMO_SERVICE_A_URI: "http://demo-service-a:8082"
+      DEMO_SERVICE_B_URI: "http://demo-service-b:8083"
+
+    depends_on:
+      - demo-service-a
+      - demo-service-b
