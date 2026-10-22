@@ -1,6 +1,13 @@
 name: livingdocs-poc
 
 services:
+  spring-boot-baseline:
+    build:
+      context: ../../backend/spring-boot-baseline
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
+
 
   demo-service-a:
     build:
@@ -30,9 +37,11 @@ services:
       SERVER_ADDRESS: "0.0.0.0"
       GATEWAY_PORT: "8081"
 
+      GATEWAY_BACKEND_URI: "http://spring-boot-baseline:8080"
       DEMO_SERVICE_A_URI: "http://demo-service-a:8082"
       DEMO_SERVICE_B_URI: "http://demo-service-b:8083"
 
     depends_on:
+      - spring-boot-baseline
       - demo-service-a
       - demo-service-b
