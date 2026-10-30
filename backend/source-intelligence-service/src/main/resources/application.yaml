@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: source-intelligence-service
+
+server:
+  port: ${SERVER_PORT:0}
+
+management:
+  endpoints:
+    exposure:
+      include: health, info
