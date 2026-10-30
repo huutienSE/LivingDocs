@@ -1,0 +1,53 @@
+name: AI Service CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: S05 FastAPI Build and Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Lay source code tu GitHub
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # 2. Cai dat Python 3.12
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
+
+      # 3. Cai dependencies
+      - name: Install dependencies
+        working-directory: ai-service
+        run: python -m pip install -r requirements.txt
+
+      # 4. Kiem tra dependency conflicts
+      - name: Verify dependencies
+        working-directory: ai-service
+        run: python -m pip check
+
+      # 5. Kiem tra cu phap Python
+      - name: Check Python syntax
+        working-directory: ai-service
+        run: python -m compileall -q app
+
+      # 6. Kiem tra import FastAPI va health function
+      - name: FastAPI smoke test
+        working-directory: ai-service
+        run: |
+          python -c "from app.main import app, health; assert app is not None; assert health()['status'] == 'ok'"
