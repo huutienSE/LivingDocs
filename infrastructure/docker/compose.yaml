@@ -1,47 +1,24 @@
-name: livingdocs-poc
+name: livingdocs
 
 services:
-  spring-boot-baseline:
-    build:
-      context: ../../backend/spring-boot-baseline
-      dockerfile: Dockerfile
-    expose:
-      - "8080"
-
-
-  demo-service-a:
-    build:
-      context: ../../backend/demo-service-a
-      dockerfile: Dockerfile
-
-    ports:
-      - "127.0.0.1:${DEMO_A_HOST_PORT:-8082}:8082"
-
-  demo-service-b:
-    build:
-      context: ../../backend/demo-service-b
-      dockerfile: Dockerfile
-
-    ports:
-      - "127.0.0.1:${DEMO_B_HOST_PORT:-8083}:8083"
-
-  api-gateway:
-    build:
-      context: ../api-gateway
-      dockerfile: Dockerfile
-
-    ports:
-      - "127.0.0.1:${GATEWAY_HOST_PORT:-8081}:8081"
+  postgres:
+    image: postgres:17
 
     environment:
-      SERVER_ADDRESS: "0.0.0.0"
-      GATEWAY_PORT: "8081"
+      POSTGRES_DB: livingdocs
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
 
-      GATEWAY_BACKEND_URI: "http://spring-boot-baseline:8080"
-      DEMO_SERVICE_A_URI: "http://demo-service-a:8082"
-      DEMO_SERVICE_B_URI: "http://demo-service-b:8083"
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-    depends_on:
-      - spring-boot-baseline
-      - demo-service-a
-      - demo-service-b
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
