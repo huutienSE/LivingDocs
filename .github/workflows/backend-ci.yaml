@@ -132,8 +132,7 @@ jobs:
             --dbname livingdocs \
             --no-align \
             --tuples-only \
-            --set schema_name="$DB_SCHEMA" \
-            --command 'SELECT count(*) FROM :"schema_name".flyway_schema_history WHERE success;')
+            --command "SELECT count(*) FROM ${DB_SCHEMA}.flyway_schema_history WHERE success;")
 
           echo "Successful Flyway migrations: $MIGRATION_COUNT"
 
@@ -148,8 +147,7 @@ jobs:
             --dbname livingdocs \
             --no-align \
             --tuples-only \
-            --set schema_name="$DB_SCHEMA" \
-            --command "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = :'schema_name' AND c.relkind = 'r' AND c.relrowsecurity;")
+            --command "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '${DB_SCHEMA}' AND c.relkind = 'r' AND c.relrowsecurity;")
 
           echo "Tables with RLS enabled: $RLS_COUNT"
 
