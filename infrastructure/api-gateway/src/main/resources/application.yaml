@@ -1,46 +1,33 @@
-server: # nhóm cấu hình http server
-  # địa chỉ và port mà server listen
+# cấu hình cho server gateway
+server:
   address: 127.0.0.1
-  port: ${GATEWAY_PORT:8081} # lấy biến cấu hình GATEWAY_PORT, nếu ko có thì lấy 8081
+  port: ${GATEWAY_PORT:8081}
 
+#cấu hình spring application và bảo mạt OAuth2 Resource Server
 spring:
   application:
     name: livingdocs-api-gateway
+  # gateway khai báo như một oauth, xác thực các req qua JWT
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI}
+          audiences:
+            - ${JWT_AUDIENCE}
 
-  cloud:
-    gateway:
-      server:
-        webflux:
-          routes:
-            - id: spring-boot-baseline
-              uri: ${GATEWAY_BACKEND_URI:http://127.0.0.1:8080}
-              predicates:
-                - Path=/backend/**
-              filters:
-                - StripPrefix=1
+#cấu hình FE được phép gọi đến, không bị chặn
+gateway:
+  cors:
+    allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:3000}
 
-              #Demo Service A TECH-06
-            - id: demo-service-a
-              uri: ${DEMO_SERVICE_A_URI:http://127.0.0.1:8082}
-              predicates:
-                - Path=/service-a/**
-              filters:
-                - StripPrefix=1
-
-              #Demo Service B TECH-06
-            - id: demo-service-b
-              uri: ${DEMO_SERVICE_B_URI:http://127.0.0.1:8083}
-              predicates:
-                - Path=/service-b/**
-              filters:
-                - StripPrefix=1
-
+#cấu hình giám sát hệ thống
 management:
-  endpoint:
-    gateway:
-      access: read-only
+  server:
+    port: ${GATEWAY_MANAGEMENT_PORT:9091}
+    address: 127.0.0.1
 
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info
