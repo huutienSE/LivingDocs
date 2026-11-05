@@ -14,9 +14,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  # Services that require PostgreSQL and Flyway
+  build-db-services:
     name: Build ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -24,21 +26,158 @@ jobs:
         include:
           - name: S01 Identity
             path: backend/identity-organization-service
+            db_schema: identity
+            app_role: ld_s01_app
+            migrator_role: ld_s01_migrator
+            expected_migrations: 2
+            expected_rls_tables: 2
+
           - name: S02 Repository
             path: backend/repository-integration-service
-          - name: S03 Intelligence
-            path: backend/source-intelligence-service
+            db_schema: repository
+            app_role: ld_s02_app
+            migrator_role: ld_s02_migrator
+            expected_migrations: 1
+            expected_rls_tables: 9
+
           - name: S04 Document
             path: backend/document-governance-service
+            db_schema: document
+            app_role: ld_s04_app
+            migrator_role: ld_s04_migrator
+            expected_migrations: 1
+            expected_rls_tables: 12
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: livingdocs
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d livingdocs"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/livingdocs
+      DB_SCHEMA: ${{ matrix.db_schema }}
+      DB_USERNAME: ${{ matrix.app_role }}
+      DB_PASSWORD: ci_password
+      FLYWAY_USERNAME: ${{ matrix.migrator_role }}
+      FLYWAY_PASSWORD: ci_password
+      SPRING_PROFILES_ACTIVE: db
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.path }}/pom.xml
+
+      - name: Bootstrap PostgreSQL roles and schema
+        env:
+          PGPASSWORD: postgres
+          APP_ROLE: ${{ matrix.app_role }}
+          MIGRATOR_ROLE: ${{ matrix.migrator_role }}
+          DB_SCHEMA: ${{ matrix.db_schema }}
+        run: |
+          psql \
+            --host localhost \
+            --username postgres \
+            --dbname livingdocs \
+            --set ON_ERROR_STOP=1 \
+            --set app_role="$APP_ROLE" \
+            --set migrator_role="$MIGRATOR_ROLE" \
+            --set schema_name="$DB_SCHEMA" <<'SQL'
+          CREATE ROLE :"migrator_role"
+            LOGIN PASSWORD 'ci_password';
+
+          CREATE ROLE :"app_role"
+            LOGIN PASSWORD 'ci_password';
+
+          GRANT CONNECT ON DATABASE livingdocs
+            TO :"migrator_role", :"app_role";
+
+          CREATE SCHEMA :"schema_name"
+            AUTHORIZATION :"migrator_role";
+
+          GRANT USAGE ON SCHEMA :"schema_name"
+            TO :"app_role";
+          SQL
+
+      - name: Build and test with PostgreSQL and Flyway
+        working-directory: ${{ matrix.path }}
+        run: ./mvnw -B -ntp clean verify
+
+      - name: Verify Flyway migrations and RLS
+        env:
+          PGPASSWORD: postgres
+          DB_SCHEMA: ${{ matrix.db_schema }}
+          EXPECTED_MIGRATIONS: ${{ matrix.expected_migrations }}
+          EXPECTED_RLS_TABLES: ${{ matrix.expected_rls_tables }}
+        run: |
+          MIGRATION_COUNT=$(psql \
+            --host localhost \
+            --username postgres \
+            --dbname livingdocs \
+            --no-align \
+            --tuples-only \
+            --command "SELECT count(*) FROM ${DB_SCHEMA}.flyway_schema_history WHERE success;")
+
+          echo "Successful Flyway migrations: $MIGRATION_COUNT"
+
+          if [ "$MIGRATION_COUNT" -ne "$EXPECTED_MIGRATIONS" ]; then
+            echo "::error::Expected $EXPECTED_MIGRATIONS successful migrations, got $MIGRATION_COUNT"
+            exit 1
+          fi
+
+          RLS_COUNT=$(psql \
+            --host localhost \
+            --username postgres \
+            --dbname livingdocs \
+            --no-align \
+            --tuples-only \
+            --command "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '${DB_SCHEMA}' AND c.relkind = 'r' AND c.relrowsecurity;")
+
+          echo "Tables with RLS enabled: $RLS_COUNT"
+
+          if [ "$RLS_COUNT" -ne "$EXPECTED_RLS_TABLES" ]; then
+            echo "::error::Expected $EXPECTED_RLS_TABLES RLS-enabled tables, got $RLS_COUNT"
+            exit 1
+          fi
+
+          echo "Database migration and RLS verification passed."
+
+  # Services that do not require the database profile
+  build-non-db-services:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: S03 Intelligence
+            path: backend/source-intelligence-service
+
           - name: API Gateway
             path: infrastructure/api-gateway
 
     steps:
-      # Checkout ma nguon
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # Cai JDK java 21
       - name: Setup Java 21
         uses: actions/setup-java@v6
         with:

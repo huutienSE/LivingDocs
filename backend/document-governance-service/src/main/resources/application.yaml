@@ -1,6 +1,10 @@
 spring:
   application:
     name: document-governance-service
+  config:
+    import: "optional:file:./.env[.properties]"
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:}
 
 server:
   port: ${SERVER_PORT:0}
