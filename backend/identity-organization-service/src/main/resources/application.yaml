@@ -1,6 +1,11 @@
 spring:
   application:
     name: identity-organization-service
+  config:
+    import: "optional:file:./.env[.properties]"
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:}
+
 server:
   port: ${SERVER_PORT:0}
 
