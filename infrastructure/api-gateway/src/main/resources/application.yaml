@@ -7,6 +7,11 @@ server:
 spring:
   application:
     name: livingdocs-api-gateway
+  # Nạp .env trong thư mục chạy Gateway
+
+  config:
+    import: "optional:file:./.env[.properties]"
+
   # gateway khai báo như một oauth, xác thực các req qua JWT
   security:
     oauth2:
@@ -64,6 +69,9 @@ spring:
               predicates:
                 - Path=/api/v1/document-versions/{versionId}/staff-decisions,/api/v1/document-versions/{versionId}/manager-decisions,/api/v1/document-versions/{versionId}/publish
                 - Method=POST
+          httpclient:
+            connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:2000}
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:5s}
 
 
 

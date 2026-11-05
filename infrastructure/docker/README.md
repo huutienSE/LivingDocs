@@ -1,73 +1,71 @@
-# LivingDocs — Local Docker PoC
 
-**Jira:** TECH-11 (LIV-61)
+# LivingDocs — PostgreSQL Local Environment
 
-## Prerequisites
+## Yêu cầu
 
-- Docker Engine / Docker Desktop
+- Docker Desktop hoặc Docker Engine
 - Docker Compose
+- PostgreSQL 17 chạy trong container
 
-## Components
+## Cấu hình
 
-| Application | Host Port | Container Port |
-|---|---|---|
-| API Gateway | 8081 | 8081 |
-| Demo Service A | 8082 | 8082 |
-| Demo Service B | 8083 | 8083 |
+Trong thư mục `infrastructure/docker`:
 
-## Startup
+1. Copy `.env.example` thành `.env`.
+2. Điền mật khẩu PostgreSQL local.
+3. Không commit `.env`.
 
-From the LivingDocs repository root:
+Nếu PostgreSQL đã có volume dữ liệu, phải sử dụng
+mật khẩu PostgreSQL hiện tại. Đổi mật khẩu trong `.env`
+không tự thay đổi password đã lưu trong database.
 
-```bash
-cd infrastructure/docker
+## Khởi động
 
-cp .env.example .env
+Chạy từ thư mục `infrastructure/docker`:
 
+```powershell
 docker compose config
-
-docker compose up --build -d
-```
-
-## Verify
-
-```bash
+docker compose up -d postgres
 docker compose ps
-
-curl -i http://127.0.0.1:8081/service-a/api/identity
-
-curl -i http://127.0.0.1:8081/service-b/api/identity
-
-curl -i http://127.0.0.1:8081/actuator/health
-
-curl -i http://127.0.0.1:8082/actuator/health
-
-curl -i http://127.0.0.1:8083/actuator/health
 ```
 
-Expected routing results:
+## Dừng
 
-- Service A: HTTP 200, `{"service":"A"}`
-- Service B: HTTP 200, `{"service":"B"}`
-- Health endpoints: HTTP 200, status `UP`
-
-## Logs
-
-```bash
-docker compose logs --tail=100
+```powershell
+docker compose stop postgres
 ```
 
-## Shutdown
+Không sử dụng `docker compose down -v` để dừng thông thường,
+vì lệnh đó xóa named volumes và có nguy cơ mất dữ liệu local.
 
-```bash
-docker compose down
+## Database và schema
+
+Database: `livingdocs`
+
+Các schema do từng domain service sở hữu:
+
+- `identity` — S01
+- `repository` — S02
+- `document` — S04
+
+Mỗi service sử dụng hai tài khoản riêng:
+
+- Application role — truy cập dữ liệu theo quyền được cấp.
+- Flyway migrator role — thực thi database migrations.
+
+Database roles và schema phải được khởi tạo bởi bước
+database bootstrap đã thống nhất; tạo `.env` không tự tạo role.
+
+## Chạy backend
+
+S01/S02/S04 chạy độc lập trong IntelliJ ở local.
+
+Mỗi module có:
+
+- `.env.example`: mẫu cấu hình đưa lên Git.
+- `.env`: cấu hình local chứa mật khẩu.
+- `application.yaml`: nạp `.env`.
+- `application-db.yaml`: datasource và Flyway.
+
+Spring profile `db` kích hoạt cấu hình PostgreSQL/Flyway.
 ```
-
-## Notes and limitations
-
-- This configuration is for the local technical PoC only.
-- Containers communicate through Docker Compose service names.
-- Published HTTP ports are restricted to the host loopback interface.
-- The `/backend/**` route from TECH-05 is retained, but Spring Boot Baseline is not part of this three-service Compose environment.
-- `depends_on` does not guarantee application readiness.
-- Final LivingDocs deployment topology remains subject to architecture review at G2.
