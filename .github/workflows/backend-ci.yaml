@@ -45,7 +45,7 @@ jobs:
             db_schema: document
             app_role: ld_s04_app
             migrator_role: ld_s04_migrator
-            expected_migrations: 1
+            expected_migrations: 2
             expected_rls_tables: 12
 
     services:
@@ -117,6 +117,9 @@ jobs:
 
       - name: Build and test with PostgreSQL and Flyway
         working-directory: ${{ matrix.path }}
+        env:
+          S04_USE_CI_DATABASE: ${{ matrix.db_schema == 'document' }}
+          S04_TEST_ADMIN_PASSWORD: postgres
         run: ./mvnw -B -ntp clean verify
 
       - name: Verify Flyway migrations and RLS
