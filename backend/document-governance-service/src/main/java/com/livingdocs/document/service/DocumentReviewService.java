@@ -1,0 +1,74 @@
+package com.livingdocs.document.service;
+
+import com.livingdocs.document.domain.*;
+import com.livingdocs.document.dto.*;
+import com.livingdocs.document.repository.*;
+import com.livingdocs.document.security.ActorContext;
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class DocumentReviewService {
+    private final DocumentVersionRepository versions;
+    private final ReviewDecisionRepository decisions;
+    private final DocumentAuditRepository audits;
+    private final ReviewTransitionPolicy policy;
+
+    public DocumentReviewService(DocumentVersionRepository versions, ReviewDecisionRepository decisions,
+                                 DocumentAuditRepository audits, ReviewTransitionPolicy policy) {
+        this.versions = versions;
+        this.decisions = decisions;
+        this.audits = audits;
+        this.policy = policy;
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewResponse get(UUID versionId, ActorContext actor) {
+        versions.setTenant(actor.tenantId());
+        var version = versions.find(versionId, actor.tenantId(), false).orElseThrow(ReviewException::notFound);
+        actor.requireStaffReview(version);
+        return ReviewResponse.from(version);
+    }
+
+    @Transactional
+    public ReviewResponse review(UUID versionId, ReviewRequest request, long expectedRevision,
+                                 String key, ActorContext actor, String correlationId) {
+        if (expectedRevision < 0 || key == null || !key.matches("[A-Za-z0-9._:-]{1,128}")) {
+            throw new ReviewException(400, "INVALID_REQUEST", "A valid revision and Idempotency-Key are required.");
+        }
+        versions.setTenant(actor.tenantId());
+        // Serialize decisions for the same version, including retries and review-round allocation.
+        // Scope rows stay share-locked so a concurrent move cannot invalidate authorization.
+        var before = versions.find(versionId, actor.tenantId(), true).orElseThrow(ReviewException::notFound);
+        actor.requireStaffReview(before);
+        var previous = decisions.findRequest(actor.tenantId(), versionId, actor.identityId(), key);
+        if (previous.isPresent()) {
+            var d = previous.get();
+            if (d.expectedRevision() != expectedRevision || d.decision() != request.decision()
+                    || !Objects.equals(d.feedback(), request.feedback()) || !d.evidenceRefs().equals(request.evidenceRefs())) {
+                throw new ReviewException(409, "IDEMPOTENCY_CONFLICT", "Idempotency-Key was already used for another request.");
+            }
+            return ReviewResponse.from(d);
+        }
+        if (before.revision() != expectedRevision) throw ReviewException.revisionConflict();
+        policy.requireStaffReview(before, request.decision(), request.feedback(), request.evidenceRefs());
+        for (UUID evidence : request.evidenceRefs()) {
+            if (!versions.hasEvidence(actor.tenantId(), versionId, evidence)) {
+                throw new ReviewException(422, "REVIEW_EVIDENCE_INVALID", "Evidence must belong to this document version.");
+            }
+        }
+        var after = before.reviewed(request.decision());
+        var now = Instant.now();
+        var decision = new ReviewDecision(UUID.randomUUID(), actor.tenantId(), versionId, actor.identityId(),
+                request.decision(), request.feedback(), decisions.nextRound(actor.tenantId(), versionId), key,
+                expectedRevision, after.revision(), after.state(), after.reviewStage(), request.evidenceRefs(), now);
+        versions.update(before, after);
+        decisions.insert(decision);
+        audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now));
+        // JDBC statements execute immediately; any failure rolls back all three writes.
+        return ReviewResponse.from(decision);
+    }
+}

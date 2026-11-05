@@ -1,0 +1,201 @@
+openapi: 3.0.3
+info:
+  title: LivingDocs S04 Staff Review
+  version: 0.1.0
+  description: >-
+    LIV-118 implementation slice of LD-API-001 API-106/API-120.
+    Contract candidate for review; GET currently exposes review state only and requires Staff scope.
+    S01 scoped JWT claims are an integration candidate, not an approved S01 wire contract.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/document-versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      operationId: getDocumentReviewState
+      summary: Read persisted review state and its strong ETag
+      responses:
+        '200':
+          $ref: '#/components/responses/Version'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+  /api/v1/document-versions/{versionId}/staff-decisions:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      operationId: recordStaffDecision
+      summary: PASS to Manager Approval or return the same version to Draft
+      description: >-
+        Serializes changes to the version and commits state, decision and audit atomically.
+        Idempotency is scoped by tenant, version, reviewer and operation. An exact retry
+        (including original If-Match, feedback and ordered evidenceRefs) returns the original
+        response/ETag, even after restart. Changed content with that key returns 409.
+        A new key with an obsolete If-Match returns 412. No client-supplied target state is accepted.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: Exact strong ETag returned for this version; missing is 428, malformed is 400.
+          schema:
+            type: string
+          example: '"e12de65e-40c5-4c73-a53a-6529064c2eb4:revision-0"'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9._:-]{1,128}$'
+          description: Missing or malformed key returns 400. Stored with the append-only decision.
+        - name: X-Correlation-ID
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 1-64 ASCII letters, digits or hyphens; otherwise the server generates a UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffDecisionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Version'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 JWT verified against configured S01 issuer, JWKS, audience and expiration.
+  parameters:
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    StaffDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [PASS, RETURN_FOR_REVISION]
+        feedback:
+          type: string
+          nullable: true
+          description: Required and nonblank for RETURN_FOR_REVISION; stored verbatim as decision reason.
+        evidenceRefs:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: uuid
+          description: >-
+            PASS requires at least one S04 document_evidence_id belonging to this tenant/version.
+            Omitted or null becomes an empty list. Source-derived versions also require a bound SHA.
+            Local persisted evidence checks do not assert current GitHub head freshness.
+    DocumentVersionReviewView:
+      type: object
+      additionalProperties: false
+      required: [versionId, state, reviewStage, revision]
+      properties:
+        versionId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, NEEDS_REVALIDATION, REJECTED, SUPERSEDED]
+        reviewStage:
+          type: string
+          nullable: true
+          enum: [STAFF_REVIEW, MANAGER_APPROVAL, null]
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, correlationId]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+          description: Opaque urn:uuid occurrence identifier; does not reveal a resource path.
+        code:
+          type: string
+          enum: [INVALID_REQUEST, INVALID_IF_MATCH, UNAUTHENTICATED, REVIEW_FORBIDDEN,
+                 DOCUMENT_VERSION_NOT_FOUND, STATE_TRANSITION_FORBIDDEN, IDEMPOTENCY_CONFLICT,
+                 CONCURRENT_REVIEW, REVISION_CONFLICT, RETURN_REASON_REQUIRED, REVIEW_EVIDENCE_REQUIRED,
+                 REVIEW_EVIDENCE_INVALID, SOURCE_EVIDENCE_INSUFFICIENT, PRECONDITION_REQUIRED, PERSISTENCE_ERROR]
+        correlationId:
+          type: string
+  responses:
+    Version:
+      description: Persisted review state (original result for an idempotent replay).
+      headers:
+        ETag:
+          description: Strong version-bound ETag for the returned representation.
+          schema:
+            type: string
+        X-Correlation-ID:
+          schema:
+            type: string
+        Cache-Control:
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DocumentVersionReviewView'
+    Problem:
+      description: Typed denial or persistence failure; no review mutation is committed.
+      headers:
+        X-Correlation-ID:
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
