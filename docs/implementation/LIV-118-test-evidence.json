@@ -1,0 +1,54 @@
+{
+  "issue": "LIV-118",
+  "implementationCommit": "790fb4515185b91a46e0de79b8b48211b87bdd14",
+  "command": "mvnw.cmd -B -ntp verify",
+  "completedAt": "2026-11-05T22:19:31+07:00",
+  "result": "BUILD SUCCESS",
+  "logSha256": "147C7304730EAA3C812F0C4915AFE1C9F24B2591E1B75F378F7F720EF2F77189",
+  "suites": [
+    {
+      "suite": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.livingdocs.document.ReviewApiIntegrationTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.livingdocs.document.ReviewMigrationIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.livingdocs.document.ReviewRestartIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.livingdocs.document.ReviewTransitionPolicyTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "scope": "Local PostgreSQL tests; not GitHub CI or independent approval",
+  "workingTreeException": "Existing application-db.yaml changes excluded from commit; tests override datasource properties"
+}
