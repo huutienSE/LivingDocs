@@ -15,6 +15,57 @@ spring:
           issuer-uri: ${JWT_ISSUER_URI}
           audiences:
             - ${JWT_AUDIENCE}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # S01 — Identity & Organization
+            - id: s01-public-auth
+              uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+              predicates:
+                - Path=/api/v1/auth/register,/api/v1/auth/login
+                - Method=POST
+
+            - id: s01-user-profile
+              uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+              predicates:
+                - Path=/api/v1/users/me,/api/v1/tenants/current
+                - Method=GET
+
+            # S02 — Repository Integration
+            - id: s02-repository-connection
+              uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+              predicates:
+                - Path=/api/v1/repositories/{repositoryId}/connection
+                - Method=GET
+
+            - id: s02-workspace-connections
+              uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+              predicates:
+                - Path=/api/v1/workspaces/{workspaceId}/repository-connections
+                - Method=GET,POST
+
+            # S04 — Document Governance
+            - id: s04-workspace-documents
+              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+              predicates:
+                - Path=/api/v1/workspaces/{workspaceId}/documents
+                - Method=GET,POST
+
+            - id: s04-document-details
+              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+              predicates:
+                - Path=/api/v1/documents/{documentId}
+                - Method=GET
+
+            - id: s04-governance-actions
+              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+              predicates:
+                - Path=/api/v1/document-versions/{versionId}/staff-decisions,/api/v1/document-versions/{versionId}/manager-decisions,/api/v1/document-versions/{versionId}/publish
+                - Method=POST
+
+
 
 #cấu hình FE được phép gọi đến, không bị chặn
 gateway:
