@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { json, mockFetch } from '../../test/fetchMock';
 import { apiRequest } from './http';
-import { ApiError, NetworkError, describeError } from './problem';
+import {
+  ApiError,
+  NetworkError,
+  describeError,
+  toProblem,
+} from './problem';
 import { clearSession, getAccessToken, login, refreshAccessToken } from './session';
 import {logout} from "./session";
 
@@ -91,6 +96,61 @@ describe('session + http client', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe('FORBIDDEN_SCOPE');
     expect(describeError(err)).toMatch(/không có quyền/);
+  });
+
+  it('uses the actual HTTP status and reads the backend error code', async () => {
+    const response = json(422, {
+      status: 400,
+      code: 'REVIEW_EVIDENCE_REQUIRED',
+      detail: 'PASS requires stored review evidence.',
+      correlationId: 'request-123',
+    });
+
+    const problem = await toProblem(response);
+
+    expect(problem.status).toBe(422);
+    expect(problem.code).toBe('REVIEW_EVIDENCE_REQUIRED');
+    expect(problem.correlationId).toBe('request-123');
+  });
+
+  it('handles a null JSON error body safely', async () => {
+    const response = json(500, null);
+
+    const problem = await toProblem(response);
+
+    expect(problem.status).toBe(500);
+    expect(describeError(new ApiError(problem))).toContain(
+      'tạm thời không khả dụng',
+    );
+  });
+
+  it('handles a non-JSON error and preserves the correlation header', async () => {
+    const response = new Response('<html>Service unavailable</html>', {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/html',
+        'X-Correlation-ID': 'gateway-123',
+      },
+    });
+
+    const problem = await toProblem(response);
+
+    expect(problem.status).toBe(503);
+    expect(problem.correlationId).toBe('gateway-123');
+    expect(problem.detail).toBeUndefined();
+  });
+
+  it('handles malformed JSON without losing the HTTP status', async () => {
+    const response = new Response('{invalid', {
+      status: 502,
+      headers: {
+        'Content-Type': 'application/problem+json',
+      },
+    });
+
+    await expect(toProblem(response)).resolves.toMatchObject({
+      status: 502,
+    });
   });
 
   it('maps network failures to NetworkError, not a business outcome', async () => {

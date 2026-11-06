@@ -41,16 +41,28 @@ export class NetworkError extends Error {
 }
 
 export async function toProblem(response: Response): Promise<Problem> {
+  const fallback: Problem = {
+    status: response.status,
+    title: response.statusText || undefined,
+    correlationId:
+      response.headers.get('X-Correlation-ID') || undefined,
+  };
+
   const contentType = response.headers.get('Content-Type') ?? '';
   if (contentType.includes('json')) {
     try {
       const body = (await response.json()) as Partial<Problem>;
-      return { ...body, status: typeof body.status === 'number' ? body.status : response.status };
+      return {
+        ...body,
+        status: response.status,
+        title: body?.title ?? fallback.title,
+        correlationId: body?.correlationId ?? fallback.correlationId,
+      };
     } catch {
       // fall through to a generic problem
     }
   }
-  return { status: response.status, title: response.statusText || undefined };
+  return fallback;
 }
 
 /**
@@ -69,7 +81,7 @@ export function describeError(error: unknown): string {
     case 'STATE_TRANSITION_FORBIDDEN':
       return 'Phiên bản không còn ở bước Staff Review nên không thể ra quyết định.';
     case 'REVISION_CONFLICT':
-      return 'Phiên bản vừa được người khác cập nhật. Dữ liệu đã được tải lại, vui lòng kiểm tra rồi thử lại.';
+      return 'Phiên bản vừa được người khác cập nhật. Vui lòng tải lại và kiểm tra trước khi thử lại.';
     case 'IDEMPOTENCY_CONFLICT':
       return 'Yêu cầu trùng khóa nhưng nội dung khác. Vui lòng thử lại.';
     case 'SOURCE_CHANGED_REVALIDATION_REQUIRED':
@@ -95,6 +107,7 @@ export function describeError(error: unknown): string {
       return 'Thiếu điều kiện phiên bản (If-Match). Vui lòng tải lại trang.';
     case 429:
       return 'Bạn thao tác quá nhanh, vui lòng thử lại sau.';
+    case 500:
     case 502:
     case 503:
     case 504:
