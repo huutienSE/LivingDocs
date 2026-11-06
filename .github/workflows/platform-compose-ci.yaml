@@ -49,11 +49,11 @@ jobs:
 
       - name: Verify Redis
         run: |
-          docker compose exec -T redis redis-cli ping | grep PONG
+          docker compose --profile platform exec -T redis redis-cli ping | grep PONG
 
       - name: Verify Kafka
         run: |
-          docker compose exec -T kafka \
+          docker compose --profile platform exec -T kafka \
             /opt/kafka/bin/kafka-topics.sh \
             --bootstrap-server kafka:19092 --list
 
