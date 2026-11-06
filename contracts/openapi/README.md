@@ -1,54 +1,63 @@
+# LivingDocs — OpenAPI Sprint 3 (LIV-133)
 
-# LivingDocs — OpenAPI Contracts
+## Nguồn và trạng thái
 
-## 1. Mục đích
+- Thiết kế nghiệp vụ: [LD-API-001 v0.4](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/11337744), LIV-80.
+- Chuẩn hóa và phối hợp tích hợp: [LIV-133](https://huutiense25.atlassian.net/browse/LIV-133), parent LIV-100.
+- Danh mục máy đọc được: `sprint3-route-inventory.json` (112 API; 91 public method/path được allowlist).
+- Sai khác FE–Gateway–Service: `sprint3-inventory.md` và `docs/implementation/LIV-133-contract-alignment.md`.
 
-Thư mục này lưu các hợp đồng HTTP API của LivingDocs.
+**Lưu ý:** `CANDIDATE`, `PLANNED`, `IN_PROGRESS` không đồng nghĩa với đã có controller. `x-contract-state` đánh dấu tình trạng. Tên DTO có trong LD-API-001 chưa chắc đã có schema field-level; các operation như vậy sử dụng `CandidateObject` và bắt buộc owner xác nhận DTO trước khi codegen/đánh dấu API stable. Không tự nhận một YAML rộng với schema placeholder là hợp đồng đã hoàn tất.
 
-Nguồn thiết kế: LD-API-001 v0.4 (LIV-80).
-Task chuẩn hóa Sprint 3: LIV-133.
+## File theo service
 
-## 2. Quy tắc quản lý
-
-- Mỗi service sở hữu contract của chính mình.
-- Frontend, Gateway và backend phải dùng thống nhất method, path, headers, DTO và error codes.
-- Contract được sửa cùng PR khi có thay đổi API.
-- Không coi API đã triển khai nếu mới có OpenAPI YAML.
-- Không dùng API candidate làm bằng chứng E2E PASS.
-
-## 3. Trạng thái API
-
-- IMPLEMENTED: Có controller/runtime và bằng chứng kiểm thử.
-- IN_PROGRESS: Đang triển khai trong PR hoặc branch.
-- CANDIDATE: Đề xuất, chờ service owner xác nhận.
-- PLANNED: Có trong kế hoạch nhưng chưa triển khai.
-
-Trạng thái API được theo dõi trong `sprint3-inventory.md`.
-
-## 4. Các service
-
-| Service | Trách nhiệm |
+| File | Nội dung |
 | --- | --- |
-| S01 | Identity, JWT, tenant và workspace |
-| S02 | Repository integration, source validation |
-| S03 | Source intelligence |
-| S04 | Document review, approval, publish |
-| S05 | AI semantic processing |
+| `s01-identity.yaml` | S01 auth/tenant/workspace/roles; cookie endpoints ở trạng thái blocked |
+| `s02-repository.yaml` | S02 repository connections, GitHub, authoritative source SHA internal |
+| `s03-intelligence.yaml` | S03 analysis jobs, drift, evidence (candidate) |
+| `s04-document.yaml` | S04 version, review queue/context, approval, publish, export, collections |
+| `s04-document-review.yaml` | API-120 Staff Decision thuộc PR LIV-118; **không duplicate** vào `s04-document.yaml`, sau merge file từ PR #20 trở thành authoritative |
+| `s05-ai.yaml` | Health baseline runtime S05; AI internal candidate, không route Gateway |
 
-## 5. Quy ước hợp đồng
+## Security & routing
 
-- Public API sử dụng prefix `/api/v1`.
-- Không đưa `/internal/v1` hoặc Swagger nội bộ ra Gateway.
-- Xác thực và phân quyền theo JWT, tenant, workspace và nghiệp vụ.
-- Lỗi theo `application/problem+json`, có `code` và `correlationId`.
-- Protected transitions phải mô tả `If-Match` và idempotency khi yêu cầu.
-- Không lưu credentials hoặc dữ liệu nhạy cảm trong examples.
-- Mọi thay đổi breaking phải được frontend và service owner xác nhận.
+- Public `/api/v1/` dùng explicit Method + Path; cấm route wildcard `/api/v1/**`.
+- Gateway coarse authentication; S01–S05 vẫn xác thực và kiểm resource/business authorization bên trong service.
+- **Không public**: `/internal/v1/**`, `/actuator/**`, `/v3/api-docs/**`, `/swagger-ui/**`, `/openapi.json`, S05 internal APIs.
+- GitHub webhook API-068 vẫn bị chặn khi chưa có S02 HMAC raw body, replay/duplicate guard.
+- Cookie-bearing `/api/v1/auth/refresh`, `/logout`, OAuth start/callback **chưa đưa lên Gateway** đến khi S01 session rotation + CSRF + CORS credentials đã được tích hợp và kiểm chứng. Không bật `allowCredentials=true` hoặc public refresh để “chạy demo”.
+- API candidate tuy đã định tuyến có thể trả 404 từ downstream, không phải PASS nghiệp vụ. Nếu service chưa chạy, có thể trả 503.
+- S03 DNS trong Compose Gateway phải dùng `http://source-intelligence-service:8080`, không dùng loopback giữa các container.
 
-## Files và kiểm tra
+## Quy ước HTTP
 
-- `s05-ai.yaml`: mô tả `GET /health` đã triển khai. `/metrics` không thuộc OpenAPI runtime do FastAPI cấu hình `include_in_schema=False`.
-- `sprint3-inventory.md`: inventory và các mismatch phải giải quyết.
-- `s04-document-review.yaml`: đang ở PR LIV-118; tiếp nhận khi PR merge, không tự ý ghi đè.
+- RFC 9457: `application/problem+json`, mở rộng `code` và `correlationId`.
+- GET version/review context và protected mutation phải trả strong `ETag`; `If-Match` thiếu → 428, stale → 412.
+- `Idempotency-Key` cho quyết định review/approval/publish và async jobs: cùng key + payload khác → 409.
+- EvidenceRefs của Staff Review là **S04 `document_evidence_id` UUID**, đúng tenant và version; không gửi source path/link tự do.
+- Bảo vệ quyền tenant/workspace/repository/role và current authorization của Manager/Publish phải được thực thi trong service.
+- TLS/HTTPS bắt buộc ở staging/demo/production theo LD-API-001 §2.2; local loopback HTTP không phải bằng chứng TLS.
 
-Workflow `.github/workflows/openapi-contract-ci.yaml` tự kiểm tra mọi `*.yaml` và `*.yml` ở thư mục này bằng `openapi-spec-validator`. Việc kiểm tra cú pháp/schema không thay thế contract test đối chiếu implementation.
+## CI, bằng chứng và quy trình cập nhật
+
+Workflow `.github/workflows/openapi-contract-ci.yaml`:
+1. Lint/validate OpenAPI YAML 3.0.3;
+2. Chạy `scripts/validate_gateway_openapi.py` để so các route Gateway với inventory, chặn đường dẫn internal/webhook/cookie-sensitive;
+3. Không coi syntax validation là E2E PASS.
+
+**macOS** — từ root repo:
+
+```bash
+python3 -m pip install openapi-spec-validator==0.7.2 PyYAML==6.0.3
+python3 scripts/validate_gateway_openapi.py
+```
+
+**Windows PowerShell** — từ root repo:
+
+```powershell
+py -3.12 -m pip install openapi-spec-validator==0.7.2 PyYAML==6.0.3
+py -3.12 scripts/validate_gateway_openapi.py
+```
+
+Khi một API được triển khai: update OpenAPI, DTO, Gateway allowlist, frontend caller và regression test trong cùng đợt tích hợp, đồng thời chuyển trạng thái inventory sau khi có evidence; owner từng service phê duyệt contract. Không tự merge API-115/116 nếu chưa có S04 implementation.

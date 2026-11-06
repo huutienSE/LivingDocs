@@ -1,29 +1,304 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
-  title: LivingDocs AI Service
+  title: LivingDocs S05 AI Service
   version: 0.1.0
-  description: >-
-    Hợp đồng health baseline của S05 FastAPI (LIV-117).
-    Metrics được ẩn khỏi OpenAPI runtime và không được mô tả ở đây.
+  description: S05 /health đã được triển khai. AI internal APIs từ LD-API-001 vẫn là CANDIDATE; chưa chứng minh execution
+    runtime, không công khai qua Gateway.
+x-livingdocs-source: LD-API-001 v0.4 / LIV-133
 paths:
+  /internal/v1/ai/executions:
+    post:
+      tags:
+        - S05 Internal
+      operationId: api164_post
+      summary: AI execution internal
+      description: 'LD-API-001 API-164. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-164
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '202':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': &id001
+          $ref: '#/components/responses/Problem'
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          description: Đổi payload với cùng key trả 409. Scope của key phải do owner xác nhận.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/ai/executions/{executionId}:
+    get:
+      tags:
+        - S05 Internal
+      operationId: api165_get
+      summary: AI execution status internal
+      description: 'LD-API-001 API-165. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-165
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /internal/v1/ai/executions/{executionId}/result:
+    get:
+      tags:
+        - S05 Internal
+      operationId: api166_get
+      summary: AI execution result internal
+      description: 'LD-API-001 API-166. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-166
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /internal/v1/ai/executions/{executionId}/cancel:
+    post:
+      tags:
+        - S05 Internal
+      operationId: api167_post
+      summary: Cancel execution internal
+      description: 'LD-API-001 API-167. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-167
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/ai/context/retrieval:
+    post:
+      tags:
+        - S05 Internal
+      operationId: api168_post
+      summary: Retrieve AI context internal
+      description: 'LD-API-001 API-168. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-168
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/ai/index-sync:
+    post:
+      tags:
+        - S05 Internal
+      operationId: api169_post
+      summary: AI index sync internal
+      description: 'LD-API-001 API-169. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-169
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
   /health:
     get:
       tags:
         - Operations
-      summary: Health check của tiến trình FastAPI
       operationId: health_health_get
+      summary: S05 health baseline có runtime evidence LIV-117
+      x-api-id: S05-HEALTH
+      x-contract-state: IMPLEMENTED
+      x-gateway-exposure: not-enabled
+      security: []
       responses:
         '200':
-          description: Tiến trình FastAPI đang hoạt động
+          description: Health response
           content:
             application/json:
               schema:
                 type: object
-                required: [status, service]
+                additionalProperties: false
+                required:
+                  - status
+                  - service
                 properties:
                   status:
                     type: string
-                    const: ok
+                    enum:
+                      - ok
                   service:
                     type: string
-                    const: livingdocs-ai
+                    enum:
+                      - livingdocs-ai
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Internal service identity; không public qua Gateway.
+  responses:
+    Problem:
+      description: RFC 9457 + LivingDocs code/correlationId
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + extension code/correlationId.
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - correlationId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+        correlationId:
+          type: string
+    CandidateObject:
+      type: object
+      additionalProperties: true
+      description: 'CHƯA CHỐT: shape DTO dự kiến theo LD-API-001; service owner phải thay bằng properties/required
+        cụ thể trước khi tuyên bố contract stable. Không dùng làm client codegen chính thức.'

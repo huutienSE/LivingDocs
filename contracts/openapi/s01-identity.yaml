@@ -1,0 +1,1044 @@
+openapi: 3.0.3
+info:
+  title: LivingDocs S01 — Sprint 3 Contract Candidates
+  version: 0.2.0
+  description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
+    thái. Domain owner phải duyệt request/response còn để CandidateObject.
+x-livingdocs-source: LD-API-001 v0.4 / LIV-133
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+        - S01 Public
+      operationId: api001_post
+      summary: Đăng ký người dùng
+      description: 'LD-API-001 API-001. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-001
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '201':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': &id001
+          $ref: '#/components/responses/Problem'
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - S01 Public
+      operationId: api002_post
+      summary: Đăng nhập, phát JWT và refresh cookie
+      description: 'LD-API-001 API-002. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-002
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - S01 Public
+      operationId: api003_post
+      summary: Đăng xuất có CSRF/session revocation
+      description: 'LD-API-001 API-003. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner. Chưa đưa qua Gateway khi cookie/CSRF và refresh rotation chưa được nghiệm
+        thu.'
+      x-api-id: API-003
+      x-contract-state: BLOCKED_SECURITY
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - S01 Public
+      operationId: api004_post
+      summary: Refresh rotation + CSRF
+      description: 'LD-API-001 API-004. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner. Chưa đưa qua Gateway khi cookie/CSRF và refresh rotation chưa được nghiệm
+        thu.'
+      x-api-id: API-004
+      x-contract-state: BLOCKED_SECURITY
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/auth/github/start:
+    get:
+      tags:
+        - S01 Public
+      operationId: api005_get
+      summary: GitHub OAuth start
+      description: 'LD-API-001 API-005. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-005
+      x-contract-state: BLOCKED_SECURITY
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security: []
+  /api/v1/auth/github/callback:
+    get:
+      tags:
+        - S01 Public
+      operationId: api006_get
+      summary: GitHub OAuth callback
+      description: 'LD-API-001 API-006. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-006
+      x-contract-state: BLOCKED_SECURITY
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security: []
+  /api/v1/users/me:
+    get:
+      tags:
+        - S01 Public
+      operationId: api007_get
+      summary: Hồ sơ người dùng
+      description: 'LD-API-001 API-007. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-007
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+    patch:
+      tags:
+        - S01 Public
+      operationId: api008_patch
+      summary: Sửa hồ sơ
+      description: 'LD-API-001 API-008. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-008
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfilePatch'
+  /api/v1/tenants/current:
+    get:
+      tags:
+        - S01 Public
+      operationId: api016_get
+      summary: Tenant hiện hành
+      description: 'LD-API-001 API-016. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-016
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+  /api/v1/tenants/{tenantId}:
+    get:
+      tags:
+        - S01 Public
+      operationId: api017_get
+      summary: Chi tiết tenant
+      description: 'LD-API-001 API-017. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-017
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+    patch:
+      tags:
+        - S01 Public
+      operationId: api018_patch
+      summary: Cập nhật tenant
+      description: 'LD-API-001 API-018. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-018
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/tenants/{tenantId}/invitations:
+    post:
+      tags:
+        - S01 Public
+      operationId: api019_post
+      summary: Mời thành viên
+      description: 'LD-API-001 API-019. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-019
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/tenants/{tenantId}/memberships:
+    get:
+      tags:
+        - S01 Public
+      operationId: api023_get
+      summary: Tenant memberships
+      description: 'LD-API-001 API-023. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-023
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/tenants/{tenantId}/memberships/{membershipId}:
+    patch:
+      tags:
+        - S01 Public
+      operationId: api024_patch
+      summary: Sửa membership
+      description: 'LD-API-001 API-024. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-024
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/tenants/{tenantId}/workspaces:
+    get:
+      tags:
+        - S01 Public
+      operationId: api028_get
+      summary: Danh sách workspaces
+      description: 'LD-API-001 API-028. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-028
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceList'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+    post:
+      tags:
+        - S01 Public
+      operationId: api029_post
+      summary: Tạo workspace
+      description: 'LD-API-001 API-029. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-029
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '201':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreateRequest'
+  /api/v1/workspaces/{workspaceId}:
+    get:
+      tags:
+        - S01 Public
+      operationId: api030_get
+      summary: Chi tiết workspace
+      description: 'LD-API-001 API-030. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-030
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+    patch:
+      tags:
+        - S01 Public
+      operationId: api031_patch
+      summary: Sửa workspace
+      description: 'LD-API-001 API-031. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-031
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/workspaces/{workspaceId}/memberships:
+    get:
+      tags:
+        - S01 Public
+      operationId: api033_get
+      summary: Thành viên workspace
+      description: 'LD-API-001 API-033. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-033
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceMembershipView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+    post:
+      tags:
+        - S01 Public
+      operationId: api034_post
+      summary: Gán thành viên
+      description: 'LD-API-001 API-034. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-034
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '201':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceMembershipView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceMembershipRequest'
+  /api/v1/workspaces/{workspaceId}/memberships/{membershipId}:
+    delete:
+      tags:
+        - S01 Public
+      operationId: api035_delete
+      summary: Gỡ thành viên
+      description: 'LD-API-001 API-035. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-035
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '204':
+          description: Không có response body.
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/workspaces/{workspaceId}/memberships/{membershipId}/roles:
+    put:
+      tags:
+        - S01 Public
+      operationId: api036_put
+      summary: Gán roles
+      description: 'LD-API-001 API-036. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-036
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceMembershipView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/workspaces/{workspaceId}/roles:
+    get:
+      tags:
+        - S01 Public
+      operationId: api037_get
+      summary: Danh mục roles
+      description: 'LD-API-001 API-037. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-037
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/users/me/access-context:
+    get:
+      tags:
+        - S01 Public
+      operationId: api038_get
+      summary: Access context của tôi
+      description: 'LD-API-001 API-038. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-038
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessContextView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Internal service identity; không public qua Gateway.
+  responses:
+    Problem:
+      description: RFC 9457 + LivingDocs code/correlationId
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + extension code/correlationId.
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - correlationId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+        correlationId:
+          type: string
+    CandidateObject:
+      type: object
+      additionalProperties: true
+      description: 'CHƯA CHỐT: shape DTO dự kiến theo LD-API-001; service owner phải thay bằng properties/required
+        cụ thể trước khi tuyên bố contract stable. Không dùng làm client codegen chính thức.'
+    AccessTokenView:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+            - Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      description: CANDIDATE — đăng ký local; các field khác do S01 xác nhận.
+    UserProfileView:
+      type: object
+      description: 'CANDIDATE S01: owner xác nhận field privacy, required và profile update.'
+      properties:
+        identityId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        activeTenantId:
+          type: string
+          format: uuid
+          nullable: true
+    UserProfilePatch:
+      type: object
+      description: 'CANDIDATE: cập nhật thông tin cá nhân, không nhận tenant roles.'
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+    TenantView:
+      type: object
+      description: 'CANDIDATE S01: tenant membership hiện hành phải được server kiểm.'
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        status:
+          type: string
+    WorkspaceCreateRequest:
+      type: object
+      description: 'CANDIDATE: S01 quyết định naming/validation, tenant lấy từ URI và principal, không đọc từ body.'
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+    WorkspaceView:
+      type: object
+      description: 'CANDIDATE S01: response dùng cho workspace list/detail.'
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+    WorkspaceList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceView'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          minimum: 0
+    WorkspaceMembershipView:
+      type: object
+      description: CANDIDATE; roles lấy theo membership authoritative.
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        identityId:
+          type: string
+          format: uuid
+        roles:
+          type: array
+          items:
+            type: string
+    WorkspaceMembershipRequest:
+      type: object
+      description: CANDIDATE. Membership phải thuộc tenant đang hoạt động.
+      properties:
+        identityId:
+          type: string
+          format: uuid
+        roles:
+          type: array
+          items:
+            type: string
+    AccessContextView:
+      type: object
+      description: 'CANDIDATE S01: chỉ xem scopes của current principal, không thay thế fresh authorization cho approve/publish.'
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        workspaceGrants:
+          type: array
+          items:
+            type: object
+            properties:
+              workspaceId:
+                type: string
+                format: uuid
+              roles:
+                type: array
+                items:
+                  type: string
+              repositoryIds:
+                type: array
+                items:
+                  type: string
+                  format: uuid

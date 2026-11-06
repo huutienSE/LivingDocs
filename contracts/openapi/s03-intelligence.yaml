@@ -1,0 +1,959 @@
+openapi: 3.0.3
+info:
+  title: LivingDocs S03 — Sprint 3 Contract Candidates
+  version: 0.2.0
+  description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
+    thái. Domain owner phải duyệt request/response còn để CandidateObject.
+x-livingdocs-source: LD-API-001 v0.4 / LIV-133
+paths:
+  /api/v1/analysis-jobs:
+    post:
+      tags:
+        - S03 Public
+      operationId: api077_post
+      summary: Tạo analysis job
+      description: 'LD-API-001 API-077. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-077
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '202':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAccepted'
+        '400': &id001
+          $ref: '#/components/responses/Problem'
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          description: Đổi payload với cùng key trả 409. Scope của key phải do owner xác nhận.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisJobCreateRequest'
+  /api/v1/analysis-jobs/{jobId}:
+    get:
+      tags:
+        - S03 Public
+      operationId: api078_get
+      summary: Trạng thái analysis job
+      description: 'LD-API-001 API-078. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-078
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJobView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID authoritative của service, định dạng chốt khi implementation hoàn thiện.
+  /api/v1/repositories/{repositoryId}/analysis-jobs:
+    get:
+      tags:
+        - S03 Public
+      operationId: api079_get
+      summary: Danh sách analysis jobs
+      description: 'LD-API-001 API-079. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-079
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJobList'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+  /api/v1/analysis-jobs/{jobId}/replay:
+    post:
+      tags:
+        - S03 Public
+      operationId: api080_post
+      summary: Replay analysis job
+      description: 'LD-API-001 API-080. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-080
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '202':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAccepted'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID authoritative của service, định dạng chốt khi implementation hoàn thiện.
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          description: Đổi payload với cùng key trả 409. Scope của key phải do owner xác nhận.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/analysis-jobs/{jobId}/evidence:
+    get:
+      tags:
+        - S03 Public
+      operationId: api081_get
+      summary: Analysis evidence
+      description: 'LD-API-001 API-081. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-081
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID authoritative của service, định dạng chốt khi implementation hoàn thiện.
+  /api/v1/repositories/{repositoryId}/drift-issues:
+    get:
+      tags:
+        - S03 Public
+      operationId: api082_get
+      summary: Drift issues
+      description: 'LD-API-001 API-082. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-082
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriftIssueList'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+  /api/v1/drift-issues/{driftIssueId}:
+    get:
+      tags:
+        - S03 Public
+      operationId: api083_get
+      summary: Drift issue detail
+      description: 'LD-API-001 API-083. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-083
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriftIssueView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/drift-issues/{driftIssueId}/history:
+    get:
+      tags:
+        - S03 Public
+      operationId: api084_get
+      summary: Drift issue history
+      description: 'LD-API-001 API-084. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-084
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+  /api/v1/drift-issues/{driftIssueId}/evidence:
+    get:
+      tags:
+        - S03 Public
+      operationId: api085_get
+      summary: Drift evidence
+      description: 'LD-API-001 API-085. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-085
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/drift-issues/{driftIssueId}/suggestions:
+    get:
+      tags:
+        - S03 Public
+      operationId: api086_get
+      summary: Drift suggestions
+      description: 'LD-API-001 API-086. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-086
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/drift-issues/{driftIssueId}/dismiss:
+    post:
+      tags:
+        - S03 Public
+      operationId: api087_post
+      summary: Dismiss drift guarded
+      description: 'LD-API-001 API-087. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-087
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriftIssueView'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/drift-issues/{driftIssueId}/suggestions/{suggestionId}/decisions:
+    post:
+      tags:
+        - S03 Public
+      operationId: api088_post
+      summary: Suggestion decisions
+      description: 'LD-API-001 API-088. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-088
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: driftIssueId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /api/v1/repositories/{repositoryId}/code-entities:
+    get:
+      tags:
+        - S03 Public
+      operationId: api089_get
+      summary: Code entities
+      description: 'LD-API-001 API-089. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-089
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/repositories/{repositoryId}/dependencies:
+    get:
+      tags:
+        - S03 Public
+      operationId: api090_get
+      summary: Dependency graph
+      description: 'LD-API-001 API-090. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-090
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/repositories/{repositoryId}/drift-metrics:
+    get:
+      tags:
+        - S03 Public
+      operationId: api091_get
+      summary: Drift metrics
+      description: 'LD-API-001 API-091. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-091
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /api/v1/repositories/{repositoryId}/drift-policy:
+    get:
+      tags:
+        - S03 Public
+      operationId: api092_get
+      summary: Drift policy
+      description: 'LD-API-001 API-092. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-092
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+    put:
+      tags:
+        - S03 Public
+      operationId: api093_put
+      summary: Cập nhật drift policy
+      description: 'LD-API-001 API-093. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
+        và xác nhận owner.'
+      x-api-id: API-093
+      x-contract-state: CANDIDATE
+      x-gateway-exposure: public
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repositoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/analysis-jobs:
+    post:
+      tags:
+        - S03 Internal
+      operationId: api096_post
+      summary: Nhận processing request internal
+      description: 'LD-API-001 API-096. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-096
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/revalidation/impact:
+    post:
+      tags:
+        - S03 Internal
+      operationId: api097_post
+      summary: Source revalidation impact
+      description: 'LD-API-001 API-097. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-097
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/analysis-jobs/{jobId}/outcome:
+    get:
+      tags:
+        - S03 Internal
+      operationId: api098_get
+      summary: Lookup analysis outcome
+      description: 'LD-API-001 API-098. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
+        có controller/CI và xác nhận owner.'
+      x-api-id: API-098
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
+      responses:
+        '200':
+          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateObject'
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID authoritative của service, định dạng chốt khi implementation hoàn thiện.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Internal service identity; không public qua Gateway.
+  responses:
+    Problem:
+      description: RFC 9457 + LivingDocs code/correlationId
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + extension code/correlationId.
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - correlationId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+        correlationId:
+          type: string
+    CandidateObject:
+      type: object
+      additionalProperties: true
+      description: 'CHƯA CHỐT: shape DTO dự kiến theo LD-API-001; service owner phải thay bằng properties/required
+        cụ thể trước khi tuyên bố contract stable. Không dùng làm client codegen chính thức.'
+    SourceBinding:
+      type: object
+      nullable: true
+      properties:
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        headSha:
+          type: string
+          nullable: true
+        targetKind:
+          type: string
+          nullable: true
+          enum:
+            - PR
+            - TRACKED_BRANCH
+        targetRef:
+          type: string
+          nullable: true
+        comparisonSha:
+          type: string
+          nullable: true
+        configRevision:
+          type: string
+          nullable: true
+        capturedAt:
+          type: string
+          format: date-time
+          nullable: true
+    JobAccepted:
+      type: object
+      description: CANDIDATE — operationId/jobId sẽ do owner S02/S03 chốt. 202 không có nghĩa job hoàn thành.
+      properties:
+        jobId:
+          type: string
+        operationId:
+          type: string
+    AnalysisJobCreateRequest:
+      type: object
+      description: 'CANDIDATE S03: job chạy async; source binding phải đúng snapshot do S02 cấp.'
+      properties:
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        targetKind:
+          type: string
+          enum:
+            - PR
+            - TRACKED_BRANCH
+        targetRef:
+          type: string
+        headSha:
+          type: string
+        comparisonSha:
+          type: string
+          nullable: true
+        configRevision:
+          type: string
+        analysisKind:
+          type: string
+    AnalysisJobView:
+      type: object
+      description: CANDIDATE S03, status enum chưa chốt với owner.
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        sourceBinding:
+          $ref: '#/components/schemas/SourceBinding'
+        createdAt:
+          type: string
+          format: date-time
+    AnalysisJobList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisJobView'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          minimum: 0
+    DriftIssueView:
+      type: object
+      description: CANDIDATE classification/severity theo proposal; workflow status do owner S03 xác nhận.
+      properties:
+        driftIssueId:
+          type: string
+          format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+          nullable: true
+        classification:
+          type: string
+          enum:
+            - REFERENTIAL
+            - SIGNATURE
+            - SEMANTIC
+        severity:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - CRITICAL
+        status:
+          type: string
+        sourceSha:
+          type: string
+    DriftIssueList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DriftIssueView'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          minimum: 0

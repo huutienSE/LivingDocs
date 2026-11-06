@@ -104,6 +104,7 @@ services:
       #giao tiep noi bo (docker, gateway,..)
       S01_SERVICE_URI: http://identity-organization-service:8080
       S02_SERVICE_URI: http://repository-integration-service:8080
+      S03_SERVICE_URI: http://source-intelligence-service:8080
       S04_SERVICE_URI: http://document-governance-service:8080
 
       JWT_ISSUER_URI: ${JWT_ISSUER_URI:-}
