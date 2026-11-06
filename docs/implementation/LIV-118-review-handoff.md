@@ -42,3 +42,11 @@ Thay đổi application-db.yaml đã có trước implementation không thuộc 
 ## Cập nhật sửa trước commit
 
 Đã bỏ GET API-106 và service đọc dành riêng Staff vì không đáp ứng inventory; giữ POST API-120. API-106/115/116 chưa triển khai, phân công 115/116 vẫn chờ owner xác nhận. Đã bỏ fallback postgres trong application-db.yaml. Adapter S01 tiếp tục là candidate. Restart test đọc state qua repository context mới và kiểm replay POST qua HTTP. Evidence mới ghi working tree cùng hash các file thay cho commit đã thu hồi. Các hàng mô tả GET candidate ở trên là lịch sử trước sửa.
+
+## Review findings xử lý ngày 06/11/2026
+
+- evidenceRefs: tối đa 100, không trùng, kiểm ở constructor trước khi DB/lock; lookup bằng một query theo tập hợp. Budget là lựa chọn implementation ban đầu cần reviewer đánh giá, không gán thành business requirement.
+- API-120: DocumentVersionView có documentId/sourceBinding. Các trường source chưa có trong DB trả null rõ ràng; không suy target ref/config/time từ SHA. Chưa thể tuyên bố đầy đủ source provenance cho dữ liệu legacy.
+- V3: response_snapshot giữ reply gốc, kể cả source context sau khi dữ liệu version thay đổi; backfill keyed V2 decisions từ immutable audit. Không đủ historical audit thì typed 409.
+- Verify sau sửa 17:46:54 UTC+7: 34 tests đạt; thêm negative input, response field assertions, replay snapshot và migration backfill checks.
+- PR #20 đã đồng bộ checklist CI của bfc1b00 và reviewer nhanhehehe; sửa đổi mới chưa commit/push nên chưa có CI mới, chưa đóng review findings trên GitHub.

@@ -39,19 +39,28 @@ public class ReviewDecisionRepository {
                 """).param("tenant", tenant).param("version", version).query(Integer.class).single();
     }
 
-    public void insert(ReviewDecision d) {
+    public com.livingdocs.document.dto.ReviewResponse response(ReviewDecision d) {
+        String snapshot = jdbc.sql("SELECT response_snapshot::text FROM document.review_decisions WHERE tenant_id=:tenant AND review_decision_id=:id")
+                .param("tenant", d.tenantId()).param("id", d.id()).query(String.class).single();
+        if (snapshot == null) throw new ReviewException(409, "REPLAY_SNAPSHOT_UNAVAILABLE",
+                "Historical response cannot be reconstructed from immutable audit.");
+        return json.readValue(snapshot, com.livingdocs.document.dto.ReviewResponse.class);
+    }
+
+    public void insert(ReviewDecision d, com.livingdocs.document.dto.ReviewResponse response) {
         jdbc.sql("""
                 INSERT INTO document.review_decisions (review_decision_id, tenant_id, document_version_id,
                     reviewer_identity_id, decision, reason, round_no, decided_at, idempotency_key,
-                    expected_revision, resulting_revision, resulting_state, resulting_stage, evidence_refs)
+                    expected_revision, resulting_revision, resulting_state, resulting_stage, evidence_refs, response_snapshot)
                 VALUES (:id, :tenant, :version, :actor, :decision, :reason, :round, :at, :key,
-                    :expected, :resulting, :state, :stage, CAST(:evidence AS jsonb))
+                    :expected, :resulting, :state, :stage, CAST(:evidence AS jsonb), CAST(:response AS jsonb))
                 """).param("id", d.id()).param("tenant", d.tenantId()).param("version", d.versionId())
                 .param("actor", d.reviewerId()).param("decision", d.decision().name()).param("reason", d.feedback())
                 .param("round", d.roundNo()).param("at", java.sql.Timestamp.from(d.decidedAt()))
                 .param("key", d.idempotencyKey()).param("expected", d.expectedRevision())
                 .param("resulting", d.resultingRevision()).param("state", d.resultingState().name())
                 .param("stage", d.resultingStage() == null ? null : d.resultingStage().name())
-                .param("evidence", json.writeValueAsString(d.evidenceRefs())).update();
+                .param("evidence", json.writeValueAsString(d.evidenceRefs()))
+                .param("response", json.writeValueAsString(response)).update();
     }
 }

@@ -45,7 +45,7 @@ jobs:
             db_schema: document
             app_role: ld_s04_app
             migrator_role: ld_s04_migrator
-            expected_migrations: 2
+            expected_migrations: 3
             expected_rls_tables: 12
 
     services:

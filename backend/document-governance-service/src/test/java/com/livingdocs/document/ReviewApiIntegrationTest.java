@@ -122,6 +122,9 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         var f = fixture();
         var result = review(f, token(f), passBody(f), "pass", VersionEtags.format(f.version, 0));
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
+        assertThat(body(result).path("documentId").asString()).isEqualTo(f.document.toString());
+        assertThat(body(result).path("sourceBinding").path("repositoryConnectionId").asString()).isEqualTo(f.repository.toString());
+        assertThat(body(result).path("sourceBinding").path("headSha").asString()).isEqualTo("a".repeat(40));
         assertThat(body(result).path("state").asString()).isEqualTo("IN_REVIEW");
         assertThat(body(result).path("reviewStage").asString()).isEqualTo("MANAGER_APPROVAL");
         assertThat(result.headers().firstValue("ETag")).contains(VersionEtags.format(f.version, 1));
@@ -158,6 +161,32 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         problem(review(f, jwt, "{\"decision\":\"RETURN_FOR_REVISION\",\"feedback\":\"changed\"}", "retry", etag), 409, "IDEMPOTENCY_CONFLICT");
         assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
         assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(1L);
+    }
+
+    @Test
+    void evidenceBudgetAndDuplicates_shouldRejectBeforeVersionLookup() throws Exception {
+        var f = fixture();
+        assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, Collections.nCopies(101, f.evidence)))
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("EVIDENCE_LIMIT_EXCEEDED"));
+        assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence, f.evidence)))
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("DUPLICATE_EVIDENCE"));
+        var oversized = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", Collections.nCopies(101, f.evidence)));
+        problem(review(f, token(f), oversized, "budget", VersionEtags.format(f.version, 0)), 422, "EVIDENCE_LIMIT_EXCEEDED");
+        var repeated = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", List.of(f.evidence, f.evidence)));
+        problem(review(f, token(f), repeated, "duplicate", VersionEtags.format(f.version, 0)), 422, "DUPLICATE_EVIDENCE");
+        unchanged(f);
+    }
+
+    @Test
+    void replay_shouldPreserveDocumentAndSourceSnapshot() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        var first = review(f, jwt, passBody(f), "snapshot", etag);
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        execute("UPDATE document.document_versions SET source_sha=? WHERE document_version_id=?", "b".repeat(40), f.version);
+        var retry = review(f, jwt, passBody(f), "snapshot", etag);
+        assertThat(retry.statusCode()).as(retry.body()).isEqualTo(200);
+        assertThat(retry.body()).isEqualTo(first.body());
     }
 
     @Test
@@ -347,7 +376,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 connection.rollback();
             }
         }
-        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(2L);
+        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(3L);
         assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(12L);
     }
 }

@@ -43,14 +43,12 @@ public class DocumentReviewService {
                     || !Objects.equals(d.feedback(), request.feedback()) || !d.evidenceRefs().equals(request.evidenceRefs())) {
                 throw new ReviewException(409, "IDEMPOTENCY_CONFLICT", "Idempotency-Key was already used for another request.");
             }
-            return ReviewResponse.from(d);
+            return decisions.response(d);
         }
         if (before.revision() != expectedRevision) throw ReviewException.revisionConflict();
         policy.requireStaffReview(before, request.decision(), request.feedback(), request.evidenceRefs());
-        for (UUID evidence : request.evidenceRefs()) {
-            if (!versions.hasEvidence(actor.tenantId(), versionId, evidence)) {
-                throw new ReviewException(422, "REVIEW_EVIDENCE_INVALID", "Evidence must belong to this document version.");
-            }
+        if (!versions.hasEvidence(actor.tenantId(), versionId, request.evidenceRefs())) {
+            throw new ReviewException(422, "REVIEW_EVIDENCE_INVALID", "Evidence must belong to this document version.");
         }
         var after = before.reviewed(request.decision());
         var now = Instant.now();
@@ -58,9 +56,9 @@ public class DocumentReviewService {
                 request.decision(), request.feedback(), decisions.nextRound(actor.tenantId(), versionId), key,
                 expectedRevision, after.revision(), after.state(), after.reviewStage(), request.evidenceRefs(), now);
         versions.update(before, after);
-        decisions.insert(decision);
+        decisions.insert(decision, ReviewResponse.from(decision, before));
         audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now));
         // JDBC statements execute immediately; any failure rolls back all three writes.
-        return ReviewResponse.from(decision);
+        return ReviewResponse.from(decision, before);
     }
 }

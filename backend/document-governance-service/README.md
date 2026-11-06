@@ -124,3 +124,15 @@ Các điểm contract/phân công chưa chốt nằm trong docs/implementation/L
 Sau review: bỏ GET API-106 thu gọn để tránh lệch contract. Restart test đọc state qua repository của application mới và replay POST qua HTTP. DB runtime bắt buộc truyền credentials, không fallback superuser. Evidence mới mô tả working tree, không gắn commit đã thu hồi.
 
 Kiểm chứng sau sửa: 05/11/2026 22:38:32 UTC+7, verify BUILD SUCCESS; 32 tests, 0 failures/errors/skipped. OpenAPI validator OK. Log liv118-fixed-verify.log; evidence và SHA256 working tree tại docs/implementation/LIV-118-test-evidence.json.
+
+## Review fixes — 06/11/2026
+
+API-120 trả DocumentVersionView gồm documentId, versionId, state, reviewStage, revision, sourceBinding.
+SourceBinding trả repositoryConnectionId/headSha đã lưu. targetKind, targetRef, comparisonSha,
+configRevision, capturedAt hiện null do schema chưa lưu; không được coi là source-binding đầy đủ đã xác minh.
+Evidence refs tối đa 100 và không trùng; đây là budget kỹ thuật ban đầu, không phải requirement nghiệp vụ
+hoặc ngưỡng benchmark được phê duyệt. Request lỗi trả 422 trước DB/lock; kiểm evidence theo một query IN.
+V3 lưu response snapshot cùng decision và khôi phục snapshot V2 từ audit bất biến; không sửa V1/V2.
+Không có audit đủ dữ liệu cho replay lịch sử thì trả 409 REPLAY_SNAPSHOT_UNAVAILABLE.
+Tests sau sửa: 34/34, BUILD SUCCESS lúc 17:46:54 UTC+7 ngày 06/11; log liv118-review-fixes-final.log.
+Evidence local và CI của base commit được ghi riêng trong docs/implementation/LIV-118-test-evidence.json.

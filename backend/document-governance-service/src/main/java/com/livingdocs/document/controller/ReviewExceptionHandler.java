@@ -21,6 +21,9 @@ public class ReviewExceptionHandler {
 
     @ExceptionHandler({HttpMessageNotReadableException.class, BindException.class, MethodArgumentTypeMismatchException.class})
     public ProblemDetail invalid(Exception e, HttpServletRequest request) {
+        for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof ReviewException review) return business(review, request);
+        }
         return problems.create(request, 400, "INVALID_REQUEST", "Request fields or parameters are invalid.");
     }
 

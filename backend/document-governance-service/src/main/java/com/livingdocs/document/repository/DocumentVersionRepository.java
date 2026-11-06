@@ -48,11 +48,12 @@ public class DocumentVersionRepository {
         if (changed != 1) throw ReviewException.revisionConflict();
     }
 
-    public boolean hasEvidence(UUID tenantId, UUID versionId, UUID evidenceId) {
+    public boolean hasEvidence(UUID tenantId, UUID versionId, java.util.List<UUID> evidenceIds) {
+        if (evidenceIds.isEmpty()) return true;
         return jdbc.sql("""
                 SELECT count(*) FROM document.document_evidence_refs
-                WHERE tenant_id = :tenant AND document_version_id = :version AND document_evidence_id = :evidence
-                """).param("tenant", tenantId).param("version", versionId).param("evidence", evidenceId)
-                .query(Integer.class).single() == 1;
+                WHERE tenant_id = :tenant AND document_version_id = :version AND document_evidence_id IN (:evidence)
+                """).param("tenant", tenantId).param("version", versionId).param("evidence", evidenceIds)
+                .query(Integer.class).single() == evidenceIds.size();
     }
 }
