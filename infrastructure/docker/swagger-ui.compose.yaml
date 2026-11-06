@@ -1,0 +1,20 @@
+
+name: livingdocs-api-docs
+
+services:
+  swagger-ui:
+    image: docker.swagger.io/swaggerapi/swagger-ui
+    ports:
+      - "127.0.0.1:8090:8080"
+    environment:
+      URLS: >-
+        [
+          {"url":"/specs/s01-identity.yaml","name":"S01 - Identity"},
+          {"url":"/specs/s02-repository.yaml","name":"S02 - Repository"},
+          {"url":"/specs/s03-intelligence.yaml","name":"S03 - Intelligence"},
+          {"url":"/specs/s04-document.yaml","name":"S04 - Document"},
+          {"url":"/specs/s05-ai.yaml","name":"S05 - AI"}
+        ]
+      URLS_PRIMARY_NAME: "S01 - Identity"
+    volumes:
+      - ../../contracts/openapi:/usr/share/nginx/html/specs:ro
