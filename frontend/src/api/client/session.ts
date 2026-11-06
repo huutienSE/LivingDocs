@@ -16,6 +16,7 @@ type Listener = (authenticated: boolean) => void;
 
 let accessToken: string | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
+let sessionGeneration = 0; // check refreshToken session call per request
 const listeners = new Set<Listener>();
 
 export const AUTH_PATHS = {
@@ -90,18 +91,34 @@ export async function login(email: string, password: string): Promise<void> {
  */
 export function refreshAccessToken(): Promise<string | null> {
   if (!refreshInFlight) {
+
+    // snapshot phiên tại thời điểm bắt đầu fresh
+    const generationAtStart = sessionGeneration;
+
     refreshInFlight = (async () => {
       try {
         const response = await postAuth(AUTH_PATHS.refresh, undefined, true);
+
+        if (generationAtStart !== sessionGeneration) {
+          return null;
+        }
+
         if (!response.ok) {
           setAccessToken(null);
           return null;
         }
         const view = (await response.json()) as AccessTokenView;
+
+        if (generationAtStart !== sessionGeneration) {
+          return null;
+        }
+
         setAccessToken(view.accessToken);
         return view.accessToken;
       } catch {
-        setAccessToken(null);
+        if (generationAtStart === sessionGeneration) {
+          setAccessToken(null);
+        }
         return null;
       } finally {
         refreshInFlight = null;
@@ -113,6 +130,9 @@ export function refreshAccessToken(): Promise<string | null> {
 
 export async function logout(): Promise<void> {
   try {
+    // vô hiệu hóa kết quả của tất cả refreshtoken request trước khi logout
+    sessionGeneration += 1;
+
     await postAuth(AUTH_PATHS.logout, undefined, true);
   } finally {
     // The server may keep the short-lived JWT valid until expiry; we drop it locally regardless.

@@ -3,6 +3,7 @@ import { json, mockFetch } from '../../test/fetchMock';
 import { apiRequest } from './http';
 import { ApiError, NetworkError, describeError } from './problem';
 import { clearSession, getAccessToken, login, refreshAccessToken } from './session';
+import {logout} from "./session";
 
 const token = (t: string) => json(200, { accessToken: t, tokenType: 'Bearer', expiresIn: 300 });
 
@@ -102,5 +103,40 @@ describe('session + http client', () => {
     const a = describeError(new ApiError({ status: 403 }));
     const b = describeError(new ApiError({ status: 404 }));
     expect(a).toBe(b);
+  });
+
+  it('does not restore a token when refresh finishes after logout', async () => {
+    await signIn('old-access');
+
+    let finishRefresh!: (response: Response) => void;
+
+    mockFetch(
+      // Request refresh: giữ pending đến khi test chủ động trả kết quả.
+      () =>
+        new Promise<Response>((resolve) => {
+          finishRefresh = resolve;
+        }),
+
+      // Request logout.
+      () => json(200, {}),
+    );
+
+    const refreshing = refreshAccessToken();
+
+    // Logout xảy ra khi refresh còn pending.
+    await logout();
+    expect(getAccessToken()).toBeNull();
+
+    // Backend trả refresh thành công sau logout.
+    finishRefresh(
+      json(200, {
+        accessToken: 'new-access',
+        tokenType: 'Bearer',
+        expiresIn: 300,
+      }),
+    );
+
+    expect(await refreshing).toBeNull();
+    expect(getAccessToken()).toBeNull();
   });
 });
