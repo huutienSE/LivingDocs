@@ -20,5 +20,155 @@ services:
       timeout: 3s
       retries: 10
 
+  # S01 — Identity & Organization
+  identity-organization-service:
+    profiles: ["services"]
+    build:
+      context: ../../backend/identity-organization-service
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: db
+      DB_URL: jdbc:postgresql://postgres:5432/livingdocs
+      DB_SCHEMA: identity
+      DB_USERNAME: ld_s01_app
+      DB_PASSWORD: ${S01_DB_PASSWORD:-}
+      FLYWAY_USERNAME: ld_s01_migrator
+      FLYWAY_PASSWORD: ${S01_FLYWAY_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # S02 — Repository Integration
+  repository-integration-service:
+    profiles: ["services"]
+    build:
+      context: ../../backend/repository-integration-service
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: db
+      DB_URL: jdbc:postgresql://postgres:5432/livingdocs
+      DB_SCHEMA: repository
+      DB_USERNAME: ld_s02_app
+      DB_PASSWORD: ${S02_DB_PASSWORD:-}
+      FLYWAY_USERNAME: ld_s02_migrator
+      FLYWAY_PASSWORD: ${S02_FLYWAY_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # S03 — Source Intelligence
+  source-intelligence-service:
+    profiles: ["services"]
+    build:
+      context: ../../backend/source-intelligence-service
+    environment:
+      SERVER_PORT: "8080"
+    ports:
+      - "127.0.0.1:8085:8080"
+
+  # S04 — Document Governance
+  document-governance-service:
+    profiles: ["services"]
+    build:
+      context: ../../backend/document-governance-service
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: db
+      DB_URL: jdbc:postgresql://postgres:5432/livingdocs
+      DB_SCHEMA: document
+      DB_USERNAME: ld_s04_app
+      DB_PASSWORD: ${S04_DB_PASSWORD:-}
+      FLYWAY_USERNAME: ld_s04_migrator
+      FLYWAY_PASSWORD: ${S04_FLYWAY_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # API Gateway — chỉ bật khi S01 JWT issuer thực tế sẵn sàng
+  api-gateway:
+    profiles: ["gateway"]
+    build:
+      context: ../api-gateway
+    environment:
+      GATEWAY_PORT: "8081"
+      GATEWAY_BIND_ADDRESS: 0.0.0.0
+      GATEWAY_MANAGEMENT_PORT: "9091"
+      GATEWAY_MANAGEMENT_ADDRESS: 0.0.0.0
+
+      S01_SERVICE_URI: http://identity-organization-service:8080
+      S02_SERVICE_URI: http://repository-integration-service:8080
+      S04_SERVICE_URI: http://document-governance-service:8080
+
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-}
+      GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:9091:9091"
+
+  kafka:
+    image: apache/kafka:4.1.2
+    profiles: ["platform"]
+    environment:
+      CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENERS: "INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:19092,EXTERNAL://localhost:${KAFKA_HOST_PORT:-9092}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+    ports:
+      - "127.0.0.1:${KAFKA_HOST_PORT:-9092}:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:19092 > /dev/null 2>&1" ]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 12
+
+  redis:
+    image: redis:8.2-alpine
+    profiles: ["platform"]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ai-service:
+    build:
+      context: ../../ai-service
+      dockerfile: Dockerfile
+    profiles: ["platform"]
+    ports:
+      - "127.0.0.1:${AI_SERVICE_HOST_PORT:-8000}:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)" ]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
 volumes:
   postgres_data:
+  kafka_data:

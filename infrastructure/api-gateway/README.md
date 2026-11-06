@@ -122,11 +122,91 @@ curl -i http://127.0.0.1:9091/actuator/health
 ```
 
 `UP` của Gateway **không chứng minh** downstream API đã đáp ứng. Không retry tự động các POST nghiệp vụ nhạy cảm nếu chưa có chính sách idempotency rõ ràng.
+## 7. Docker Compose — Platform và Domain Services (LIV-117)
 
-## 7. Trạng thái nghiệm thu LIV-115
+LivingDocs sử dụng Docker Compose profiles để khởi động đúng nhóm service cần thiết.
 
-**Đã được người triển khai xác nhận trước đó:** cấu hình route build PASS, bài test routing PASS, health trực tiếp của S01/S02/S04 đều `UP`, và `clean verify` của Gateway đã PASS sau khi thêm filter timeout/503/504.
+| Profile | Thành phần |
+|---|---|
+| Mặc định | PostgreSQL |
+| `platform` | Kafka KRaft, Redis, S05 FastAPI |
+| `services` | S01, S02, S03, S04 |
+| `gateway` | API Gateway (chỉ bật khi JWT issuer thật sẵn sàng) |
 
-**Chưa được xác nhận là PASS:** test 503/504 mới thêm sau đó, JWT thật do S01 phát, verify chữ ký/issuer/audience/expiry, business controller thật trả kết quả qua Gateway, domain-level `403`, Compose clean start, CI trên PR và peer review độc lập.
+### Khởi động Platform
 
-Các nội dung chưa có bằng chứng phải được ghi là **dependency / pending evidence** trong Jira. Chỉ chuyển LIV-115 sang **Done** khi acceptance được đáp ứng, hoặc khi phần phụ thuộc được tách/giao lại và điều chỉnh tiêu chí nghiệm thu chính thức bởi người có thẩm quyền.
+Từ thư mục `infrastructure/docker`.
+
+**macOS:**
+
+```bash
+docker compose --profile platform config --quiet
+docker compose --profile platform up -d --build --wait
+docker compose --profile platform ps
+```
+
+**Windows PowerShell:**
+
+```powershell
+docker compose --profile platform config --quiet
+docker compose --profile platform up -d --build --wait
+docker compose --profile platform ps
+```
+
+Kiểm tra Kafka, Redis và S05:
+
+**macOS:**
+
+```bash
+docker compose --profile platform exec -T redis redis-cli ping
+docker compose --profile platform exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:19092 --list
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1:8000/metrics
+```
+
+**Windows PowerShell:**
+
+```powershell
+docker compose --profile platform exec -T redis redis-cli ping
+docker compose --profile platform exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:19092 --list
+curl.exe -i http://127.0.0.1:8000/health
+curl.exe -i http://127.0.0.1:8000/metrics
+```
+
+Redis phải trả `PONG`. Kafka CLI hoàn thành thành công; danh sách topic rỗng vẫn hợp lệ.
+
+### Khởi động Domain Services
+
+Trước khi chạy, đảm bảo PostgreSQL đã có roles, schemas và mật khẩu đúng theo hướng dẫn ở các mục trước.
+
+**macOS:**
+
+```bash
+docker compose --profile services up -d --build
+docker compose --profile services ps
+```
+
+**Windows PowerShell:**
+
+```powershell
+docker compose --profile services up -d --build
+docker compose --profile services ps
+```
+
+S01, S02, S03, S04 lần lượt có cổng local 8082, 8083, 8085, 8084.
+
+### Lưu ý về môi trường
+
+- Container gọi nhau bằng Docker service DNS, không dùng `localhost` để gọi container khác.
+- PostgreSQL data được lưu trong volume `postgres_data`.
+- Kafka local dùng KRaft một node, không có tính sẵn sàng cao.
+- Redis baseline không bật persistence; không lưu dữ liệu nghiệp vụ quan trọng tại đây.
+- Gateway chưa được nghiệm thu với JWT thật; không sử dụng JWT placeholder để đánh dấu E2E PASS.
+- Không chạy `docker compose down -v` trên môi trường có dữ liệu cần giữ.
+- Không đưa mật khẩu thật vào Git.
+
+### CI và phạm vi nghiệm thu
+
+Workflow `platform-compose-ci.yaml` kiểm tra nền tảng Platform bằng Docker Compose.
+
+CI PASS của Platform chứng minh container health và smoke, không thay thế các bài kiểm thử nghiệp vụ xuyên Gateway và domain services.
