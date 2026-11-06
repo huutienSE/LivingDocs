@@ -49,6 +49,23 @@ describe('ReviewQueuePage (API-115)', () => {
     expect(await screen.findByText(/Không có phiên bản nào/)).toBeInTheDocument();
   });
 
+  it('shows loading, then an error, and retries the read into an empty state', async () => {
+    let resolveFirst!: (response: Response) => void;
+    const first = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    const m = mockFetch(
+      () => first,
+      () => json(200, { items: [], page: 0, size: 20, totalElements: 0 }),
+    );
+    renderPage();
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+
+    resolveFirst(json(503, { status: 503 }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/tạm thời không khả dụng/);
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText(/Không có phiên bản nào/)).toBeInTheDocument();
+    expect(m.calls).toHaveLength(2);
+  });
+
   it('shows a permission error for non-Staff users (403) without rendering items', async () => {
     mockFetch(() => json(403, { status: 403, code: 'FORBIDDEN_SCOPE' }));
     renderPage();

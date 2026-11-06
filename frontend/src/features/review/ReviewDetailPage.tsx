@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { describeError } from '../../api/client/problem';
+import { ErrorState } from '../../shared/ui/ErrorState';
+import { LoadingState } from '../../shared/ui/LoadingState';
 import { fetchReviewContext } from './api';
 import { StaffDecisionForm } from './StaffDecisionForm';
 import { isAwaitingStaffReview, type DocumentVersionView, type ReviewContextView } from './types';
@@ -50,14 +52,12 @@ export function ReviewDetailPage() {
     return () => controller.abort();
   }, [load]);
 
-  if (loading && !context) return <p aria-busy="true">Đang tải…</p>;
+  if (loading && !context) return <LoadingState />;
 
   if (loadError && !context) {
     return (
       <section>
-        <p role="alert" className="error">
-          {loadError}
-        </p>
+        <ErrorState message={loadError} onRetry={() => void load()} />
         <Link to="/review">← Về hàng chờ</Link>
       </section>
     );

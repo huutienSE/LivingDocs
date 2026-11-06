@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { describeError } from '../../api/client/problem';
+import { EmptyState } from '../../shared/ui/EmptyState';
+import { ErrorState } from '../../shared/ui/ErrorState';
+import { LoadingState } from '../../shared/ui/LoadingState';
 import { fetchReviewQueue } from './api';
 import type { ReviewQueueView } from './types';
 
@@ -41,16 +44,12 @@ export function ReviewQueuePage() {
         </button>
       </header>
 
-      {loading && <p aria-busy="true">Đang tải…</p>}
+      {loading && <LoadingState />}
 
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
+      {error && <ErrorState message={error} onRetry={() => setReloadTick((tick) => tick + 1)} />}
 
       {!loading && !error && queue && queue.items.length === 0 && (
-        <p className="empty">Không có phiên bản nào đang chờ Staff Review.</p>
+        <EmptyState message="Không có phiên bản nào đang chờ Staff Review." />
       )}
 
       {!loading && !error && queue && queue.items.length > 0 && (

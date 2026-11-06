@@ -104,6 +104,18 @@ describe('ReviewDetailPage + StaffDecisionForm', () => {
     expect(m.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
   });
 
+  it('retries loading review context after a read error', async () => {
+    const m = mockFetch(
+      () => json(503, { status: 503 }),
+      () => json(200, context(), { ETag: '"rev-3"' }),
+    );
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/tạm thời không khả dụng/);
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByRole('heading', { name: /Payment API Guide/ })).toBeInTheDocument();
+    expect(m.calls).toHaveLength(2);
+  });
+
   it('403 on the decision: shows error, re-reads server state, does not show success', async () => {
     const m = mockFetch(
       () => json(200, context(), { ETag: '"rev-3"' }),

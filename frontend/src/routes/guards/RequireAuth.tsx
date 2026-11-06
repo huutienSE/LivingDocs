@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { isAuthenticated, refreshAccessToken, subscribe } from '../../api/client/session';
+import { LoadingState } from '../../shared/ui/LoadingState';
 
 /**
  * The access token lives only in memory, so after a page reload we try one
@@ -24,7 +25,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  if (checking) return <p aria-busy="true">Đang kiểm tra phiên đăng nhập…</p>;
+  if (checking) return <LoadingState message="Đang kiểm tra phiên đăng nhập…" />;
   if (!authed) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 }
