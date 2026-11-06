@@ -1,0 +1,15 @@
+{
+  "name": "livingdocs-e2e-review-publish",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:ui": "playwright test",
+    "test:api": "newman run LIV-119-staff-review.postman_collection.json -e ${LD_POSTMAN_ENV:-LIV-119-local.postman_environment.json} --reporters cli,junit --reporter-junit-export results/newman-junit.xml"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.0.0",
+    "newman": "^6.2.0",
+    "typescript": "^5.6.0"
+  }
+}
