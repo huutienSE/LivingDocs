@@ -39,25 +39,84 @@
 - Bảo vệ quyền tenant/workspace/repository/role và current authorization của Manager/Publish phải được thực thi trong service.
 - TLS/HTTPS bắt buộc ở staging/demo/production theo LD-API-001 §2.2; local loopback HTTP không phải bằng chứng TLS.
 
-## CI, bằng chứng và quy trình cập nhật
+## Chạy validation trên máy (không cần Gateway container)
 
-Workflow `.github/workflows/openapi-contract-ci.yaml`:
-1. Lint/validate OpenAPI YAML 3.0.3;
-2. Chạy `scripts/validate_gateway_openapi.py` để so các route Gateway với inventory, chặn đường dẫn internal/webhook/cookie-sensitive;
-3. Không coi syntax validation là E2E PASS.
+Tất cả lệnh Python chạy từ **root repository**.
 
-**macOS** — từ root repo:
+### macOS/Linux
 
 ```bash
 python3 -m pip install openapi-spec-validator==0.7.2 PyYAML==6.0.3
 python3 scripts/validate_gateway_openapi.py
 ```
 
-**Windows PowerShell** — từ root repo:
+Kiểm tra OpenAPI YAML:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import yaml
+from openapi_spec_validator import validate
+
+for p in sorted(Path('contracts/openapi').glob('*.yaml')):
+    with p.open(encoding='utf-8') as f:
+        validate(yaml.safe_load(f))
+    print('PASS:', p)
+PY
+```
+
+### Windows PowerShell
 
 ```powershell
 py -3.12 -m pip install openapi-spec-validator==0.7.2 PyYAML==6.0.3
 py -3.12 scripts/validate_gateway_openapi.py
 ```
+
+Kiểm tra OpenAPI YAML bằng lệnh PowerShell (tránh dùng heredoc Bash):
+
+```powershell
+@'
+from pathlib import Path
+import yaml
+from openapi_spec_validator import validate
+for p in sorted(Path('contracts/openapi').glob('*.yaml')):
+    with p.open(encoding='utf-8') as f:
+        validate(yaml.safe_load(f))
+    print('PASS:', p)
+'@ | py -3.12 -
+```
+
+**Kỳ vọng ở baseline LIV-133:** `PASS: 112 catalogued APIs; 91 exact Gateway method+path entries; 19 route groups; no internal exposure.`
+
+Validator tĩnh kiểm tra inventory/route names/OpenAPI paths, các dấu hiệu CORS được xác định trong source và Compose S03 DNS. **Không** kiểm chứng controller đã tồn tại, JWT issuer/JWKS, effective CORS runtime, authorization resource-level hoặc E2E.
+
+Để kiểm Gateway Maven build:
+
+```bash
+cd infrastructure/api-gateway
+./mvnw -B -ntp clean verify
+```
+
+Windows PowerShell: `cd infrastructure/api-gateway; .\mvnw.cmd -B -ntp clean verify`.
+
+## GitHub Actions & bằng chứng
+
+- `.github/workflows/openapi-contract-ci.yaml`: validate OpenAPI YAML và chạy `scripts/validate_gateway_openapi.py`. PR vào `develop`/`main` có đường dẫn liên quan sẽ kích hoạt workflow sau khi **bản CI mới đã push**.
+- Các file trigger cần bao gồm contract YAML, chính workflow, Python validator, Gateway `application.yaml`, `GatewayCorsConfig.java` và `infrastructure/docker/compose.yaml`.
+- `.github/workflows/backend-ci.yaml`: build/test Gateway và backend modules.
+- `.github/workflows/platform-compose-ci.yaml`: Compose platform baseline, không phải Gateway JWT E2E.
+
+Chỉ ghi `CI PASS` khi GitHub Actions của đúng PR/commit hoàn tất thành công. `clean verify` và Python PASS local được ghi riêng. Nếu workflow là required check cho mọi PR, phải xem xét `paths` filtering để tránh required check bị Pending khi skipped.
+
+## Quy tắc bàn giao service owner
+
+LIV-133 bàn giao **baseline hợp đồng và route**, không triển khai thay nghiệp vụ của S01/S02/S03/S04/FE. Sau khi merge:
+
+1. Service owner xác nhận schema/permission cho các operation của mình và cập nhật state từ `CANDIDATE` khi có evidence.
+2. FE owner đối chiếu DTO, ETag/idempotency/error mapping với OpenAPI đã xác nhận.
+3. Mismatch còn tồn tại được ghi trong [LIV-133 contract alignment](../../docs/implementation/LIV-133-contract-alignment.md) và chuyển đúng task/service owner, không mở rộng LIV-133 thành implementation story.
+
+Xem thêm [Gateway README](../../infrastructure/api-gateway/README.md) và [Docker README](../../infrastructure/docker/README.md) cho hướng dẫn chạy.
+
 
 Khi một API được triển khai: update OpenAPI, DTO, Gateway allowlist, frontend caller và regression test trong cùng đợt tích hợp, đồng thời chuyển trạng thái inventory sau khi có evidence; owner từng service phê duyệt contract. Không tự merge API-115/116 nếu chưa có S04 implementation.
