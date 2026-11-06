@@ -31,7 +31,7 @@ Mở `.env`, điền `POSTGRES_PASSWORD` cho PostgreSQL local. Nếu đã có da
 ### macOS
 
 ```bash
-docker compose config --quiet
+docker compose configtest.md --quiet
 docker compose up -d postgres
 docker compose ps
 ```

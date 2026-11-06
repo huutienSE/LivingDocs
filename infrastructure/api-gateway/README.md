@@ -140,7 +140,7 @@ Từ thư mục `infrastructure/docker`.
 **macOS:**
 
 ```bash
-docker compose --profile platform config --quiet
+docker compose --profile platform configtest.md --quiet
 docker compose --profile platform up -d --build --wait
 docker compose --profile platform ps
 ```

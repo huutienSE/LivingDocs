@@ -3,14 +3,23 @@ name: OpenAPI Contract CI
 on:
   pull_request:
     branches: [develop, main]
-    paths:
+    paths: # phạm vi kích hoạt, các file nằm trong các path bên dưới
       - "contracts/openapi/**"
       - ".github/workflows/openapi-contract-ci.yaml"
+      - "scripts/validate_gateway_openapi.py"
+      - "infrastructure/api-gateway/src/main/resources/application.yaml"
+      - "infrastructure/api-gateway/src/main/java/com/livingdocs/gateway/config/GatewayCorsConfig.java"
+      - "infrastructure/docker/compose.yaml"
+
   push:
     branches: [develop, main]
     paths:
       - "contracts/openapi/**"
       - ".github/workflows/openapi-contract-ci.yaml"
+      - "scripts/validate_gateway_openapi.py"
+      - "infrastructure/api-gateway/src/main/resources/application.yaml"
+      - "infrastructure/api-gateway/src/main/java/com/livingdocs/gateway/config/GatewayCorsConfig.java"
+      - "infrastructure/docker/compose.yaml"
 
 permissions:
   contents: read
@@ -22,20 +31,23 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      # tải mã nguồn về máy ảo của runner để kiểm tra
       - name: Checkout
         uses: actions/checkout@v7
-
+      #cài đặt môi trường
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
+      #cài thư viện liên quan
       - name: Install validator
         run: |
           python -m pip install \
             openapi-spec-validator==0.7.2 \
             PyYAML==6.0.3
 
+      # kiểm tra cú pháp
       - name: Validate OpenAPI YAML
         run: |
           python - <<'PY'
@@ -55,3 +67,8 @@ jobs:
               validate(spec)
               print(f"PASS: {path}")
           PY
+
+      #kiểm tra tính đồng bộ giữa gateway và openapi
+      - name: Validate Gateway and OpenAPI alignment
+        run: python scripts/validate_gateway_openapi.py
+
