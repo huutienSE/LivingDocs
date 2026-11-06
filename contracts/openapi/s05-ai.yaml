@@ -1,0 +1,29 @@
+openapi: 3.1.0
+info:
+  title: LivingDocs AI Service
+  version: 0.1.0
+  description: >-
+    Hợp đồng health baseline của S05 FastAPI (LIV-117).
+    Metrics được ẩn khỏi OpenAPI runtime và không được mô tả ở đây.
+paths:
+  /health:
+    get:
+      tags:
+        - Operations
+      summary: Health check của tiến trình FastAPI
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Tiến trình FastAPI đang hoạt động
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  service:
+                    type: string
+                    const: livingdocs-ai

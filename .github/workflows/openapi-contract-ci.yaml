@@ -1,0 +1,57 @@
+name: OpenAPI Contract CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "contracts/openapi/**"
+      - ".github/workflows/openapi-contract-ci.yaml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "contracts/openapi/**"
+      - ".github/workflows/openapi-contract-ci.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install validator
+        run: |
+          python -m pip install \
+            openapi-spec-validator==0.7.2 \
+            PyYAML==6.0.3
+
+      - name: Validate OpenAPI YAML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from openapi_spec_validator import validate
+
+          files = sorted(Path("contracts/openapi").glob("*.yaml"))
+          files += sorted(Path("contracts/openapi").glob("*.yml"))
+
+          if not files:
+              raise SystemExit("No OpenAPI YAML files found")
+
+          for path in files:
+              import yaml
+              with path.open(encoding="utf-8") as f:
+                  spec = yaml.safe_load(f)
+              validate(spec)
+              print(f"PASS: {path}")
+          PY
