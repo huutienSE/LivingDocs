@@ -1,84 +1,85 @@
-# LivingDocs — FastAPI AI Service Baseline
+# LivingDocs — S05 FastAPI Runtime
 
-## Overview
+## 1. Mục đích
 
-This project provides the initial FastAPI development environment for the LivingDocs AI service.
+S05 là AI Semantic Processing Service, sử dụng Python 3.12 và FastAPI.
 
-It establishes a reproducible Python API baseline. AI capabilities such as source-code analysis, RAG, LLM integration, and documentation drift detection will be implemented in future tasks.
+Trong LIV-117, service được container hóa và cung cấp health, OpenAPI, Prometheus metrics. Đây mới là runtime baseline, chưa triển khai LLM, RAG hay xử lý Kafka nghiệp vụ.
 
-This baseline does not define the final AI service architecture.
+## 2. Chạy trực tiếp trên máy
 
-## Technology Stack
+### macOS
 
-- Python: 3.12.x
-- Framework: FastAPI
-- ASGI Server: Uvicorn
-- Dependency Management: pip + requirements.txt
-- Virtual Environment: venv
+Từ thư mục `ai-service`:
 
-FastAPI and Uvicorn versions are declared in `requirements.txt`.
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-## Prerequisites
+### Windows PowerShell
 
-- Python 3.12 installed
-- Git installed
+Từ thư mục `ai-service`:
 
-## Local Setup
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-Run the following commands from the `ai-service/` directory.
+## 3. Chạy bằng Docker Compose
 
-**1. Create a virtual environment**
+Từ thư mục `infrastructure/docker`.
 
-`python3.12 -m venv .venv`
+### macOS
 
-**2. Activate the virtual environment**
+```bash
+docker compose --profile platform up -d --build --wait
+docker compose --profile platform ps
+```
 
-macOS / Linux:
+### Windows PowerShell
 
-`source .venv/bin/activate`
+```powershell
+docker compose --profile platform up -d --build --wait
+docker compose --profile platform ps
+```
 
-Windows:
+## 4. Kiểm tra API và metrics
 
-`.venv\Scripts\activate`
+| Endpoint | Mục đích |
+|---|---|
+| `GET /health` | Health của tiến trình FastAPI |
+| `GET /openapi.json` | OpenAPI schema |
+| `GET /docs` | Swagger UI |
+| `GET /metrics` | Prometheus metrics |
 
-**3. Install dependencies**
+### macOS
 
-`python -m pip install -r requirements.txt`
+```bash
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1:8000/openapi.json
+curl -i http://127.0.0.1:8000/metrics
+```
 
-## Run Application
+### Windows PowerShell
 
-`python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`
+```powershell
+curl.exe -i http://127.0.0.1:8000/health
+curl.exe -i http://127.0.0.1:8000/openapi.json
+curl.exe -i http://127.0.0.1:8000/metrics
+```
 
-The application runs locally at:
+Health thành công không chứng minh Kafka/Redis đã được tích hợp với S05.
 
-`http://127.0.0.1:8000`
+## 5. Giới hạn hiện tại
 
-## Health Check
+- Kafka và Redis được cung cấp như các thành phần hạ tầng riêng.
+- Chưa có consumer, producer hoặc AI orchestration thực tế.
+- Metrics baseline chưa thay thế tracing, dashboard hoặc business observability.
+- Không commit `.env`, API keys hoặc secrets.
+- Cấu hình local chưa được xem là cấu hình bảo mật staging/production.
 
-Endpoint: `GET /health`
-
-Test using:
-
-`curl -i http://127.0.0.1:8000/health`
-
-Expected response (HTTP 200):
-
-`{"status":"ok","service":"livingdocs-ai"}`
-
-## API Documentation
-
-FastAPI provides automatically generated API documentation:
-
-- Swagger UI: http://127.0.0.1:8000/docs
-- OpenAPI Schema: http://127.0.0.1:8000/openapi.json
-
-## Notes
-
-- `.venv/` must not be committed to GitHub.
-- Python dependencies are declared in `requirements.txt`.
-- No API keys or machine-specific absolute paths are required.
-- This is a technical bootstrap baseline, not the final AI processing implementation.
-
-**Jira:** LIV-63 — TECH-04 Bootstrap FastAPI AI Service.
-
-
+**Jira:** LIV-117 — FastAPI, Kafka, Redis baselines and Compose smoke.

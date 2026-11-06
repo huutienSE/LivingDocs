@@ -1,0 +1,70 @@
+name: Platform Compose CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  compose-smoke:
+    name: Platform Compose Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: infrastructure/docker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare local environment
+        run: |
+          cp .env.example .env
+          sed -i 's/CHANGE_ME_POSTGRES_PASSWORD/ci_local_password/' .env
+
+      - name: Validate Compose
+        run: docker compose --profile platform config --quiet
+
+      - name: Start platform
+        run: |
+          docker compose --profile platform up \
+            -d --build --wait --wait-timeout 240
+
+      - name: Verify FastAPI health
+        run: curl --fail --silent --show-error http://127.0.0.1:8000/health
+
+      - name: Verify OpenAPI
+        run: curl --fail --silent --show-error http://127.0.0.1:8000/openapi.json -o /dev/null
+
+      - name: Verify metrics
+        run: |
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8000/metrics | grep livingdocs_ai_health_requests_total
+
+      - name: Verify Redis
+        run: |
+          docker compose --profile platform exec -T redis redis-cli ping | grep PONG
+
+      - name: Verify Kafka
+        run: |
+          docker compose --profile platform exec -T kafka \
+            /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:19092 --list
+
+      - name: Show container status
+        if: always()
+        run: docker compose --profile platform ps
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose --profile platform logs --tail=100
+
+      - name: Stop platform
+        if: always()
+        run: docker compose --profile platform down

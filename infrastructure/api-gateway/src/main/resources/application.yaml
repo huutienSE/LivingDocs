@@ -1,6 +1,6 @@
 # cấu hình cho server gateway
 server:
-  address: 127.0.0.1
+  address: ${GATEWAY_BIND_ADDRESS:127.0.0.1}
   port: ${GATEWAY_PORT:8081}
 
 #cấu hình spring application và bảo mạt OAuth2 Resource Server
