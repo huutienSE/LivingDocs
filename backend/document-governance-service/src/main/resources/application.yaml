@@ -1,6 +1,9 @@
 spring:
   application:
     name: document-governance-service
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
   config:
     import: "optional:file:./.env[.properties]"
   profiles:
@@ -13,3 +16,9 @@ management:
   endpoints:
     exposure:
       include: health, info
+
+livingdocs:
+  security:
+    issuer-uri: ${S01_ISSUER_URI:}
+    jwk-set-uri: ${S01_JWK_SET_URI:}
+    audience: ${S04_TOKEN_AUDIENCE:}
