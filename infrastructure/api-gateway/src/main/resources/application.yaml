@@ -25,50 +25,111 @@ spring:
       server:
         webflux:
           routes:
-            # S01 — Identity & Organization
-            - id: s01-public-auth
-              uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
-              predicates:
-                - Path=/api/v1/auth/register,/api/v1/auth/login
-                - Method=POST
+          #s01
+          #CÁCH ĐỌC: SERVICE-HTTP_METHOD-NHOM_API-KHOANG_ID
+          # ROUTE CHUYỂN ĐẾN S01, GET, api inventory, khoảng api được sử dụng, tương ứng ở phần predicate
+          - id: s01-get-api-007-037
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/users/me,/api/v1/tenants/current,/api/v1/tenants/{tenantId},/api/v1/tenants/{tenantId}/memberships,/api/v1/tenants/{tenantId}/workspaces,/api/v1/workspaces/{workspaceId},/api/v1/workspaces/{workspaceId}/memberships,/api/v1/workspaces/{workspaceId}/roles
+              - Method=GET
+          - id: s01-get-api-038-038
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/users/me/access-context
+              - Method=GET
+          - id: s01-post-api-001-034
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/auth/register,/api/v1/auth/login,/api/v1/tenants/{tenantId}/invitations,/api/v1/tenants/{tenantId}/workspaces,/api/v1/workspaces/{workspaceId}/memberships
+              - Method=POST
+          - id: s01-patch-api-008-031
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/users/me,/api/v1/tenants/{tenantId},/api/v1/tenants/{tenantId}/memberships/{membershipId},/api/v1/workspaces/{workspaceId}
+              - Method=PATCH
+          - id: s01-put-api-036-036
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/workspaces/{workspaceId}/memberships/{membershipId}/roles
+              - Method=PUT
+          - id: s01-delete-api-035-035
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            predicates:
+              - Path=/api/v1/workspaces/{workspaceId}/memberships/{membershipId}
+              - Method=DELETE
 
-            - id: s01-user-profile
-              uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
-              predicates:
-                - Path=/api/v1/users/me,/api/v1/tenants/current
-                - Method=GET
+          #======================
+          #s02
+          - id: s02-get-api-046-057
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            predicates:
+              - Path=/api/v1/integrations/github/authorization,/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/connection,/api/v1/repositories/{repositoryId}/pull-requests,/api/v1/repositories/{repositoryId}/pull-requests/{prNumber},/api/v1/repositories/{repositoryId}/commits,/api/v1/repositories/{repositoryId}/source-events,/api/v1/repositories/{repositoryId}/tracked-branches
+              - Method=GET
+          - id: s02-post-api-047-059
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            predicates:
+              - Path=/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/disconnections,/api/v1/repositories/{repositoryId}/reauthorizations,/api/v1/repositories/{repositoryId}/resyncs,/api/v1/repositories/{repositoryId}/rechecks
+              - Method=POST
+          - id: s02-put-api-058-058
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            predicates:
+              - Path=/api/v1/repositories/{repositoryId}/tracked-branches
+              - Method=PUT
 
-            # S02 — Repository Integration
-            - id: s02-repository-connection
-              uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
-              predicates:
-                - Path=/api/v1/repositories/{repositoryId}/connection
-                - Method=GET
+          #s03 ====================
+          - id: s03-get-api-078-086
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            predicates:
+              - Path=/api/v1/analysis-jobs/{jobId},/api/v1/repositories/{repositoryId}/analysis-jobs,/api/v1/analysis-jobs/{jobId}/evidence,/api/v1/repositories/{repositoryId}/drift-issues,/api/v1/drift-issues/{driftIssueId},/api/v1/drift-issues/{driftIssueId}/history,/api/v1/drift-issues/{driftIssueId}/evidence,/api/v1/drift-issues/{driftIssueId}/suggestions
+              - Method=GET
+          - id: s03-get-api-089-092
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            predicates:
+              - Path=/api/v1/repositories/{repositoryId}/code-entities,/api/v1/repositories/{repositoryId}/dependencies,/api/v1/repositories/{repositoryId}/drift-metrics,/api/v1/repositories/{repositoryId}/drift-policy
+              - Method=GET
+          - id: s03-post-api-077-088
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            predicates:
+              - Path=/api/v1/analysis-jobs,/api/v1/analysis-jobs/{jobId}/replay,/api/v1/drift-issues/{driftIssueId}/dismiss,/api/v1/drift-issues/{driftIssueId}/suggestions/{suggestionId}/decisions
+              - Method=POST
+          - id: s03-put-api-093-093
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            predicates:
+              - Path=/api/v1/repositories/{repositoryId}/drift-policy
+              - Method=PUT
 
-            - id: s02-workspace-connections
-              uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
-              predicates:
-                - Path=/api/v1/workspaces/{workspaceId}/repository-connections
-                - Method=GET,POST
-
-            # S04 — Document Governance
-            - id: s04-workspace-documents
-              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
-              predicates:
-                - Path=/api/v1/workspaces/{workspaceId}/documents
-                - Method=GET,POST
-
-            - id: s04-document-details
-              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
-              predicates:
-                - Path=/api/v1/documents/{documentId}
-                - Method=GET
-
-            - id: s04-governance-actions
-              uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
-              predicates:
-                - Path=/api/v1/document-versions/{versionId}/staff-decisions,/api/v1/document-versions/{versionId}/manager-decisions,/api/v1/document-versions/{versionId}/publish
-                - Method=POST
+          #s04 =====================
+          - id: s04-get-api-099-110
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/workspaces/{workspaceId}/documents,/api/v1/documents/{documentId},/api/v1/documents/{documentId}/source-links,/api/v1/documents/{documentId}/versions,/api/v1/document-versions/{versionId},/api/v1/document-versions/{versionId}/evidence,/api/v1/document-versions/{versionId}/changes,/api/v1/document-versions/compare
+              - Method=GET
+          - id: s04-get-api-111-125
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/document-versions/{versionId}/attribution,/api/v1/review-queue,/api/v1/document-versions/{versionId}/review-context,/api/v1/document-versions/{versionId}/review-comments,/api/v1/document-versions/{versionId}/review-history,/api/v1/approval-queue,/api/v1/document-versions/{versionId}/approval-context,/api/v1/document-versions/{versionId}/approval-history
+              - Method=GET
+          - id: s04-get-api-129-140
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/document-versions/{versionId}/exports,/api/v1/workspaces/{workspaceId}/collections,/api/v1/collections/{collectionId},/api/v1/knowledge/linked-code-entities,/api/v1/workspaces/{workspaceId}/templates,/api/v1/templates/{templateId}
+              - Method=GET
+          - id: s04-post-api-100-124
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/workspaces/{workspaceId}/documents,/api/v1/documents/{documentId}/versions,/api/v1/document-versions/{versionId}/regenerate,/api/v1/document-versions/{versionId}/submit,/api/v1/document-versions/{versionId}/revalidations,/api/v1/document-versions/{versionId}/review-comments,/api/v1/document-versions/{versionId}/staff-decisions,/api/v1/document-versions/{versionId}/manager-decisions
+              - Method=POST
+          - id: s04-post-api-126-139
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/document-versions/{versionId}/approval-assignments,/api/v1/document-versions/{versionId}/publish,/api/v1/document-versions/{versionId}/exports,/api/v1/workspaces/{workspaceId}/collections,/api/v1/knowledge/search,/api/v1/workspaces/{workspaceId}/templates
+              - Method=POST
+          - id: s04-patch-api-102-134
+            uri: ${S04_SERVICE_URI:http://127.0.0.1:8084}
+            predicates:
+              - Path=/api/v1/documents/{documentId}/metadata,/api/v1/document-versions/{versionId}/content,/api/v1/document-versions/{versionId}/staff-edits,/api/v1/collections/{collectionId}
+              - Method=PATCH
           httpclient:
             connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:2000}
             response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:5s}

@@ -28,11 +28,20 @@ public class GatewayCorsConfig {
                 List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         );
 
+        // LIV-133: FE Staff/Manager commands require If-Match (dùng cơ chế optimistic lock khi phê duyệt kèm theo ETag cũ mà họ đang xem, chặn ghi đè khi ETag bị lệch)
+        // Idempotency-Key (chống lặp req, mã khóa giúp BE nhận diện xử lý đúng 1 lần khi click nhiều lần)
         cors.setAllowedHeaders(
-                List.of("Authorization", "Content-Type", "Accept", "X-Correlation-ID")
+                List.of("Authorization",
+                        "Content-Type",
+                        "Accept",
+                        "X-Correlation-ID",
+                        "If-Match",
+                        "Idempotency-Key")
         );
 
-        cors.setExposedHeaders(List.of("X-Correlation-ID"));
+        // các header mà trình duyệt có thể đọc từ response
+        // Browser must be able to read the strong ETag returned by review-context and mutations.
+        cors.setExposedHeaders(List.of("X-Correlation-ID", "ETag"));
 
         // cau hinh credentials, caching
         cors.setAllowCredentials(false); // khong cho phep gui kem coookie

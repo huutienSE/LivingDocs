@@ -1,0 +1,1010 @@
+[
+  {
+    "apiId": "API-001",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "business": "Đăng ký người dùng",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-002",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "business": "Đăng nhập, phát JWT và refresh cookie",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-003",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "business": "Đăng xuất có CSRF/session revocation",
+    "state": "BLOCKED_SECURITY",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-004",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "business": "Refresh rotation + CSRF",
+    "state": "BLOCKED_SECURITY",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-005",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/auth/github/start",
+    "business": "GitHub OAuth start",
+    "state": "BLOCKED_SECURITY",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-006",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/auth/github/callback",
+    "business": "GitHub OAuth callback",
+    "state": "BLOCKED_SECURITY",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-007",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/users/me",
+    "business": "Hồ sơ người dùng",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-008",
+    "service": "S01",
+    "method": "PATCH",
+    "path": "/api/v1/users/me",
+    "business": "Sửa hồ sơ",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-016",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/tenants/current",
+    "business": "Tenant hiện hành",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-017",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/tenants/{tenantId}",
+    "business": "Chi tiết tenant",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-018",
+    "service": "S01",
+    "method": "PATCH",
+    "path": "/api/v1/tenants/{tenantId}",
+    "business": "Cập nhật tenant",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-019",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/tenants/{tenantId}/invitations",
+    "business": "Mời thành viên",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-023",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/tenants/{tenantId}/memberships",
+    "business": "Tenant memberships",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-024",
+    "service": "S01",
+    "method": "PATCH",
+    "path": "/api/v1/tenants/{tenantId}/memberships/{membershipId}",
+    "business": "Sửa membership",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-028",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/tenants/{tenantId}/workspaces",
+    "business": "Danh sách workspaces",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-029",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/tenants/{tenantId}/workspaces",
+    "business": "Tạo workspace",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-030",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}",
+    "business": "Chi tiết workspace",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-031",
+    "service": "S01",
+    "method": "PATCH",
+    "path": "/api/v1/workspaces/{workspaceId}",
+    "business": "Sửa workspace",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-033",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/memberships",
+    "business": "Thành viên workspace",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-034",
+    "service": "S01",
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/memberships",
+    "business": "Gán thành viên",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-035",
+    "service": "S01",
+    "method": "DELETE",
+    "path": "/api/v1/workspaces/{workspaceId}/memberships/{membershipId}",
+    "business": "Gỡ thành viên",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-036",
+    "service": "S01",
+    "method": "PUT",
+    "path": "/api/v1/workspaces/{workspaceId}/memberships/{membershipId}/roles",
+    "business": "Gán roles",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-037",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/roles",
+    "business": "Danh mục roles",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-038",
+    "service": "S01",
+    "method": "GET",
+    "path": "/api/v1/users/me/access-context",
+    "business": "Access context của tôi",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-046",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/integrations/github/authorization",
+    "business": "GitHub integration scopes",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-047",
+    "service": "S02",
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/repository-connections",
+    "business": "Kết nối repository",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-048",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/repository-connections",
+    "business": "Repository connections",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-049",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/connection",
+    "business": "Tình trạng repository connection",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-050",
+    "service": "S02",
+    "method": "POST",
+    "path": "/api/v1/repositories/{repositoryId}/disconnections",
+    "business": "Ngắt kết nối repository",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-051",
+    "service": "S02",
+    "method": "POST",
+    "path": "/api/v1/repositories/{repositoryId}/reauthorizations",
+    "business": "Ủy quyền lại GitHub",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-052",
+    "service": "S02",
+    "method": "POST",
+    "path": "/api/v1/repositories/{repositoryId}/resyncs",
+    "business": "Yêu cầu resync",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-053",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/pull-requests",
+    "business": "Danh sách PR",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-054",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/pull-requests/{prNumber}",
+    "business": "Chi tiết PR",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-055",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/commits",
+    "business": "Commits đã ingest",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-056",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/source-events",
+    "business": "Source event history",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-057",
+    "service": "S02",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/tracked-branches",
+    "business": "Tracked branches",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-058",
+    "service": "S02",
+    "method": "PUT",
+    "path": "/api/v1/repositories/{repositoryId}/tracked-branches",
+    "business": "Chọn tracked branches",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-059",
+    "service": "S02",
+    "method": "POST",
+    "path": "/api/v1/repositories/{repositoryId}/rechecks",
+    "business": "Recheck theo SHA",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-068",
+    "service": "S02",
+    "method": "POST",
+    "path": "/integrations/github/webhooks",
+    "business": "Nhận GitHub HMAC webhook",
+    "state": "BLOCKED_SECURITY",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-069",
+    "service": "S02",
+    "method": "POST",
+    "path": "/internal/v1/source/resolve",
+    "business": "Resolve snapshot theo authoritative SHA",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-070",
+    "service": "S02",
+    "method": "POST",
+    "path": "/internal/v1/source/validate",
+    "business": "Validate source currentness",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-071",
+    "service": "S02",
+    "method": "POST",
+    "path": "/internal/v1/source/content",
+    "business": "Đọc source content theo SHA",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-077",
+    "service": "S03",
+    "method": "POST",
+    "path": "/api/v1/analysis-jobs",
+    "business": "Tạo analysis job",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-078",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/analysis-jobs/{jobId}",
+    "business": "Trạng thái analysis job",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-079",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/analysis-jobs",
+    "business": "Danh sách analysis jobs",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-080",
+    "service": "S03",
+    "method": "POST",
+    "path": "/api/v1/analysis-jobs/{jobId}/replay",
+    "business": "Replay analysis job",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-081",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/analysis-jobs/{jobId}/evidence",
+    "business": "Analysis evidence",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-082",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/drift-issues",
+    "business": "Drift issues",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-083",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/drift-issues/{driftIssueId}",
+    "business": "Drift issue detail",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-084",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/drift-issues/{driftIssueId}/history",
+    "business": "Drift issue history",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-085",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/drift-issues/{driftIssueId}/evidence",
+    "business": "Drift evidence",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-086",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/drift-issues/{driftIssueId}/suggestions",
+    "business": "Drift suggestions",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-087",
+    "service": "S03",
+    "method": "POST",
+    "path": "/api/v1/drift-issues/{driftIssueId}/dismiss",
+    "business": "Dismiss drift guarded",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-088",
+    "service": "S03",
+    "method": "POST",
+    "path": "/api/v1/drift-issues/{driftIssueId}/suggestions/{suggestionId}/decisions",
+    "business": "Suggestion decisions",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-089",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/code-entities",
+    "business": "Code entities",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-090",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/dependencies",
+    "business": "Dependency graph",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-091",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/drift-metrics",
+    "business": "Drift metrics",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-092",
+    "service": "S03",
+    "method": "GET",
+    "path": "/api/v1/repositories/{repositoryId}/drift-policy",
+    "business": "Drift policy",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-093",
+    "service": "S03",
+    "method": "PUT",
+    "path": "/api/v1/repositories/{repositoryId}/drift-policy",
+    "business": "Cập nhật drift policy",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-096",
+    "service": "S03",
+    "method": "POST",
+    "path": "/internal/v1/analysis-jobs",
+    "business": "Nhận processing request internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-097",
+    "service": "S03",
+    "method": "POST",
+    "path": "/internal/v1/revalidation/impact",
+    "business": "Source revalidation impact",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-098",
+    "service": "S03",
+    "method": "GET",
+    "path": "/internal/v1/analysis-jobs/{jobId}/outcome",
+    "business": "Lookup analysis outcome",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-099",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/documents",
+    "business": "Danh sách documents",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-100",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/documents",
+    "business": "Tạo document",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-101",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/documents/{documentId}",
+    "business": "Đọc document canonical",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-102",
+    "service": "S04",
+    "method": "PATCH",
+    "path": "/api/v1/documents/{documentId}/metadata",
+    "business": "Sửa metadata document",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-103",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/documents/{documentId}/source-links",
+    "business": "Document-source links",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-104",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/documents/{documentId}/versions",
+    "business": "Danh sách document versions",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-105",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/documents/{documentId}/versions",
+    "business": "Tạo version draft",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-106",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}",
+    "business": "Đọc exact document version",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-107",
+    "service": "S04",
+    "method": "PATCH",
+    "path": "/api/v1/document-versions/{versionId}/content",
+    "business": "Sửa nội dung Draft",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-108",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/evidence",
+    "business": "Đọc version evidence",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-109",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/changes",
+    "business": "Đọc version change log",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-110",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/compare",
+    "business": "So sánh hai versions",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-111",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/attribution",
+    "business": "Version attribution",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-112",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/regenerate",
+    "business": "Yêu cầu regenerate",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-113",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/submit",
+    "business": "Submit Staff Review",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-114",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/revalidations",
+    "business": "Yêu cầu source revalidation",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-115",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/review-queue",
+    "business": "Hàng chờ Staff Review",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-116",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/review-context",
+    "business": "Review context và ETag",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-117",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/review-comments",
+    "business": "Review comments",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-118",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/review-comments",
+    "business": "Thêm review comment",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-119",
+    "service": "S04",
+    "method": "PATCH",
+    "path": "/api/v1/document-versions/{versionId}/staff-edits",
+    "business": "Staff minor edits",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-120",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/staff-decisions",
+    "business": "Staff PASS hoặc RETURN",
+    "state": "IN_PROGRESS",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-121",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/review-history",
+    "business": "Review history",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-122",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/approval-queue",
+    "business": "Hàng chờ Manager",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-123",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/approval-context",
+    "business": "Approval context và ETag",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-124",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/manager-decisions",
+    "business": "Quyết định Manager",
+    "state": "PLANNED",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-125",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/approval-history",
+    "business": "Approval history",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-126",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/approval-assignments",
+    "business": "Gán Manager",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-127",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/publish",
+    "business": "Publish guarded",
+    "state": "PLANNED",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-128",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/document-versions/{versionId}/exports",
+    "business": "Controlled Git Export",
+    "state": "PLANNED",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-129",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/document-versions/{versionId}/exports",
+    "business": "Lịch sử Export",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-131",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/collections",
+    "business": "Danh sách Collections",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-132",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/collections",
+    "business": "Tạo Collection",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-133",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/collections/{collectionId}",
+    "business": "Chi tiết Collection",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-134",
+    "service": "S04",
+    "method": "PATCH",
+    "path": "/api/v1/collections/{collectionId}",
+    "business": "Sửa Collection",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-136",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/knowledge/search",
+    "business": "Knowledge Search có scope",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-137",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/knowledge/linked-code-entities",
+    "business": "Document↔Code links",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-138",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/workspaces/{workspaceId}/templates",
+    "business": "Danh sách Templates",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-139",
+    "service": "S04",
+    "method": "POST",
+    "path": "/api/v1/workspaces/{workspaceId}/templates",
+    "business": "Tạo Template",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-140",
+    "service": "S04",
+    "method": "GET",
+    "path": "/api/v1/templates/{templateId}",
+    "business": "Template detail",
+    "state": "CANDIDATE",
+    "gatewayEnabled": true
+  },
+  {
+    "apiId": "API-160",
+    "service": "S04",
+    "method": "POST",
+    "path": "/internal/v1/document-candidates",
+    "business": "Materialize Draft internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-161",
+    "service": "S04",
+    "method": "GET",
+    "path": "/internal/v1/document-candidates/{operationId}",
+    "business": "Candidate result internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-162",
+    "service": "S04",
+    "method": "POST",
+    "path": "/internal/v1/documents/context",
+    "business": "Authorized document context internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-163",
+    "service": "S04",
+    "method": "POST",
+    "path": "/internal/v1/document-versions/{versionId}/source-guard",
+    "business": "Source guard internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-164",
+    "service": "S05",
+    "method": "POST",
+    "path": "/internal/v1/ai/executions",
+    "business": "AI execution internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-165",
+    "service": "S05",
+    "method": "GET",
+    "path": "/internal/v1/ai/executions/{executionId}",
+    "business": "AI execution status internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-166",
+    "service": "S05",
+    "method": "GET",
+    "path": "/internal/v1/ai/executions/{executionId}/result",
+    "business": "AI execution result internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-167",
+    "service": "S05",
+    "method": "POST",
+    "path": "/internal/v1/ai/executions/{executionId}/cancel",
+    "business": "Cancel execution internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-168",
+    "service": "S05",
+    "method": "POST",
+    "path": "/internal/v1/ai/context/retrieval",
+    "business": "Retrieve AI context internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "API-169",
+    "service": "S05",
+    "method": "POST",
+    "path": "/internal/v1/ai/index-sync",
+    "business": "AI index sync internal",
+    "state": "INTERNAL_CANDIDATE",
+    "gatewayEnabled": false
+  }
+]
