@@ -19,21 +19,24 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(ReviewSourceValidationTestConfiguration.class)
 class ReviewApiIntegrationTest extends PostgresTestSupport {
     @LocalServerPort int port;
     @Autowired JsonMapper json;
     @Autowired DocumentReviewService service;
+    @Autowired ReviewSourceValidationTestConfiguration.TestValidator sourceValidator;
     final HttpClient http = HttpClient.newHttpClient();
 
     record Fixture(UUID tenant, UUID workspace, UUID repository, UUID document, UUID version, UUID evidence, UUID actor) {
         ActorContext context() {
             return new ActorContext(actor, tenant, Set.of(new ActorContext.WorkspaceGrant(workspace,
-                    Set.of("STAFF"), Set.of(repository), Set.of())));
+                    Set.of("STAFF"), Set.of(repository))));
         }
     }
 
@@ -51,6 +54,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 f.tenant, f.version, f.actor);
         execute("INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,document_version_id,evidence_type,source_ref) VALUES (?,?,?,'SOURCE','test://source')",
                 f.evidence, f.tenant, f.version);
+        ReviewSourceValidationTestConfiguration.HEADS.put(f.repository, "a".repeat(40));
         return f;
     }
 
@@ -132,6 +136,10 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         assertThat(scalar("SELECT metadata->>'previousReviewStage' FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
         assertThat(scalar("SELECT metadata->>'newReviewStage' FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo("MANAGER_APPROVAL");
         assertThat(scalar("SELECT source_sha FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo("a".repeat(40));
+        assertThat(scalar("SELECT metadata->'sourceValidation'->>'validationId' FROM document.document_audits WHERE document_version_id=?", f.version))
+                .isEqualTo("test-validation-" + f.version);
+        assertThat(scalar("SELECT metadata->'sourceValidation'->>'validatedHeadSha' FROM document.document_audits WHERE document_version_id=?", f.version))
+                .isEqualTo("a".repeat(40));
     }
 
     @Test
@@ -183,10 +191,12 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         String jwt = token(f), etag = VersionEtags.format(f.version, 0);
         var first = review(f, jwt, passBody(f), "snapshot", etag);
         assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        sourceValidator.overrides.put(f.version, version -> { throw new IllegalStateException("source authority unavailable"); });
         execute("UPDATE document.document_versions SET source_sha=? WHERE document_version_id=?", "b".repeat(40), f.version);
         var retry = review(f, jwt, passBody(f), "snapshot", etag);
         assertThat(retry.statusCode()).as(retry.body()).isEqualTo(200);
         assertThat(retry.body()).isEqualTo(first.body());
+        assertThat(sourceValidator.calls(f.version)).isEqualTo(1);
     }
 
     @Test
@@ -332,17 +342,71 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     }
 
     @Test
-    void repositoryFreeDocument_requiresExplicitDocumentGrant() throws Exception {
+    void repositoryFreeDocument_usesWorkspaceStaffScopeWithoutDocumentAcl() throws Exception {
         var f = fixture();
         execute("UPDATE document.documents SET repository_connection_id=NULL WHERE document_id=?", f.document);
         String etag = VersionEtags.format(f.version, 0);
-        problem(review(f, token(f), passBody(f), "without-document", etag), 403, "REVIEW_FORBIDDEN");
-        unchanged(f);
+        for (String kind : List.of("workspace", "role", "inactive-workspace", "inactive-tenant")) {
+            var denied = Map.<String, Object>of("tenant_active", !kind.equals("inactive-tenant"), "workspace_grants", List.of(Map.of(
+                    "workspace_id", (kind.equals("workspace") ? UUID.randomUUID() : f.workspace).toString(),
+                    "active", !kind.equals("inactive-workspace"), "roles", List.of(kind.equals("role") ? "MANAGER" : "STAFF"),
+                    "document_ids", List.of(f.document.toString()))));
+            problem(review(f, token(f, denied, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)), passBody(f), kind, etag),
+                    403, "REVIEW_FORBIDDEN");
+            unchanged(f);
+        }
+        var foreignTenant = new Fixture(UUID.randomUUID(), f.workspace, f.repository, f.document, f.version, f.evidence, f.actor);
+        problem(review(f, token(foreignTenant), passBody(f), "foreign-tenant", etag), 404, "DOCUMENT_VERSION_NOT_FOUND");
         var overrides = Map.<String, Object>of("workspace_grants", List.of(Map.of(
-                "workspace_id", f.workspace.toString(), "active", true, "roles", List.of("STAFF"),
-                "document_ids", List.of(f.document.toString()))));
+                "workspace_id", f.workspace.toString(), "active", true, "roles", List.of("STAFF"))));
         var result = review(f, token(f, overrides, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)), passBody(f), "document", etag);
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
+        assertThat(sourceValidator.calls(f.version)).isZero();
+        assertThat(body(result).path("sourceBinding").isNull()).isTrue();
+    }
+
+    @Test
+    void changedSourceWithExistingEvidence_shouldBlockPassWithoutConsumingKey() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        ReviewSourceValidationTestConfiguration.HEADS.put(f.repository, "b".repeat(40));
+        problem(review(f, jwt, passBody(f), "source-change", etag), 409, "SOURCE_CHANGED_REVALIDATION_REQUIRED");
+        unchanged(f);
+        ReviewSourceValidationTestConfiguration.HEADS.put(f.repository, "a".repeat(40));
+        assertThat(review(f, jwt, passBody(f), "source-change", etag).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void unknownExpiredAndWrongScopeValidation_shouldNotWriteStateDecisionOrAudit() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        sourceValidator.overrides.put(f.version, version -> null);
+        problem(review(f, jwt, passBody(f), "missing", etag), 503, "SOURCE_VALIDATION_UNAVAILABLE");
+        unchanged(f);
+        sourceValidator.overrides.put(f.version, version -> {
+            var now = Instant.now();
+            return new SourceReviewValidation("expired", f.tenant, f.workspace, f.version, 0, f.repository,
+                    "a".repeat(40), now.minusSeconds(60), now.minusSeconds(1));
+        });
+        problem(review(f, jwt, passBody(f), "expired", etag), 503, "SOURCE_VALIDATION_UNAVAILABLE");
+        unchanged(f);
+        sourceValidator.overrides.put(f.version, version -> {
+            var now = Instant.now();
+            return new SourceReviewValidation("wrong-tenant", UUID.randomUUID(), f.workspace, f.version, 0, f.repository,
+                    "a".repeat(40), now, now.plusSeconds(60));
+        });
+        problem(review(f, jwt, passBody(f), "wrong-scope", etag), 503, "SOURCE_VALIDATION_UNAVAILABLE");
+        unchanged(f);
+        sourceValidator.overrides.put(f.version, version -> { throw new IllegalStateException("upstream secret must not leak"); });
+        var unavailable = review(f, jwt, passBody(f), "dependency-failed", etag);
+        problem(unavailable, 503, "SOURCE_VALIDATION_UNAVAILABLE");
+        assertThat(unavailable.body()).doesNotContain("upstream secret");
+        unchanged(f);
+        // RETURN does not promote the version and must remain available when source validation is down.
+        var returned = review(f, jwt, "{\"decision\":\"RETURN_FOR_REVISION\",\"feedback\":\"Update source\"}", "return", etag);
+        assertThat(returned.statusCode()).as(returned.body()).isEqualTo(200);
+        assertThat(body(returned).path("state").asString()).isEqualTo("DRAFT");
+        assertThat(sourceValidator.calls(f.version)).isEqualTo(4);
     }
 
     @Test

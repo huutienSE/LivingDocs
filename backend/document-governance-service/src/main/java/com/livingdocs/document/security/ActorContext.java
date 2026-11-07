@@ -9,12 +9,10 @@ import java.util.UUID;
 public record ActorContext(UUID identityId, UUID tenantId, Set<WorkspaceGrant> grants) {
     public ActorContext { grants = Set.copyOf(grants); }
 
-    public record WorkspaceGrant(UUID workspaceId, Set<String> roles,
-                                 Set<UUID> repositoryIds, Set<UUID> documentIds) {
+    public record WorkspaceGrant(UUID workspaceId, Set<String> roles, Set<UUID> repositoryIds) {
         public WorkspaceGrant {
             roles = Set.copyOf(roles);
             repositoryIds = Set.copyOf(repositoryIds);
-            documentIds = Set.copyOf(documentIds);
         }
     }
 
@@ -22,8 +20,7 @@ public record ActorContext(UUID identityId, UUID tenantId, Set<WorkspaceGrant> g
         if (!tenantId.equals(version.tenantId()) || grants.stream().noneMatch(g ->
                 g.workspaceId().equals(version.workspaceId()) && g.roles().contains("STAFF")
                         && (version.repositoryConnectionId() == null
-                            ? g.documentIds().contains(version.documentId())
-                            : g.repositoryIds().contains(version.repositoryConnectionId())))) {
+                            || g.repositoryIds().contains(version.repositoryConnectionId())))) {
             throw ReviewException.forbidden();
         }
     }

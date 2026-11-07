@@ -20,7 +20,7 @@ class ReviewRestartIntegrationTest extends PostgresTestSupport {
         var options = new HashMap<String, Object>(properties());
         options.put("server.port", 0);
         String[] args = options.entrySet().stream().map(e -> "--" + e.getKey() + "=" + e.getValue()).toArray(String[]::new);
-        return new SpringApplicationBuilder(DocumentGovernanceServiceApplication.class).run(args);
+        return new SpringApplicationBuilder(DocumentGovernanceServiceApplication.class, ReviewSourceValidationTestConfiguration.class).run(args);
     }
 
     @Test
@@ -64,6 +64,9 @@ class ReviewRestartIntegrationTest extends PostgresTestSupport {
             assertThat(ReviewApiIntegrationTest.scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version())).isEqualTo(1L);
             assertThat(ReviewApiIntegrationTest.scalar("SELECT metadata->>'newReviewStage' FROM document.document_audits WHERE document_version_id=?", f.version()))
                     .isEqualTo("MANAGER_APPROVAL");
+            assertThat(ReviewApiIntegrationTest.scalar("SELECT metadata->'sourceValidation'->>'validationId' FROM document.document_audits WHERE document_version_id=?", f.version()))
+                    .isEqualTo("test-validation-" + f.version());
+            assertThat(restarted.getBean(ReviewSourceValidationTestConfiguration.TestValidator.class).calls(f.version())).isZero();
         }
     }
 

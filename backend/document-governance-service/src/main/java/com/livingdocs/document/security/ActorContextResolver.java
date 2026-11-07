@@ -19,7 +19,7 @@ public class ActorContextResolver {
                 if (!(raw instanceof Map<?, ?> grant)) throw ReviewException.forbidden();
                 if (!Boolean.TRUE.equals(grant.get("active"))) continue;
                 grants.add(new ActorContext.WorkspaceGrant(UUID.fromString((String) grant.get("workspace_id")),
-                        strings(grant.get("roles")), uuids(grant.get("repository_ids")), uuids(grant.get("document_ids"))));
+                        strings(grant.get("roles")), uuids(grant.get("repository_ids"))));
             }
             return new ActorContext(UUID.fromString(jwt.getSubject()),
                     UUID.fromString(jwt.getClaimAsString("tenant_id")), grants);

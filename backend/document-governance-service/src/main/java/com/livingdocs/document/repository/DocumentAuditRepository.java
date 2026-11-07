@@ -22,6 +22,7 @@ public class DocumentAuditRepository {
         metadata.put("newRevision", a.after().revision());
         metadata.put("evidenceRefs", a.decision().evidenceRefs());
         metadata.put("correlationId", a.correlationId());
+        if (a.sourceValidation() != null) metadata.put("sourceValidation", a.sourceValidation());
         jdbc.sql("""
                 INSERT INTO document.document_audits (document_audit_id, tenant_id, document_id,
                     document_version_id, workspace_id, repository_connection_id, actor_ref, action,

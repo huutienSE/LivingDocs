@@ -21,6 +21,12 @@ paths:
         (including original If-Match, feedback and ordered evidenceRefs) returns the original
         response/ETag, even after restart. Changed content with that key returns 409.
         A new key with an obsolete If-Match returns 412. No client-supplied target state is accepted.
+        Repository-backed PASS also requires a trusted current-source validation result bound to
+        tenant/workspace/repository/version/revision/SHA. Missing integration or unknown/expired
+        validation returns 503; a changed authoritative SHA returns 409 without committing a decision.
+        RETURN_FOR_REVISION and exact replay do not require a new source check.
+        Repository-free documents use active Staff membership in the owning workspace;
+        no document_ids ACL claim is required. Repository-backed documents still require repository scope.
       parameters:
         - name: If-Match
           in: header
@@ -69,6 +75,8 @@ paths:
           $ref: '#/components/responses/Problem'
         '500':
           $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     bearerAuth:
@@ -108,7 +116,8 @@ components:
           description: >-
             PASS requires at least one S04 document_evidence_id belonging to this tenant/version.
             Omitted or null becomes an empty list. Source-derived versions also require a bound SHA.
-            Local persisted evidence checks do not assert current GitHub head freshness.
+            Evidence membership alone does not prove source currentness; repository-backed PASS
+            separately requires the trusted source validator. Validation receipts cannot be supplied in this body.
     DocumentVersionView:
       type: object
       additionalProperties: false
@@ -183,6 +192,7 @@ components:
           enum: [INVALID_REQUEST, INVALID_IF_MATCH, UNAUTHENTICATED, REVIEW_FORBIDDEN,
                  DOCUMENT_VERSION_NOT_FOUND, STATE_TRANSITION_FORBIDDEN, IDEMPOTENCY_CONFLICT,
                  CONCURRENT_REVIEW, REVISION_CONFLICT, RETURN_REASON_REQUIRED, REVIEW_EVIDENCE_REQUIRED,
+                 SOURCE_CHANGED_REVALIDATION_REQUIRED, SOURCE_VALIDATION_UNAVAILABLE,
                  REVIEW_EVIDENCE_INVALID, SOURCE_EVIDENCE_INSUFFICIENT, PRECONDITION_REQUIRED, PERSISTENCE_ERROR, EVIDENCE_LIMIT_EXCEEDED, DUPLICATE_EVIDENCE, REPLAY_SNAPSHOT_UNAVAILABLE]
         correlationId:
           type: string

@@ -1,5 +1,21 @@
 # LIV-118 — Bàn giao core persistence để review
 
+## Sửa guard sau rà soát Confluence — 06/11/2026
+
+- Đối chiếu Jira LIV-118 và [LD-SPR3-GUIDE-001](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/11960322),
+  version 8 ngày 03/11/2026, TIỀN HUỲNH PHẠM HỮU, đọc live 06/11: LIV-118 sở hữu S04 review
+  transitions/ReviewDecision/Audit/Flyway; LIV-122 sở hữu S02 head/SHA verification API.
+- Đã thêm source guard phía S04 cho PASS. Không có trusted validator hoặc validation không còn hợp lệ
+  thì 503 và không mutate; authoritative SHA khác bound SHA thì 409. Audit lưu validation context.
+  RETURN không cần fresh check; replay dùng decision đã commit, không tạo transition/validation mới.
+- Chưa có production S02 adapter: repository-backed PASS mới sẽ bị chặn 503. Đây là dependency tích hợp
+  còn mở, không phải evidence S02 đã hoàn thành. Test provider chỉ mô phỏng authority độc lập trong tests.
+- Bỏ claim/ACL `document_ids`: tài liệu không gắn repository dùng Staff role trong đúng workspace,
+  giữ active tenant/workspace và repository grant cho tài liệu có repository.
+- Các thông tin lịch sử phía dưới về source guard chỉ kiểm SHA và document grant được thay thế bởi mục này.
+  Kiểm thử `verify` đạt 42/42 lúc 23:52:32 UTC+7 ngày 06/11/2026; OpenAPI validate OK.
+  Kết quả/hashes được ghi ở `LIV-118-test-evidence.json`, mục `guardFixes`; chưa commit/push.
+
 Ngày: 05/11/2026 (UTC+7). Người soạn: Codex, tác giả implementation; không phải independent approval.
 
 ## Phạm vi giữ lại

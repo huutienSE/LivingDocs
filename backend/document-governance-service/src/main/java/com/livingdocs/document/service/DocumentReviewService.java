@@ -16,13 +16,15 @@ public class DocumentReviewService {
     private final ReviewDecisionRepository decisions;
     private final DocumentAuditRepository audits;
     private final ReviewTransitionPolicy policy;
+    private final SourceReviewGuard sourceGuard;
 
     public DocumentReviewService(DocumentVersionRepository versions, ReviewDecisionRepository decisions,
-                                 DocumentAuditRepository audits, ReviewTransitionPolicy policy) {
+                                 DocumentAuditRepository audits, ReviewTransitionPolicy policy, SourceReviewGuard sourceGuard) {
         this.versions = versions;
         this.decisions = decisions;
         this.audits = audits;
         this.policy = policy;
+        this.sourceGuard = sourceGuard;
     }
 
     @Transactional
@@ -50,14 +52,17 @@ public class DocumentReviewService {
         if (!versions.hasEvidence(actor.tenantId(), versionId, request.evidenceRefs())) {
             throw new ReviewException(422, "REVIEW_EVIDENCE_INVALID", "Evidence must belong to this document version.");
         }
+        var validation = request.decision() == ReviewAction.PASS ? sourceGuard.requireCurrent(before) : null;
         var after = before.reviewed(request.decision());
         var now = Instant.now();
         var decision = new ReviewDecision(UUID.randomUUID(), actor.tenantId(), versionId, actor.identityId(),
                 request.decision(), request.feedback(), decisions.nextRound(actor.tenantId(), versionId), key,
                 expectedRevision, after.revision(), after.state(), after.reviewStage(), request.evidenceRefs(), now);
+        // Recheck expiry immediately before the conditional write; the version/scope rows remain locked.
+        if (validation != null) validation.requireMatches(before, Instant.now());
         versions.update(before, after);
         decisions.insert(decision, ReviewResponse.from(decision, before));
-        audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now));
+        audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now, validation));
         // JDBC statements execute immediately; any failure rolls back all three writes.
         return ReviewResponse.from(decision, before);
     }
