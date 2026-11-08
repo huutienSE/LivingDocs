@@ -1,6 +1,7 @@
 package com.livingdocs.document.repository;
 
 import com.livingdocs.document.domain.*;
+import com.livingdocs.document.dto.ReviewResponse;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,15 +40,15 @@ public class ReviewDecisionRepository {
                 """).param("tenant", tenant).param("version", version).query(Integer.class).single();
     }
 
-    public com.livingdocs.document.dto.ReviewResponse response(ReviewDecision d) {
+    public ReviewResponse response(ReviewDecision d) {
         String snapshot = jdbc.sql("SELECT response_snapshot::text FROM document.review_decisions WHERE tenant_id=:tenant AND review_decision_id=:id")
                 .param("tenant", d.tenantId()).param("id", d.id()).query(String.class).single();
         if (snapshot == null) throw new ReviewException(409, "REPLAY_SNAPSHOT_UNAVAILABLE",
                 "Historical response cannot be reconstructed from immutable audit.");
-        return json.readValue(snapshot, com.livingdocs.document.dto.ReviewResponse.class);
+        return json.readValue(snapshot, ReviewResponse.class);
     }
 
-    public void insert(ReviewDecision d, com.livingdocs.document.dto.ReviewResponse response) {
+    public void insert(ReviewDecision d, ReviewResponse response) {
         jdbc.sql("""
                 INSERT INTO document.review_decisions (review_decision_id, tenant_id, document_version_id,
                     reviewer_identity_id, decision, reason, round_no, decided_at, idempotency_key,

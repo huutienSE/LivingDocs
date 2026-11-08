@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
+import org.springframework.http.HttpStatusCode;
 
 @Component
 public class ApiProblems {
@@ -14,7 +15,7 @@ public class ApiProblems {
     public ApiProblems(JsonMapper json) { this.json = json; }
 
     public ProblemDetail create(HttpServletRequest request, int status, String code, String detail) {
-        var problem = ProblemDetail.forStatusAndDetail(org.springframework.http.HttpStatusCode.valueOf(status), detail);
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
         problem.setType(URI.create("urn:livingdocs:problem:" + code.toLowerCase(java.util.Locale.ROOT).replace('_', '-')));
         problem.setInstance(URI.create("urn:uuid:" + UUID.randomUUID()));
         problem.setProperty("code", code);
