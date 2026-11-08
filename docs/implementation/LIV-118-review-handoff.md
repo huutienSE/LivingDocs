@@ -1,68 +1,58 @@
-# LIV-118 — Bàn giao core persistence để review
+# LIV-118 — Bàn giao S04 Staff Review persistence
 
-## Sửa guard sau rà soát Confluence — 06/11/2026
+Cập nhật: 08/11/2026 (UTC+7). Người soạn: Codex; tài liệu implementation, không phải independent approval.
 
-- Đối chiếu Jira LIV-118 và [LD-SPR3-GUIDE-001](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/11960322),
-  version 8 ngày 03/11/2026, TIỀN HUỲNH PHẠM HỮU, đọc live 06/11: LIV-118 sở hữu S04 review
-  transitions/ReviewDecision/Audit/Flyway; LIV-122 sở hữu S02 head/SHA verification API.
-- Đã thêm source guard phía S04 cho PASS. Không có trusted validator hoặc validation không còn hợp lệ
-  thì 503 và không mutate; authoritative SHA khác bound SHA thì 409. Audit lưu validation context.
-  RETURN không cần fresh check; replay dùng decision đã commit, không tạo transition/validation mới.
-- Chưa có production S02 adapter: repository-backed PASS mới sẽ bị chặn 503. Đây là dependency tích hợp
-  còn mở, không phải evidence S02 đã hoàn thành. Test provider chỉ mô phỏng authority độc lập trong tests.
-- Bỏ claim/ACL `document_ids`: tài liệu không gắn repository dùng Staff role trong đúng workspace,
-  giữ active tenant/workspace và repository grant cho tài liệu có repository.
-- Các thông tin lịch sử phía dưới về source guard chỉ kiểm SHA và document grant được thay thế bởi mục này.
-  Kiểm thử `verify` đạt 42/42 lúc 23:52:32 UTC+7 ngày 06/11/2026; OpenAPI validate OK.
-  Kết quả/hashes được ghi ở `LIV-118-test-evidence.json`, mục `guardFixes`; chưa commit/push.
+## Hành vi và phạm vi bàn giao
 
-Ngày: 05/11/2026 (UTC+7). Người soạn: Codex, tác giả implementation; không phải independent approval.
+- API-120 ghi Staff PASS/RETURN; version, decision và audit cùng transaction.
+- PASS chỉ từ `IN_REVIEW / STAFF_REVIEW` sang `MANAGER_APPROVAL`; RETURN về `DRAFT`,
+  stage null, bắt buộc feedback. Giữ content/decision/audit history.
+- Kiểm active tenant/workspace, Staff role và repository grant khi document gắn repository.
+  Document không gắn repository dùng Staff role đúng workspace; không thêm document-level ACL.
+- Khóa resource, conditional revision update, strong ETag, durable idempotency response snapshot.
+- Flyway V2/V3, OpenAPI và unit/PostgreSQL/API/restart tests.
+- API-106/115/116, UI, Final Approval, Publish, Gateway và API xác minh SHA phía S02 không có
+  implementation trong slice này. Phân công API đọc cần được xác nhận trước tích hợp UI.
 
-## Phạm vi giữ lại
+Chi tiết chạy service, request và claim mapping:
+[README S04](../../backend/document-governance-service/README.md).
 
-DocumentVersion, ReviewDecision, DocumentAudit; PASS/RETURN có guard; transaction,
-revision/concurrency, idempotency, Flyway V2, unit/PostgreSQL tests và persistence sau application restart.
-Không mở rộng thành toàn bộ 65 API S04. Không triển khai thêm login, Gateway, UI, Manager Approval hoặc Publish.
+## Điểm tích hợp và giới hạn còn lại
 
-## Ba điểm cần xác nhận trước tích hợp
-
-| Điểm | Quyết định trong draft này | Owner cần xác nhận / tiêu chí đóng |
+| Điểm | Hành vi hiện tại | Việc cần hoàn tất khi tích hợp |
 | --- | --- | --- |
-| Identity và quyền S01 | Giữ guard service. Claim tenant_active/workspace_grants chỉ là adapter candidate; không công bố là S01 contract đã duyệt. Thiếu trust config tiếp tục fail closed. | Owner S01 cùng LIV-119/S04: cung cấp token/claim contract có version và xác nhận mapping bằng test token S01 thật. Chưa có xác nhận. |
-| Endpoint đọc và DTO | API-120 đúng route inventory. GET API-106 hiện chỉ là review-state slice, không phải API-106 đầy đủ và không thay API-116. Không mở rộng GET chỉ để lấp inventory. | S04/LIV-119: thống nhất quyền DOCUMENT_SCOPE, DTO và endpoint cấp ETag; sửa hoặc bỏ GET slice trước khi coi API bàn giao hoàn chỉnh. Chưa có xác nhận. |
-| API-115/116 thuộc task nào | Jira LIV-118 nêu state/persistence; comment và PR LIV-119 lại chờ API-115/116/120 từ LIV-118. Đây là khoảng trống phân công, không tự quyết là ngoài scope hoặc tự sinh thêm code. | Lead cùng assignee LIV-118 HAI NGUYEN XUAN và LIV-119 thinh vo: xác nhận giữ trong LIV-118 hay tách task, ghi acceptance và owner trước tích hợp. Chưa có xác nhận. |
+| Identity/quyền S01 | JWT được kiểm signature/issuer/audience/expiration; mapping tenant_active/workspace_grants là candidate. Chưa xác minh revoke quyền tức thời. | Owner S01/S04 đối chiếu claim contract và kiểm chứng token S01 thật. |
+| Source validation | Repository-backed PASS mới cần trusted validator; thiếu adapter/kết quả không hợp lệ trả 503, SHA thay đổi trả 409; không ghi mutation. RETURN/exact replay không gọi check mới. | Nối adapter S04 với contract S02 của LIV-122; kiểm chứng authority, binding và freshness bằng source thật. Không trao GitHub credentials cho S04. |
+| SourceBinding | DB chỉ lưu repository connection/head SHA; các trường binding khác trả null. | Đối chiếu schema source binding với owner trước tích hợp; không tự suy ref/config/time từ SHA. |
+| API đọc/UI | Slice chỉ có POST API-120, chưa có API đọc version/queue/context cấp ETag cho UI. | Lead/S04/LIV-119 xác nhận owner và contract API-106/115/116; không coi các API này đã hoàn thành. |
 
-Draft PR chỉ xin review code/persistence và ba điểm trên; chưa ready-to-merge.
-Không dùng thiếu toàn bộ E2E của parent LIV-97 làm blocker mặc định cho subtask persistence.
-Source evidence hiện chỉ kiểm tra tồn tại đúng version và SHA bound; không chứng minh current GitHub head từ S02.
+Giới hạn này cần được phân biệt với AC của LIV-118: guarded mutation, state/audit persistence và
+code/test/evidence được review. Chưa có bằng chứng luồng end-to-end của parent LIV-97 hoàn chỉnh.
 
-## Nguồn đã đối chiếu
+## Migration và bằng chứng kiểm thử
 
-- [LIV-118](https://huutiense25.atlassian.net/browse/LIV-118): đọc live 05/11/2026; In Progress; reporter TIỀN HUỲNH PHẠM HỮU; updated 05/11/2026. Scope/AC là nguồn chính; không phải evidence code đã đạt.
-- api_inventory_v0.4.json do người dùng cung cấp: 172 operations / 65 S04; SHA256 `CEF175093F70E86DFAF60E377BD79D92BB34AD9CC1F86BAC2DB4662B150EF6B6`. Không có metadata tác giả/approval trong JSON. API-106 DOCUMENT_SCOPE; API-120 STAFF,REVIEW_GUARD,ETAG. Inventory không định nghĩa claim S01 hoặc schema DTO chi tiết.
-- [LIV-119](https://huutiense25.atlassian.net/browse/LIV-119), comment thinh vo ngày 05/11/2026 và [contract notes tại commit aab6027](https://github.com/huutienSE/LivingDocs/blob/aab60274504aa1c9e3d4c5b0f59a28a9854cc4da/docs/implementation/LIV-119-staff-review-contract-notes.md): nguồn trực tiếp về nhu cầu UI; tài liệu tự ghi candidate, chưa là quyết định thay đổi scope.
-- Hai checklist review/Jira v1.1 người dùng cung cấp: khung review, không phải approval record cho LIV-118.
+V2 từ chối dữ liệu V1 có `IN_REVIEW` nhưng review_stage null. Trước nâng cấp, người sở hữu dữ liệu
+cần xác định stage đúng từ history; migration không tự suy đoán. Test mới xác nhận rollback khi
+V2 bị từ chối: dữ liệu vẫn nguyên, cột revision chưa được thêm, Flyway history chưa ghi V2.
+Sau khi sửa fixture về stage đã biết, V2/V3 chạy thành công và giữ lịch sử cũ.
 
-## Bằng chứng và giới hạn
+Evidence được giữ tại [LIV-118-test-evidence.json](LIV-118-test-evidence.json): kết quả local,
+source hashes, reports/logs và CI theo commit được tách riêng. Source hashes không bao gồm chính
+evidence JSON để tránh tự tham chiếu. Các kết quả cũ có thể truy vết qua Git history của file.
 
-Tests gồm 15 policy/ETag, 13 API/DB, 1 migration upgrade, 1 application restart,
-1 context smoke, 1 missing-trust = 32. Restart đóng/mở Spring context, HTTP server và pool
-với cùng PostgreSQL; không phải kill/restart JVM hoặc PostgreSQL.
+Restart test kiểm chứng đóng/mở Spring context/server/pool với cùng DB; không mô phỏng restart
+JVM/PostgreSQL. Local tests không chứng minh CI cho commit mới, tích hợp S01/S02 thật hoặc peer approval.
 
-Lần 21:19 ngày 05/11: 32 PASS. Lần review 22:15: 16 PASS/16 errors do Docker engine
-không khả dụng; không diễn giải thành 16 lỗi nghiệp vụ. Lần bàn giao mới được ghi ở evidence riêng
-gắn commit. GitHub CI và independent approval phải kiểm tra riêng.
+## Nguồn và mức tin cậy
 
-Thay đổi application-db.yaml đã có trước implementation không thuộc bàn giao này và không đưa vào commit.
+| Nguồn | Tác giả / thời gian / nơi đăng | Giá trị và giới hạn |
+| --- | --- | --- |
+| [LIV-118](https://huutiense25.atlassian.net/browse/LIV-118) | Reporter TIỀN HUỲNH PHẠM HỮU; cập nhật 06/11/2026; Jira LivingDocsPro; đọc trực tiếp 08/11/2026. | Nguồn chính cho scope DocumentVersion/ReviewDecision/DocumentAudit, guarded PASS/RETURN, unit+DB tests và state/audit sau restart. Không phải bằng chứng implementation PASS. |
+| [PR #26](https://github.com/huutienSE/LivingDocs/pull/26) | Tác giả tài khoản nguyenxuanhai-arch; tạo 07/11/2026; GitHub huutienSE/LivingDocs; đọc trực tiếp 08/11/2026. | Code tại 69d0c03 và check runs là nguồn trực tiếp cho implementation/CI của commit đó; không bao phủ thay đổi local sau commit. |
+| [LD-API-001](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/11337744) | Confluence LPKB; v0.4 đề ngày 24/10/2026; đọc trực tiếp 07/11/2026. Metadata tác giả TIỀN HUỲNH PHẠM HỮU được ghi trong bản bàn giao trước, chưa xác minh lại lần cập nhật này. | Thiết kế API-120, ETag/idempotency/Problem; tài liệu tự ghi candidate, chưa Accepted ADR/G2/runtime evidence. Không xác nhận claim S01 hay wire contract S02 đã chốt. |
+| [REQ-05](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/3702785) | Confluence LPKB; bản bàn giao trước ghi author TIỀN HUỲNH PHẠM HỮU, version 6 ngày 20/10/2026, đọc 05/11/2026. Không đọc lại lần cập nhật này. | Tham chiếu transition T-DOC-03/04B; metadata kế thừa có thể cũ, không dùng thay test code. |
+| [LD-ARCH-005](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/10715150) | Confluence LPKB; bản bàn giao trước ghi cùng author, version 1 ngày 23/10/2026, đọc 05/11/2026. Không đọc lại lần cập nhật này. | Tham chiếu scope/RLS/service ownership; nguồn ghi reviewed candidate/pending ADR. |
 
-## Cập nhật sửa trước commit
-
-Đã bỏ GET API-106 và service đọc dành riêng Staff vì không đáp ứng inventory; giữ POST API-120. API-106/115/116 chưa triển khai, phân công 115/116 vẫn chờ owner xác nhận. Đã bỏ fallback postgres trong application-db.yaml. Adapter S01 tiếp tục là candidate. Restart test đọc state qua repository context mới và kiểm replay POST qua HTTP. Evidence mới ghi working tree cùng hash các file thay cho commit đã thu hồi. Các hàng mô tả GET candidate ở trên là lịch sử trước sửa.
-
-## Review findings xử lý ngày 06/11/2026
-
-- evidenceRefs: tối đa 100, không trùng, kiểm ở constructor trước khi DB/lock; lookup bằng một query theo tập hợp. Budget là lựa chọn implementation ban đầu cần reviewer đánh giá, không gán thành business requirement.
-- API-120: DocumentVersionView có documentId/sourceBinding. Các trường source chưa có trong DB trả null rõ ràng; không suy target ref/config/time từ SHA. Chưa thể tuyên bố đầy đủ source provenance cho dữ liệu legacy.
-- V3: response_snapshot giữ reply gốc, kể cả source context sau khi dữ liệu version thay đổi; backfill keyed V2 decisions từ immutable audit. Không đủ historical audit thì typed 409.
-- Verify sau sửa 17:46:54 UTC+7: 34 tests đạt; thêm negative input, response field assertions, replay snapshot và migration backfill checks.
-- PR #20 đã đồng bộ checklist CI của bfc1b00 và reviewer nhanhehehe; sửa đổi mới chưa commit/push nên chưa có CI mới, chưa đóng review findings trên GitHub.
+Độ tin cậy được xét theo quyền sở hữu nguồn dự án và trạng thái phê duyệt; không suy diễn chuyên môn
+cá nhân từ tên tác giả. Code/report/log có giá trị cho phiên bản và môi trường cụ thể, không tự chứng minh
+task Done hoặc reviewer approval.
