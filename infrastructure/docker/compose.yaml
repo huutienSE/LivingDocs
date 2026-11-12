@@ -26,7 +26,7 @@ services:
     build:
       context: ../../backend/identity-organization-service
     environment:
-      SERVER_PORT: "8080"
+      SERVER_PORT: "8081"
       SPRING_PROFILES_ACTIVE: db
       DB_URL: jdbc:postgresql://postgres:5432/livingdocs
       DB_SCHEMA: identity
@@ -35,7 +35,7 @@ services:
       FLYWAY_USERNAME: ld_s01_migrator
       FLYWAY_PASSWORD: ${S01_FLYWAY_PASSWORD:-}
     ports:
-      - "127.0.0.1:8082:8080"
+      - "127.0.0.1:8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
     build:
       context: ../../backend/repository-integration-service
     environment:
-      SERVER_PORT: "8080"
+      SERVER_PORT: "8082"
       SPRING_PROFILES_ACTIVE: db
       DB_URL: jdbc:postgresql://postgres:5432/livingdocs
       DB_SCHEMA: repository
@@ -55,7 +55,7 @@ services:
       FLYWAY_USERNAME: ld_s02_migrator
       FLYWAY_PASSWORD: ${S02_FLYWAY_PASSWORD:-}
     ports:
-      - "127.0.0.1:8083:8080"
+      - "127.0.0.1:8082:8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,9 +66,9 @@ services:
     build:
       context: ../../backend/source-intelligence-service
     environment:
-      SERVER_PORT: "8080"
+      SERVER_PORT: "8083"
     ports:
-      - "127.0.0.1:8085:8080"
+      - "127.0.0.1:8083:8083"
 
   # S04 — Document Governance
   document-governance-service:
@@ -76,7 +76,7 @@ services:
     build:
       context: ../../backend/document-governance-service
     environment:
-      SERVER_PORT: "8080"
+      SERVER_PORT: "8084"
       SPRING_PROFILES_ACTIVE: db
       DB_URL: jdbc:postgresql://postgres:5432/livingdocs
       DB_SCHEMA: document
@@ -85,7 +85,7 @@ services:
       FLYWAY_USERNAME: ld_s04_migrator
       FLYWAY_PASSWORD: ${S04_FLYWAY_PASSWORD:-}
     ports:
-      - "127.0.0.1:8084:8080"
+      - "127.0.0.1:8084:8084"
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,22 +96,22 @@ services:
     build:
       context: ../api-gateway
     environment:
-      GATEWAY_PORT: "8081"
+      GATEWAY_PORT: "8080"
       GATEWAY_BIND_ADDRESS: 0.0.0.0
       GATEWAY_MANAGEMENT_PORT: "9091" # cong danh cho actuator/health
       GATEWAY_MANAGEMENT_ADDRESS: 0.0.0.0
 
       #giao tiep noi bo (docker, gateway,..)
-      S01_SERVICE_URI: http://identity-organization-service:8080
-      S02_SERVICE_URI: http://repository-integration-service:8080
-      S03_SERVICE_URI: http://source-intelligence-service:8080
-      S04_SERVICE_URI: http://document-governance-service:8080
+      S01_SERVICE_URI: http://identity-organization-service:8081
+      S02_SERVICE_URI: http://repository-integration-service:8082
+      S03_SERVICE_URI: http://source-intelligence-service:8083
+      S04_SERVICE_URI: http://document-governance-service:8084
 
       JWT_ISSUER_URI: ${JWT_ISSUER_URI:-}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-}
       GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
-      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8080:8080"
       - "127.0.0.1:9091:9091"
 
   kafka:
