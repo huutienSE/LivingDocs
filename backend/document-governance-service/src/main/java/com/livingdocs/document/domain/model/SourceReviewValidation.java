@@ -1,4 +1,6 @@
-package com.livingdocs.document.domain;
+package com.livingdocs.document.domain.model;
+
+import com.livingdocs.document.domain.ReviewException;
 
 import java.time.Instant;
 import java.util.UUID;

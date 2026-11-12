@@ -1,6 +1,6 @@
 package com.livingdocs.document;
 
-import com.livingdocs.document.controller.VersionEtags;
+import com.livingdocs.document.api.controller.VersionEtags;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.*;
@@ -47,7 +47,7 @@ class ReviewRestartIntegrationTest extends PostgresTestSupport {
         // A new application context, HTTP server, connection pool and Flyway validation over the same PostgreSQL DB.
         try (var restarted = start()) {
             int port = ((WebServerApplicationContext) restarted).getWebServer().getPort();
-            var jdbc = restarted.getBean(com.livingdocs.document.repository.DocumentVersionRepository.class);
+            var jdbc = restarted.getBean(com.livingdocs.document.infrastructure.persistence.DocumentVersionRepository.class);
             var tx = new org.springframework.transaction.support.TransactionTemplate(
                     restarted.getBean(org.springframework.transaction.PlatformTransactionManager.class));
             var persisted = tx.execute(status -> {

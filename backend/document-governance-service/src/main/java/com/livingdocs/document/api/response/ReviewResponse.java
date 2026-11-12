@@ -1,6 +1,6 @@
-package com.livingdocs.document.dto;
+package com.livingdocs.document.api.response;
 
-import com.livingdocs.document.domain.*;
+import com.livingdocs.document.domain.model.*;
 import java.util.UUID;
 import java.time.Instant;
 

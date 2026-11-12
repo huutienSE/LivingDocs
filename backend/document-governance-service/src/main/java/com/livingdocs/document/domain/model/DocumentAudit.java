@@ -1,4 +1,4 @@
-package com.livingdocs.document.domain;
+package com.livingdocs.document.domain.model;
 
 import java.time.Instant;
 import java.util.UUID;

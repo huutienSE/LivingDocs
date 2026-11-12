@@ -1,4 +1,4 @@
-package com.livingdocs.document.controller;
+package com.livingdocs.document.api.controller;
 
 import com.livingdocs.document.domain.ReviewException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,7 +1,9 @@
 package com.livingdocs.document;
 
-import com.livingdocs.document.controller.VersionEtags;
-import com.livingdocs.document.domain.*;
+import com.livingdocs.document.api.controller.VersionEtags;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.domain.policy.ReviewTransitionPolicy;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

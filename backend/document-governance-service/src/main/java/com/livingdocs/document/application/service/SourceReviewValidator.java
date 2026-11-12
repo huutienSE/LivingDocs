@@ -1,7 +1,7 @@
-package com.livingdocs.document.service;
+package com.livingdocs.document.application.service;
 
-import com.livingdocs.document.domain.DocumentVersion;
-import com.livingdocs.document.domain.SourceReviewValidation;
+import com.livingdocs.document.domain.model.DocumentVersion;
+import com.livingdocs.document.domain.model.SourceReviewValidation;
 
 /**
  * S04 integration port; this is not a new S02 HTTP wire contract.

@@ -1,6 +1,7 @@
-package com.livingdocs.document.service;
+package com.livingdocs.document.application.service;
 
-import com.livingdocs.document.domain.*;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.stereotype.Component;

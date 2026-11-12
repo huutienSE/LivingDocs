@@ -1,6 +1,6 @@
-package com.livingdocs.document.repository;
+package com.livingdocs.document.infrastructure.persistence;
 
-import com.livingdocs.document.domain.DocumentAudit;
+import com.livingdocs.document.domain.model.DocumentAudit;
 import java.util.LinkedHashMap;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

@@ -1,8 +1,11 @@
-package com.livingdocs.document.service;
+package com.livingdocs.document.application.service;
 
-import com.livingdocs.document.domain.*;
-import com.livingdocs.document.dto.*;
-import com.livingdocs.document.repository.*;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.domain.policy.ReviewTransitionPolicy;
+import com.livingdocs.document.api.request.ReviewRequest;
+import com.livingdocs.document.api.response.ReviewResponse;
+import com.livingdocs.document.infrastructure.persistence.*;
 import com.livingdocs.document.security.ActorContext;
 import java.time.Instant;
 import java.util.Objects;

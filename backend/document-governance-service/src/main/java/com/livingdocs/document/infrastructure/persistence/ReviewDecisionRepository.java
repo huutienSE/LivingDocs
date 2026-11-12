@@ -1,7 +1,8 @@
-package com.livingdocs.document.repository;
+package com.livingdocs.document.infrastructure.persistence;
 
-import com.livingdocs.document.domain.*;
-import com.livingdocs.document.dto.ReviewResponse;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.api.response.ReviewResponse;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

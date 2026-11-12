@@ -1,6 +1,7 @@
-package com.livingdocs.document.repository;
+package com.livingdocs.document.infrastructure.persistence;
 
-import com.livingdocs.document.domain.*;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;

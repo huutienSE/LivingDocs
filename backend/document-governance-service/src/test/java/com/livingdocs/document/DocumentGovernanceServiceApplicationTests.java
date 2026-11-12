@@ -3,9 +3,10 @@ package com.livingdocs.document;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.livingdocs.document.service.DocumentReviewService;
-import com.livingdocs.document.domain.*;
-import com.livingdocs.document.dto.ReviewRequest;
+import com.livingdocs.document.application.service.DocumentReviewService;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.api.request.ReviewRequest;
 import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 

@@ -1,6 +1,6 @@
-package com.livingdocs.document.dto;
+package com.livingdocs.document.api.request;
 
-import com.livingdocs.document.domain.ReviewAction;
+import com.livingdocs.document.domain.model.ReviewAction;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;

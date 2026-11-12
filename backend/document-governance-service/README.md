@@ -110,3 +110,19 @@ Kết quả, source hashes, report/log references và CI gắn commit được l
 Surefire reports ở `target/surefire-reports`; build outputs không được commit.
 Tests dùng authority giả lập không chứng minh tích hợp S01/S02/GitHub thật hoặc deployment TLS.
 Nguồn yêu cầu, tác giả, thời gian và giới hạn tin cậy được ghi trong handoff.
+
+
+## Package layout (LIV-118)
+
+LIV-118 follows the proposed layout in LD-SAD-001 v1.0, section 3.4.2,
+as selected for this slice; this is not a backend-wide team mandate.
+
+- `api/controller`: HTTP entry point, errors, correlation and ETags.
+- `api/request`, `api/response`: HTTP contract types.
+- `application/service`: review orchestration and source-validation port/guard.
+- `domain/model`, `domain/policy`: business models and transition rules.
+- `infrastructure/persistence`: JDBC repositories.
+- `security`: actor resolution and security configuration.
+
+JDBC classes remain concrete persistence implementations; no unused repository
+interfaces or feature-level `review` package are introduced.

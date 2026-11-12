@@ -1,6 +1,6 @@
 package com.livingdocs.document.security;
 
-import com.livingdocs.document.controller.ApiProblems;
+import com.livingdocs.document.api.controller.ApiProblems;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +9,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.AuthenticationEntryPoint;
 
 @Configuration
 public class ReviewSecurityConfiguration {
@@ -33,7 +34,7 @@ public class ReviewSecurityConfiguration {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ApiProblems problems) throws Exception {
-        var entryPoint = (org.springframework.security.web.AuthenticationEntryPoint) (request, response, exception) -> {
+        var entryPoint = (AuthenticationEntryPoint) (request, response, exception) -> {
             response.setHeader("WWW-Authenticate", "Bearer");
             problems.write(request, response, 401, "UNAUTHENTICATED", "A valid access token is required.");
         };

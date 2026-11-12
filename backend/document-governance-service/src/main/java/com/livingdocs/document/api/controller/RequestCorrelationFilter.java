@@ -1,4 +1,4 @@
-package com.livingdocs.document.controller;
+package com.livingdocs.document.api.controller;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

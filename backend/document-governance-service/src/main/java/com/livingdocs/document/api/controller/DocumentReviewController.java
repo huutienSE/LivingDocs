@@ -1,8 +1,9 @@
-package com.livingdocs.document.controller;
+package com.livingdocs.document.api.controller;
 
-import com.livingdocs.document.dto.*;
+import com.livingdocs.document.api.request.ReviewRequest;
+import com.livingdocs.document.api.response.ReviewResponse;
 import com.livingdocs.document.security.ActorContextResolver;
-import com.livingdocs.document.service.DocumentReviewService;
+import com.livingdocs.document.application.service.DocumentReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.CacheControl;
 
 @RestController
 @RequestMapping("/api/v1/document-versions")
@@ -34,6 +36,6 @@ public class DocumentReviewController {
 
     private ResponseEntity<ReviewResponse> response(ReviewResponse body) {
         return ResponseEntity.ok().eTag(VersionEtags.format(body.versionId(), body.revision()))
-                .cacheControl(org.springframework.http.CacheControl.noStore()).body(body);
+                .cacheControl(CacheControl.noStore()).body(body);
     }
 }

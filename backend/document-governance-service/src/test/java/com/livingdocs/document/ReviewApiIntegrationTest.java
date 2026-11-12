@@ -1,10 +1,11 @@
 package com.livingdocs.document;
 
-import com.livingdocs.document.controller.VersionEtags;
-import com.livingdocs.document.domain.*;
-import com.livingdocs.document.dto.ReviewRequest;
+import com.livingdocs.document.api.controller.VersionEtags;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.api.request.ReviewRequest;
 import com.livingdocs.document.security.ActorContext;
-import com.livingdocs.document.service.DocumentReviewService;
+import com.livingdocs.document.application.service.DocumentReviewService;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.*;
@@ -312,7 +313,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         var request = new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence));
         var barrier = new CyclicBarrier(2);
         try (var executor = Executors.newFixedThreadPool(2)) {
-            Callable<com.livingdocs.document.dto.ReviewResponse> call = () -> {
+            Callable<com.livingdocs.document.api.response.ReviewResponse> call = () -> {
                 barrier.await(10, TimeUnit.SECONDS);
                 return service.review(f.version, request, 0, "same-key", f.context(), "retry-race");
             };

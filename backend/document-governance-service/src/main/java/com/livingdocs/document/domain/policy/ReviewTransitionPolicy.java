@@ -1,4 +1,7 @@
-package com.livingdocs.document.domain;
+package com.livingdocs.document.domain.policy;
+
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.domain.model.*;
 
 import java.util.List;
 import java.util.UUID;

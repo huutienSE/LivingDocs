@@ -1,7 +1,8 @@
 package com.livingdocs.document;
 
-import com.livingdocs.document.domain.*;
-import com.livingdocs.document.service.SourceReviewGuard;
+import com.livingdocs.document.domain.model.*;
+import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.application.service.SourceReviewGuard;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;
