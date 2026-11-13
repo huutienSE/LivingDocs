@@ -20,7 +20,7 @@ public class GatewayCorsConfig {
         cors.setAllowedOrigins(Arrays.stream(origins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
-                .toList()
+                .toList() 
         );
 
         // OPTIONS trinh duyet gui di truoc de kiem tra truoc khi gui cacs req chinh thuc

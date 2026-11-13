@@ -34,3 +34,10 @@ target/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# ==========================================
+# AI Agent - Local Rules & Context
+# ==========================================
+
+# Ignore all AI agent documentation and configurations
+/docs/ai-agent/

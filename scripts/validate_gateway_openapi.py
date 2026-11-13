@@ -105,7 +105,7 @@ def main():
     if 'S03_SERVICE_URI' not in conf['spring']['cloud']['gateway']['server']['webflux']['routes'][0]['uri'] and not any('S03_SERVICE_URI' in x['uri'] for x in routes):
         fail('Gateway thiếu URI route cho S03')
     compose = read_yaml(ROOT / 'infrastructure/docker/compose.yaml')
-    if compose['services']['api-gateway']['environment'].get('S03_SERVICE_URI') != 'http://source-intelligence-service:8080':
+    if compose['services']['api-gateway']['environment'].get('S03_SERVICE_URI') != 'http://source-intelligence-service:8083':
         fail('Docker Compose Gateway chưa khai báo S03 service DNS.')
     print(f'PASS: {len(inventory)} catalogued APIs; {len(actual)} exact Gateway method+path entries; {len(routes)} route groups; no internal exposure.')
     print('NOTE: STATIC validation only; backend controllers/JWT/CSRF/E2E are not verified.')
