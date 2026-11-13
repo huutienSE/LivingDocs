@@ -19,6 +19,57 @@ def read_yaml(path):
     with path.open(encoding='utf-8') as stream:
         return yaml.safe_load(stream)
 
+def validate_register_contract(inventory):
+    spec = read_yaml(SPECS / 's01-identity.yaml')
+    operation = spec['paths']['/api/v1/auth/register']['post']
+    row = next(row for row in inventory if row['apiId'] == 'API-001')
+    if row['method'] != 'POST' or row['path'] != '/api/v1/auth/register':
+        fail('API-001 inventory method/path sai.')
+    if operation.get('x-contract-state') != row['state'] or row['state'] not in {'IN_PROGRESS', 'IMPLEMENTED'}:
+        fail('API-001 state không khớp inventory.')
+    schemas = spec['components']['schemas']
+    response = operation['responses']['201']['content']['application/json']['schema']
+    if response != {'$ref': '#/components/schemas/RegisterApiResponse'}:
+        fail('API-001 201 phải dùng RegisterApiResponse, không dùng CandidateObject.')
+    envelope = schemas['RegisterApiResponse']['allOf']
+    if envelope[0] != {'$ref': '#/components/schemas/ApiResponseBase'}:
+        fail('API-001 thiếu ApiResponseBase.')
+    base = schemas['ApiResponseBase']
+    data = envelope[1]
+    if not {'code', 'message'} <= set(base.get('required', [])) or 'data' not in data.get('required', []):
+        fail('API-001 201 thiếu required code/message/data.')
+    if data['properties']['data'] != {'$ref': '#/components/schemas/RegisterResponse'}:
+        fail('API-001 data sai type.')
+    register_response = schemas['RegisterResponse']
+    if register_response.get('required') != ['identityId'] or register_response['properties']['identityId'] != {'type': 'string', 'format': 'uuid'}:
+        fail('API-001 identityId phải là UUID bắt buộc.')
+    request = operation['requestBody']['content']['application/json']['schema']
+    if request != {'$ref': '#/components/schemas/RegisterRequest'}:
+        fail('API-001 request schema sai.')
+    request_schema = schemas['RegisterRequest']
+    if set(request_schema.get('required', [])) != {'email', 'password'}:
+        fail('API-001 thiếu email/password bắt buộc.')
+    if request_schema['properties']['email'].get('maxLength') != 320:
+        fail('API-001 email maxLength sai.')
+    password = request_schema['properties']['password']
+    if password.get('minLength') != 12 or password.get('maxLength') != 64:
+        fail('API-001 password length sai.')
+    problem = spec['components']['responses']['Problem']['content'].get('application/problem+json', {})
+    if problem.get('schema') != {'$ref': '#/components/schemas/Problem'}:
+        fail('API-001 error Content-Type/schema sai.')
+    for status in ('400', '409', '415', '500'):
+        error_response = operation['responses'].get(status)
+        if error_response == {'$ref': '#/components/responses/Problem'}:
+            continue
+        if not isinstance(error_response, dict):
+            fail(f'API-001 {status} phải dùng RFC 9457 Problem.')
+        content = error_response.get('content')
+        if not isinstance(content, dict) or set(content) != {'application/problem+json'}:
+            fail(f'API-001 {status} phải dùng application/problem+json.')
+        media_type = content['application/problem+json']
+        if not isinstance(media_type, dict) or media_type.get('schema') != {'$ref': '#/components/schemas/Problem'}:
+            fail(f'API-001 {status} phải dùng RFC 9457 Problem schema.')
+
 def main():
     inventory = json.loads(INVENTORY.read_text(encoding='utf-8'))
     if len(inventory) < 60:
@@ -97,6 +148,7 @@ def main():
     unrepresented = {tuple((r['method'],r['path'])) for r in inventory if r['apiId'] != 'API-120'} - set(described)
     if unrepresented:
         fail('Thiếu operations trong spec: '+str(sorted(unrepresented)))
+    validate_register_contract(inventory)
     # Only static config assertions here. Real JWT/JWKS E2E remains blocked by S01.
     cors_source = (ROOT / 'infrastructure/api-gateway/src/main/java/com/livingdocs/gateway/config/GatewayCorsConfig.java').read_text(encoding='utf-8')
     for required in ('"If-Match"', '"Idempotency-Key"', '"ETag"', 'cors.setAllowCredentials(false)'):
