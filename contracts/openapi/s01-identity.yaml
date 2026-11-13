@@ -16,6 +16,8 @@ paths:
       x-api-id: API-001
       x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
+      x-yaml-problem-alias: &id001
+        $ref: '#/components/responses/Problem'
       responses:
         '201':
           description: Identity đã được tạo.
@@ -23,16 +25,118 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RegisterApiResponse'
-              example:
-                code: IDENTITY_REGISTERED
-                message: Registration completed
-                data:
-                  identityId: 5c94a297-169d-4fea-8582-a22f82dd799e
-        '400': &id001
-          $ref: '#/components/responses/Problem'
-        '409': *id001
-        '415': *id001
-        '500': *id001
+              examples:
+                standardRegistration:
+                  summary: Successful registration
+                  value: &registerSuccessExample
+                    code: IDENTITY_REGISTERED
+                    message: Registration completed
+                    data:
+                      identityId: 5c94a297-169d-4fea-8582-a22f82dd799e
+                password12Characters:
+                  summary: Password meets the minimum length
+                  value: *registerSuccessExample
+                password64AsciiCharacters:
+                  summary: Password meets the maximum ASCII length
+                  value: *registerSuccessExample
+        '400':
+          description: Invalid registration request, including validation errors or malformed JSON.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                invalidEmail:
+                  summary: Invalid email format
+                  value: &invalidRegistrationProblem
+                    type: about:blank
+                    title: Invalid request
+                    status: 400
+                    detail: Registration request is invalid
+                    instance: urn:uuid:10000000-0000-4000-8000-000000000001
+                    code: INVALID_REQUEST
+                    correlationId: example-correlation-400
+                emptyEmail:
+                  summary: Empty email
+                  value: *invalidRegistrationProblem
+                missingEmail:
+                  summary: Missing email
+                  value: *invalidRegistrationProblem
+                missingPassword:
+                  summary: Missing password
+                  value: *invalidRegistrationProblem
+                emptyPassword:
+                  summary: Empty password
+                  value: *invalidRegistrationProblem
+                password11Characters:
+                  summary: Password below minimum length
+                  value: *invalidRegistrationProblem
+                password65AsciiCharacters:
+                  summary: Password above maximum length
+                  value: *invalidRegistrationProblem
+                passwordOver72Utf8Bytes:
+                  summary: Password exceeds 72 UTF-8 bytes
+                  value: *invalidRegistrationProblem
+                malformedJson:
+                  summary: Malformed JSON
+                  value: *invalidRegistrationProblem
+        '409':
+          description: An identity already exists for this email.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                duplicateEmail:
+                  summary: Email already registered
+                  value: &duplicateIdentityProblem
+                    type: about:blank
+                    title: Identity already exists
+                    status: 409
+                    detail: An identity already exists for this email
+                    instance: urn:uuid:20000000-0000-4000-8000-000000000001
+                    code: IDENTITY_ALREADY_EXISTS
+                    correlationId: example-correlation-409
+                duplicateEmailCaseInsensitive:
+                  summary: Email differs only by letter case
+                  value: *duplicateIdentityProblem
+                duplicateEmailWithAsciiSpaces:
+                  summary: Email has surrounding ASCII spaces
+                  value: *duplicateIdentityProblem
+        '415':
+          description: Request Content-Type is not application/json.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                unsupportedContentType:
+                  summary: Unsupported Content-Type
+                  value:
+                    type: about:blank
+                    title: Unsupported media type
+                    status: 415
+                    detail: Content-Type must be application/json
+                    instance: urn:uuid:30000000-0000-4000-8000-000000000001
+                    code: UNSUPPORTED_MEDIA_TYPE
+                    correlationId: example-correlation-415
+        '500':
+          description: Registration could not be completed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                safeInternalError:
+                  summary: Internal error without exception details
+                  value:
+                    type: about:blank
+                    title: Internal error
+                    status: 500
+                    detail: The request could not be completed
+                    instance: urn:uuid:40000000-0000-4000-8000-000000000001
+                    code: INTERNAL_ERROR
+                    correlationId: example-correlation-500
       security: []
       requestBody:
         required: true
@@ -943,13 +1047,13 @@ components:
           type: string
           format: email
           maxLength: 320
-          description: Outer ASCII spaces are trimmed before validation.
+          description: Required, non-blank email; outer ASCII spaces are trimmed before validation.
         password:
           type: string
           format: password
           minLength: 12
           maxLength: 64
-          description: Maximum 72 bytes when encoded as UTF-8 for BCrypt.
+          description: Required and non-blank. Length must be 12–64; independently, the UTF-8 encoding must not exceed 72 bytes for BCrypt. Unicode input can reach the byte limit first.
       description: Local registration only; no tenant, role or JWT is granted.
     UserProfileView:
       type: object

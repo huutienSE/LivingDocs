@@ -5,38 +5,509 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {"key": "baseUrl", "value": "http://localhost:8081"},
-    {"key": "password", "value": "A-secure-password-123"}
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8081"
+    },
+    {
+      "key": "password",
+      "value": "A-secure-password-123"
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "const expectedStatuses = {",
+          "  \"Register returns 201 wrapper\": 201,",
+          "  \"Duplicate email returns 409 Problem\": 409,",
+          "  \"Duplicate email case-insensitive returns 409 Problem\": 409,",
+          "  \"Duplicate email with surrounding ASCII spaces returns 409 Problem\": 409,",
+          "  \"Invalid email format returns 400 Problem\": 400,",
+          "  \"Empty email returns 400 Problem\": 400,",
+          "  \"Missing email returns 400 Problem\": 400,",
+          "  \"Missing password returns 400 Problem\": 400,",
+          "  \"Empty password returns 400 Problem\": 400,",
+          "  \"Password 11 characters returns 400 Problem\": 400,",
+          "  \"Password exactly 12 characters returns 201\": 201,",
+          "  \"Password exactly 64 ASCII characters returns 201\": 201,",
+          "  \"Password 65 ASCII characters returns 400 Problem\": 400,",
+          "  \"Password exceeding 72 UTF-8 bytes returns 400 Problem\": 400,",
+          "  \"Malformed JSON returns 400 Problem\": 400,",
+          "  \"Unsupported Content-Type returns 415 Problem\": 415",
+          "};",
+          "const expectedStatus = expectedStatuses[pm.info.requestName];",
+          "pm.test('Declared regression scenario', () => { pm.expect(expectedStatus, 'Every request must have an expected status').to.be.a('number'); });",
+          "pm.test('Expected HTTP status', () => { pm.response.to.have.status(expectedStatus); });",
+          "pm.test('Expected response Content-Type', () => { const mediaType = expectedStatus === 201 ? 'application/json' : 'application/problem+json'; pm.expect(pm.response.headers.get('Content-Type') || '').to.include(mediaType); });",
+          "pm.test('Success or RFC 9457 body', () => {",
+          "  const body = pm.response.json();",
+          "  if (expectedStatus === 201) {",
+          "    pm.expect(Object.keys(body).sort()).to.eql(['code', 'data', 'message']);",
+          "    pm.expect(body.code).to.eql('IDENTITY_REGISTERED');",
+          "    pm.expect(body.message).to.eql('Registration completed');",
+          "    pm.expect(body.data).to.be.an('object');",
+          "    pm.expect(Object.keys(body.data)).to.eql(['identityId']);",
+          "    pm.expect(body.data.identityId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+          "    pm.expect(pm.response.text()).not.to.match(/password|passwordHash/i);",
+          "  } else {",
+          "    for (const field of ['type', 'title', 'detail', 'instance', 'code', 'correlationId']) {",
+          "      pm.expect(body[field], field).to.be.a('string').and.not.empty;",
+          "    }",
+          "    pm.expect(body.status).to.eql(expectedStatus);",
+          "    if (expectedStatus === 409) pm.expect(body.code).to.eql('IDENTITY_ALREADY_EXISTS');",
+          "    pm.expect(body).not.to.have.property('data');",
+          "  }",
+          "});",
+          "if (expectedStatus !== 201) pm.test('Problem does not disclose inputs or internals', () => {",
+          "  const responseText = pm.response.text();",
+          "  let submitted = {};",
+          "  try { submitted = JSON.parse(pm.request.body.raw); } catch (_) { /* malformed JSON */ }",
+          "  for (const value of [submitted.email, submitted.password, pm.collectionVariables.get('registerEmail'), pm.collectionVariables.get('password')]) {",
+          "    if (typeof value === 'string' && value.length >= 4 && !value.includes('{{')) pm.expect(responseText).not.to.include(value);",
+          "  }",
+          "  pm.expect(responseText).not.to.match(/SQLSTATE|org\\.postgresql|stack\\s*trace|\\bat\\s+(?:com|org|java)\\.[A-Za-z0-9_.]+\\(|\\bSELECT\\b.+\\bFROM\\b|\\bINSERT\\s+INTO\\b|liv136-[0-9a-f-]+@example\\.com/i);",
+          "});"
+        ]
+      }
+    }
   ],
   "item": [
     {
       "name": "Register returns 201 wrapper",
       "event": [
-        {"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('registerEmail', 'liv136-' + Date.now() + '-' + Math.floor(Math.random() * 1000000) + '@example.com');"]}},
-        {"listen": "test", "script": {"exec": [
-          "pm.test('HTTP 201 JSON wrapper', () => { pm.response.to.have.status(201); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); });",
-          "const body = pm.response.json();",
-          "pm.test('Typed success fields', () => { pm.expect(body.code).to.eql('IDENTITY_REGISTERED'); pm.expect(body.message).to.be.a('string'); pm.expect(body.data.identityId).to.match(/^[0-9a-f-]{36}$/i); pm.expect(body).not.to.have.property('password'); pm.expect(body.data).not.to.have.property('passwordHash'); });"
-        ]}}
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('registerEmail', 'liv136-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('HTTP 201 JSON wrapper', () => { pm.response.to.have.status(201); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); });",
+              "const body = pm.response.json();",
+              "pm.test('Typed success fields', () => { pm.expect(body.code).to.eql('IDENTITY_REGISTERED'); pm.expect(body.message).to.eql('Registration completed'); pm.expect(body.data.identityId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i); pm.expect(body).not.to.have.property('password'); pm.expect(body.data).not.to.have.property('passwordHash'); });"
+            ]
+          }
+        }
       ],
-      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"email\":\"{{registerEmail}}\",\"password\":\"{{password}}\"}"}, "url": "{{baseUrl}}/api/v1/auth/register"}
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
     },
     {
       "name": "Duplicate email returns 409 Problem",
-      "event": [{"listen": "test", "script": {"exec": [
-        "pm.test('HTTP 409 Problem', () => { pm.response.to.have.status(409); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });",
-        "const body = pm.response.json();",
-        "pm.test('Stable code without email disclosure', () => { pm.expect(body.code).to.eql('IDENTITY_ALREADY_EXISTS'); pm.expect(body.status).to.eql(409); pm.expect(body.correlationId).to.be.a('string'); pm.expect(JSON.stringify(body)).not.to.include(pm.collectionVariables.get('registerEmail')); });"
-      ]}}],
-      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"email\":\"{{registerEmail}}\",\"password\":\"{{password}}\"}"}, "url": "{{baseUrl}}/api/v1/auth/register"}
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('HTTP 409 Problem', () => { pm.response.to.have.status(409); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });",
+              "const body = pm.response.json();",
+              "pm.test('Stable code without email disclosure', () => { pm.expect(body.code).to.eql('IDENTITY_ALREADY_EXISTS'); pm.expect(body.status).to.eql(409); pm.expect(body.correlationId).to.be.a('string'); pm.expect(JSON.stringify(body)).not.to.include(pm.collectionVariables.get('registerEmail')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
     },
     {
-      "name": "Invalid password returns 400 Problem",
-      "event": [{"listen": "test", "script": {"exec": [
-        "pm.test('HTTP 400 Problem', () => { pm.response.to.have.status(400); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });",
-        "pm.test('Stable validation code', () => { const body = pm.response.json(); pm.expect(body.code).to.eql('INVALID_REQUEST'); pm.expect(body.status).to.eql(400); });"
-      ]}}],
-      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"email\":\"invalid-email\",\"password\":\"short\"}"}, "url": "{{baseUrl}}/api/v1/auth/register"}
+      "name": "Invalid email format returns 400 Problem",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('HTTP 400 Problem', () => { pm.response.to.have.status(400); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });",
+              "pm.test('Problem structure', () => { const body = pm.response.json(); pm.expect(body.code).to.be.a('string').and.not.empty; pm.expect(body.status).to.eql(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"invalid-email\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Duplicate email case-insensitive returns 409 Problem",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.variables.set('duplicateEmailUpper', pm.collectionVariables.get('registerEmail').toUpperCase());"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{duplicateEmailUpper}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Duplicate email with surrounding ASCII spaces returns 409 Problem",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.variables.set('duplicateEmailSpaced', '  ' + pm.collectionVariables.get('registerEmail') + '  ');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{duplicateEmailSpaced}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Empty email returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Missing email returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Missing password returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"liv136-{{$guid}}@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Empty password returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"liv136-{{$guid}}@example.com\",\n  \"password\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Password 11 characters returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"liv136-{{$guid}}@example.com\",\n  \"password\": \"AAAAAAAAAAA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Password exactly 12 characters returns 201",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.variables.set('boundaryEmail', 'liv136-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{boundaryEmail}}\",\n  \"password\": \"AAAAAAAAAAAA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Password exactly 64 ASCII characters returns 201",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.variables.set('boundaryEmail', 'liv136-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{boundaryEmail}}\",\n  \"password\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Password 65 ASCII characters returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"liv136-{{$guid}}@example.com\",\n  \"password\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Password exceeding 72 UTF-8 bytes returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"liv136-{{$guid}}@example.com\",\n  \"password\": \"ééééééééééééééééééééééééééééééééééééé\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Malformed JSON returns 400 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\":",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
+    },
+    {
+      "name": "Unsupported Content-Type returns 415 Problem",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "not-json",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      }
     }
   ]
 }

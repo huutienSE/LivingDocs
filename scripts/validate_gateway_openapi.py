@@ -54,12 +54,21 @@ def validate_register_contract(inventory):
     password = request_schema['properties']['password']
     if password.get('minLength') != 12 or password.get('maxLength') != 64:
         fail('API-001 password length sai.')
-    for status in ('400', '409', '415', '500'):
-        if operation['responses'].get(status) != {'$ref': '#/components/responses/Problem'}:
-            fail(f'API-001 {status} phải dùng RFC 9457 Problem.')
     problem = spec['components']['responses']['Problem']['content'].get('application/problem+json', {})
     if problem.get('schema') != {'$ref': '#/components/schemas/Problem'}:
         fail('API-001 error Content-Type/schema sai.')
+    for status in ('400', '409', '415', '500'):
+        error_response = operation['responses'].get(status)
+        if error_response == {'$ref': '#/components/responses/Problem'}:
+            continue
+        if not isinstance(error_response, dict):
+            fail(f'API-001 {status} phải dùng RFC 9457 Problem.')
+        content = error_response.get('content')
+        if not isinstance(content, dict) or set(content) != {'application/problem+json'}:
+            fail(f'API-001 {status} phải dùng application/problem+json.')
+        media_type = content['application/problem+json']
+        if not isinstance(media_type, dict) or media_type.get('schema') != {'$ref': '#/components/schemas/Problem'}:
+            fail(f'API-001 {status} phải dùng RFC 9457 Problem schema.')
 
 def main():
     inventory = json.loads(INVENTORY.read_text(encoding='utf-8'))
