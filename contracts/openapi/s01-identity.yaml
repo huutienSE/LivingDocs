@@ -12,25 +12,27 @@ paths:
         - S01 Public
       operationId: api001_post
       summary: Đăng ký người dùng
-      description: 'LD-API-001 API-001. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      description: 'LD-API-001 API-001. Đăng ký local credential; không cấp JWT, tenant hoặc role.'
       x-api-id: API-001
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
       responses:
         '201':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Identity đã được tạo.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateObject'
+                $ref: '#/components/schemas/RegisterApiResponse'
+              example:
+                code: IDENTITY_REGISTERED
+                message: Registration completed
+                data:
+                  identityId: 5c94a297-169d-4fea-8582-a22f82dd799e
         '400': &id001
           $ref: '#/components/responses/Problem'
-        '401': *id001
-        '403': *id001
-        '404': *id001
         '409': *id001
-        '422': *id001
+        '415': *id001
+        '500': *id001
       security: []
       requestBody:
         required: true
@@ -840,6 +842,36 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    ApiResponseBase:
+      type: object
+      description: LivingDocs JSON success envelope; errors use RFC 9457 Problem instead.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Stable application success code.
+        message:
+          type: string
+          description: Human-readable success message.
+    RegisterResponse:
+      type: object
+      required:
+        - identityId
+      properties:
+        identityId:
+          type: string
+          format: uuid
+    RegisterApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/RegisterResponse'
     Problem:
       type: object
       description: RFC 9457 Problem Details + extension code/correlationId.
@@ -910,10 +942,15 @@ components:
         email:
           type: string
           format: email
+          maxLength: 320
+          description: Outer ASCII spaces are trimmed before validation.
         password:
           type: string
           format: password
-      description: CANDIDATE — đăng ký local; các field khác do S01 xác nhận.
+          minLength: 12
+          maxLength: 64
+          description: Maximum 72 bytes when encoded as UTF-8 for BCrypt.
+      description: Local registration only; no tenant, role or JWT is granted.
     UserProfileView:
       type: object
       description: 'CANDIDATE S01: owner xác nhận field privacy, required và profile update.'
