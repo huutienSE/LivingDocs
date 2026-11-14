@@ -1,7 +1,7 @@
 # cấu hình cho server gateway
 server:
   address: ${GATEWAY_BIND_ADDRESS:127.0.0.1}
-  port: ${GATEWAY_PORT:8081}
+  port: ${GATEWAY_PORT:8080}
 
 #cấu hình spring application và bảo mạt OAuth2 Resource Server
 spring:
@@ -29,32 +29,32 @@ spring:
           #CÁCH ĐỌC: SERVICE-HTTP_METHOD-NHOM_API-KHOANG_ID
           # ROUTE CHUYỂN ĐẾN S01, GET, api inventory, khoảng api được sử dụng, tương ứng ở phần predicate
           - id: s01-get-api-007-037
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/users/me,/api/v1/tenants/current,/api/v1/tenants/{tenantId},/api/v1/tenants/{tenantId}/memberships,/api/v1/tenants/{tenantId}/workspaces,/api/v1/workspaces/{workspaceId},/api/v1/workspaces/{workspaceId}/memberships,/api/v1/workspaces/{workspaceId}/roles
               - Method=GET
           - id: s01-get-api-038-038
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/users/me/access-context
               - Method=GET
           - id: s01-post-api-001-034
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/auth/register,/api/v1/auth/login,/api/v1/tenants/{tenantId}/invitations,/api/v1/tenants/{tenantId}/workspaces,/api/v1/workspaces/{workspaceId}/memberships
               - Method=POST
           - id: s01-patch-api-008-031
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/users/me,/api/v1/tenants/{tenantId},/api/v1/tenants/{tenantId}/memberships/{membershipId},/api/v1/workspaces/{workspaceId}
               - Method=PATCH
           - id: s01-put-api-036-036
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/workspaces/{workspaceId}/memberships/{membershipId}/roles
               - Method=PUT
           - id: s01-delete-api-035-035
-            uri: ${S01_SERVICE_URI:http://127.0.0.1:8082}
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
               - Path=/api/v1/workspaces/{workspaceId}/memberships/{membershipId}
               - Method=DELETE
@@ -62,39 +62,39 @@ spring:
           #======================
           #s02
           - id: s02-get-api-046-057
-            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
             predicates:
               - Path=/api/v1/integrations/github/authorization,/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/connection,/api/v1/repositories/{repositoryId}/pull-requests,/api/v1/repositories/{repositoryId}/pull-requests/{prNumber},/api/v1/repositories/{repositoryId}/commits,/api/v1/repositories/{repositoryId}/source-events,/api/v1/repositories/{repositoryId}/tracked-branches
               - Method=GET
           - id: s02-post-api-047-059
-            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
             predicates:
               - Path=/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/disconnections,/api/v1/repositories/{repositoryId}/reauthorizations,/api/v1/repositories/{repositoryId}/resyncs,/api/v1/repositories/{repositoryId}/rechecks
               - Method=POST
           - id: s02-put-api-058-058
-            uri: ${S02_SERVICE_URI:http://127.0.0.1:8083}
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
             predicates:
               - Path=/api/v1/repositories/{repositoryId}/tracked-branches
               - Method=PUT
 
           #s03 ====================
           - id: s03-get-api-078-086
-            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8083}
             predicates:
               - Path=/api/v1/analysis-jobs/{jobId},/api/v1/repositories/{repositoryId}/analysis-jobs,/api/v1/analysis-jobs/{jobId}/evidence,/api/v1/repositories/{repositoryId}/drift-issues,/api/v1/drift-issues/{driftIssueId},/api/v1/drift-issues/{driftIssueId}/history,/api/v1/drift-issues/{driftIssueId}/evidence,/api/v1/drift-issues/{driftIssueId}/suggestions
               - Method=GET
           - id: s03-get-api-089-092
-            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8083}
             predicates:
               - Path=/api/v1/repositories/{repositoryId}/code-entities,/api/v1/repositories/{repositoryId}/dependencies,/api/v1/repositories/{repositoryId}/drift-metrics,/api/v1/repositories/{repositoryId}/drift-policy
               - Method=GET
           - id: s03-post-api-077-088
-            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8083}
             predicates:
               - Path=/api/v1/analysis-jobs,/api/v1/analysis-jobs/{jobId}/replay,/api/v1/drift-issues/{driftIssueId}/dismiss,/api/v1/drift-issues/{driftIssueId}/suggestions/{suggestionId}/decisions
               - Method=POST
           - id: s03-put-api-093-093
-            uri: ${S03_SERVICE_URI:http://127.0.0.1:8085}
+            uri: ${S03_SERVICE_URI:http://127.0.0.1:8083}
             predicates:
               - Path=/api/v1/repositories/{repositoryId}/drift-policy
               - Method=PUT

@@ -6,7 +6,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 
 | API | Service | Method | Path | Trạng thái | Gateway |
 | --- | --- | --- | --- | --- | --- |
-| API-001 | S01 | `POST` | `/api/v1/auth/register` | CANDIDATE | Allowlist (JWT) |
+| API-001 | S01 | `POST` | `/api/v1/auth/register` | IN_PROGRESS | Allowlist (public; implementation verification in LIV-136) |
 | API-002 | S01 | `POST` | `/api/v1/auth/login` | CANDIDATE | Allowlist (JWT) |
 | API-003 | S01 | `POST` | `/api/v1/auth/logout` | BLOCKED_SECURITY | Không public |
 | API-004 | S01 | `POST` | `/api/v1/auth/refresh` | BLOCKED_SECURITY | Không public |
