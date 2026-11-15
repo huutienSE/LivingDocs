@@ -9,6 +9,12 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
+// ===========
+// thuộc tầng SPRING SECURITY SecurityWebFilterChain,
+// Tạo SecurityWebFilterChain, quy định public/protected API
+// authen, author, jwt decode
+//==========
+
 @Configuration
 @EnableWebFluxSecurity
 public class GatewaySecurityConfig {

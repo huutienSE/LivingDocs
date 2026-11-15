@@ -34,10 +34,21 @@ services:
       DB_PASSWORD: ${S01_DB_PASSWORD:-}
       FLYWAY_USERNAME: ld_s01_migrator
       FLYWAY_PASSWORD: ${S01_FLYWAY_PASSWORD:-}
+      REDIS_HOST: redis
+      JWT_ISSUER: urn:livingdocs:s01
+      JWT_AUDIENCE: livingdocs-api
+      JWT_PRIVATE_KEY_PATH: /run/secrets/s01_jwt_private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/s01_jwt_public.pem
+      JWT_PREVIOUS_PUBLIC_KEY_PATH: ${S01_PREVIOUS_PUBLIC_KEY_PATH:-}
+      LOGIN_RATE_LIMIT_PEPPER_PATH: /run/secrets/s01_login_rate_pepper
+    volumes:
+      - ${S01_JWT_SECRETS_DIR:-../../../livingdocs-secrets}:/run/secrets:ro
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # S02 — Repository Integration
@@ -107,8 +118,9 @@ services:
       S03_SERVICE_URI: http://source-intelligence-service:8083
       S04_SERVICE_URI: http://document-governance-service:8084
 
-      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-}
-      JWT_AUDIENCE: ${JWT_AUDIENCE:-}
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-urn:livingdocs:s01}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-livingdocs-api}
+      JWT_JWK_SET_URI: http://identity-organization-service:8081/.well-known/jwks.json
       GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-http://localhost:3000}
     ports:
       - "127.0.0.1:8080:8080"
@@ -145,7 +157,7 @@ services:
 
   redis:
     image: redis:8.2-alpine
-    profiles: ["platform"]
+    profiles: ["services", "platform"]
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
