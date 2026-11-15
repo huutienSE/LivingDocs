@@ -28,7 +28,7 @@
 - GitHub webhook API-068 vẫn bị chặn khi chưa có S02 HMAC raw body, replay/duplicate guard.
 - Cookie-bearing `/api/v1/auth/refresh`, `/logout`, OAuth start/callback **chưa đưa lên Gateway** đến khi S01 session rotation + CSRF + CORS credentials đã được tích hợp và kiểm chứng. Không bật `allowCredentials=true` hoặc public refresh để “chạy demo”.
 - API candidate tuy đã định tuyến có thể trả 404 từ downstream, không phải PASS nghiệp vụ. Nếu service chưa chạy, có thể trả 503.
-- S03 DNS trong Compose Gateway phải dùng `http://source-intelligence-service:8080`, không dùng loopback giữa các container.
+- S03 DNS trong Compose Gateway dùng `http://source-intelligence-service:8083`, không dùng loopback giữa các container.
 
 ## Quy ước HTTP
 

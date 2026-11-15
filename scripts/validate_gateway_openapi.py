@@ -70,6 +70,47 @@ def validate_register_contract(inventory):
         if not isinstance(media_type, dict) or media_type.get('schema') != {'$ref': '#/components/schemas/Problem'}:
             fail(f'API-001 {status} phải dùng RFC 9457 Problem schema.')
 
+def validate_login_contract(inventory):
+    spec = read_yaml(SPECS / 's01-identity.yaml')
+    operation = spec['paths']['/api/v1/auth/login']['post']
+    row = next(row for row in inventory if row['apiId'] == 'API-002')
+    if row['state'] != operation.get('x-contract-state') or row['state'] not in {'IN_PROGRESS', 'IMPLEMENTED'}:
+        fail('API-002 state không khớp inventory.')
+    if operation['responses']['200']['content']['application/json']['schema'] != {'$ref': '#/components/schemas/LoginApiResponse'}:
+        fail('API-002 200 phải dùng SuccessResponse<LoginResponse>.')
+    schemas = spec['components']['schemas']
+    data = schemas['LoginApiResponse']['allOf'][1]
+    if data['properties']['data'] != {'$ref': '#/components/schemas/AccessTokenView'}:
+        fail('API-002 data sai type.')
+    if set(schemas['AccessTokenView'].get('required', [])) != {'accessToken', 'tokenType', 'expiresIn'}:
+        fail('API-002 thiếu access-token-only fields.')
+    if operation['responses']['200']['headers']['Cache-Control']['schema'].get('enum') != ['no-store']:
+        fail('API-002 thiếu Cache-Control no-store.')
+    if set(operation['responses']) != {'200', '400', '401', '415', '429', '500', '503'}:
+        fail('API-002 HTTP status không khớp contract.')
+    expected_codes = {
+        '400': 'INVALID_REQUEST', '401': 'INVALID_CREDENTIALS',
+        '415': 'UNSUPPORTED_MEDIA_TYPE', '429': 'LOGIN_RATE_LIMITED',
+        '500': 'INTERNAL_ERROR', '503': 'LOGIN_SECURITY_UNAVAILABLE',
+    }
+    for status, code in expected_codes.items():
+        response = operation['responses'][status]
+        if response.get('headers', {}).get('Cache-Control', {}).get('schema', {}).get('enum') != ['no-store']:
+            fail(f'API-002 {status} thiếu Cache-Control no-store.')
+        content = response.get('content', {})
+        if set(content) != {'application/problem+json'}:
+            fail(f'API-002 {status} phải dùng application/problem+json.')
+        problem = content['application/problem+json']
+        if problem.get('schema') != {'$ref': '#/components/schemas/Problem'}:
+            fail(f'API-002 {status} phải dùng RFC 9457 Problem schema.')
+        example = problem.get('example', {})
+        if example.get('status') != int(status) or example.get('code') != code:
+            fail(f'API-002 {status} example sai status/code.')
+    if 'Retry-After' not in operation['responses']['429'].get('headers', {}):
+        fail('API-002 429 thiếu Retry-After.')
+    if {'refreshToken', 'refreshCookie', 'sessionCookie'} & set(schemas['AccessTokenView'].get('properties', {})):
+        fail('API-002 không được mô tả refresh/session đã triển khai.')
+
 def main():
     inventory = json.loads(INVENTORY.read_text(encoding='utf-8'))
     if len(inventory) < 60:
@@ -149,7 +190,8 @@ def main():
     if unrepresented:
         fail('Thiếu operations trong spec: '+str(sorted(unrepresented)))
     validate_register_contract(inventory)
-    # Only static config assertions here. Real JWT/JWKS E2E remains blocked by S01.
+    validate_login_contract(inventory)
+    # Static contract checks; real domain E2E is tracked separately.
     cors_source = (ROOT / 'infrastructure/api-gateway/src/main/java/com/livingdocs/gateway/config/GatewayCorsConfig.java').read_text(encoding='utf-8')
     for required in ('"If-Match"', '"Idempotency-Key"', '"ETag"', 'cors.setAllowCredentials(false)'):
         if required not in cors_source:
@@ -160,7 +202,7 @@ def main():
     if compose['services']['api-gateway']['environment'].get('S03_SERVICE_URI') != 'http://source-intelligence-service:8083':
         fail('Docker Compose Gateway chưa khai báo S03 service DNS.')
     print(f'PASS: {len(inventory)} catalogued APIs; {len(actual)} exact Gateway method+path entries; {len(routes)} route groups; no internal exposure.')
-    print('NOTE: STATIC validation only; backend controllers/JWT/CSRF/E2E are not verified.')
+    print('NOTE: STATIC validation only; domain JWT/E2E is not verified.')
 
 
 if __name__ == '__main__':

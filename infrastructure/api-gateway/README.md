@@ -1,6 +1,6 @@
 # LivingDocs — API Gateway (LIV-115 foundation, LIV-133 contract alignment)
 
-> **Trạng thái:** Tài liệu vận hành cho baseline Sprint 3. Gateway route/OpenAPI **không chứng minh** downstream controller đã triển khai hoặc JWT S01 đã tích hợp E2E. Các API `CANDIDATE`/`PLANNED` phải giữ đúng trạng thái cho đến khi service owner xác nhận.
+> **Trạng thái:** Gateway xác minh access JWT do S01 phát hành theo LIV-137. Gateway route/OpenAPI **không chứng minh** downstream controller hoặc domain business authorization đã hoàn tất. Các API `CANDIDATE`/`PLANNED` giữ đúng trạng thái cho đến khi service owner xác nhận.
 
 ## 1. Vai trò và nguồn chuẩn
 
@@ -8,10 +8,10 @@ LivingDocs dùng **Spring Cloud Gateway Server WebFlux** làm ingress cho các e
 
 | Service | Vai trò | Local URI (Gateway chạy trên host) | Docker Compose DNS (Gateway chạy trong container) |
 | --- | --- | --- | --- |
-| S01 — Identity & Organization | Identity, tenant, workspace | `http://127.0.0.1:8082` | `http://identity-organization-service:8080` |
-| S02 — Repository Integration | GitHub, repositories | `http://127.0.0.1:8083` | `http://repository-integration-service:8080` |
-| S03 — Source Intelligence | Analysis, drift, evidence | `http://127.0.0.1:8085` | `http://source-intelligence-service:8080` |
-| S04 — Document Governance | Documents, reviews, approval | `http://127.0.0.1:8084` | `http://document-governance-service:8080` |
+| S01 — Identity & Organization | Identity, tenant, workspace | `http://127.0.0.1:8081` | `http://identity-organization-service:8081` |
+| S02 — Repository Integration | GitHub, repositories | `http://127.0.0.1:8082` | `http://repository-integration-service:8082` |
+| S03 — Source Intelligence | Analysis, drift, evidence | `http://127.0.0.1:8083` | `http://source-intelligence-service:8083` |
+| S04 — Document Governance | Documents, reviews, approval | `http://127.0.0.1:8084` | `http://document-governance-service:8084` |
 
 **S05** và các `/internal/v1/**` không được route qua public Gateway.
 
@@ -39,7 +39,7 @@ Ví dụ:
 
 Ví dụ trên **rút gọn danh sách Path để minh họa**, không phải đoạn cấu hình để sao chép thay thế. `id` chỉ là nhãn route, không tự bật toàn bộ API trong khoảng số; **chỉ các Path được liệt kê và Method tương ứng mới match**. Gateway forward nguyên `/api/v1/...` (không `StripPrefix`). Không nhóm nhiều Method vào một route chung nhiều Path vì có thể tạo cross-product ngoài ý muốn; không dùng `Path=/api/v1/**`.
 
-Luồng: Client → Gateway `:8081` → Path + Method allowlist → downstream S01/S02/S03/S04 → response. JWT được xác minh tại Gateway; domain service vẫn kiểm tra quyền ở mức tài nguyên.
+Luồng: Client → Gateway `:8080` → Path + Method allowlist → downstream S01/S02/S03/S04 → response. JWT được xác minh tại Gateway; domain service vẫn phải kiểm tra quyền ở mức tài nguyên.
 
 Khi thêm/chỉnh route: cập nhật `contracts/openapi/sprint3-route-inventory.json`, service OpenAPI YAML và `application.yaml` nhất quán; chạy validator; yêu cầu service owner xác nhận DTO/security. **Không bật endpoint `BLOCKED_SECURITY` hoặc `/internal/v1/**` chỉ để thông qua CI.**
 
@@ -47,7 +47,7 @@ Khi thêm/chỉnh route: cập nhật `contracts/openapi/sprint3-route-inventory
 
 **Không dùng Eureka** và chưa cần Spring Cloud LoadBalancer (`lb://`).
 
-- **Local:** Gateway gọi `http://127.0.0.1:8082`, `:8083`, `:8084` qua các biến `S01_SERVICE_URI`, `S02_SERVICE_URI`, `S04_SERVICE_URI`.
+- **Local:** Gateway gọi S01 `:8081`, S02 `:8082`, S03 `:8083`, S04 `:8084` qua các biến `S01_SERVICE_URI`–`S04_SERVICE_URI` hoặc giá trị mặc định trong `application.yaml`.
 - **Kubernetes:** Gateway gọi tên DNS của **Kubernetes Service** tương ứng. Kubernetes Service phân phối kết nối đến các Pod đủ điều kiện nhận traffic. Gateway không tự chọn từng Pod.
 
 Điều này là lựa chọn kiến trúc, **không đồng nghĩa đã kiểm chứng load balancing nhiều replica**.
@@ -79,11 +79,11 @@ spring.config.import=optional:file:./.env[.properties]
 Nếu chạy Gateway trên host, `S01_SERVICE_URI` đến `S04_SERVICE_URI` dùng `127.0.0.1` và các port tương ứng ở bảng §1. Nếu Gateway nằm trong Docker Compose, dùng service DNS do `compose.yaml` đã khai báo; **không dùng `localhost` để gọi container khác**. Không thêm `/api/v1` vào cuối URI downstream.
 
 Các biến chính:
-- `GATEWAY_PORT` (mặc định `8081`), `GATEWAY_BIND_ADDRESS` (mặc định `127.0.0.1`).
+- `GATEWAY_PORT` (mặc định `8080`), `GATEWAY_BIND_ADDRESS` (mặc định `127.0.0.1`).
 - `GATEWAY_MANAGEMENT_PORT` (mặc định `9091`). `application.yaml` trên baseline remote đang cố định `management.server.address: 127.0.0.1`; lưu ý khác biệt khi chạy trong container, xem §6.
 - `GATEWAY_ALLOWED_ORIGINS` (mặc định `http://localhost:3000`).
 - `GATEWAY_CONNECT_TIMEOUT_MS` (mặc định `2000`), `GATEWAY_RESPONSE_TIMEOUT` (mặc định `5s`); chưa phải SLA.
-- `JWT_ISSUER_URI`, `JWT_AUDIENCE`: **cần S01 phát hành và công bố contract thật trước khi coi Gateway chạy JWT E2E**. Không dùng issuer giả hoặc tắt JWT authentication.
+- `JWT_ISSUER_URI`, `JWT_AUDIENCE`, `JWT_JWK_SET_URI`: phải khớp S01 và URL JWKS truy cập được từ Gateway. LIV-137 đã kiểm JWT tại Gateway; domain business E2E vẫn chờ endpoint thật.
 
 ## 4. Kiểm thử LIV-133 (không cần khởi động container)
 
@@ -158,7 +158,7 @@ Gateway phải giữ `X-Correlation-ID`, `application/problem+json` theo contrac
 .\mvnw.cmd spring-boot:run
 ```
 
-Gateway dùng cổng `8081`; management riêng `9091`. Kiểm tra khi app thực sự start:
+Gateway dùng cổng `8080`; management riêng `9091`. Kiểm tra khi app thực sự start:
 
 ```bash
 curl -i http://127.0.0.1:9091/actuator/health

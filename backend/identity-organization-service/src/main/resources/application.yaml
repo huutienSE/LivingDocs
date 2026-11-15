@@ -5,6 +5,29 @@ spring:
     import: "optional:file:./.env[.properties]"
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+livingdocs:
+  security:
+    jwt:
+      # định  danh hệ thống nơi phát hành jwt
+      issuer: ${JWT_ISSUER:urn:livingdocs:s01}
+      # API mà jwt hướng đến
+      audience: ${JWT_AUDIENCE:livingdocs-api}
+      # Đường dẫn file private key để ký JWT, private key dùng để ký jwt
+      private-key-path: ${JWT_PRIVATE_KEY_PATH:}
+      # Đường dẫn file public key tương ứng, public key dùng để xác minh chữ ký
+      public-key-path: ${JWT_PUBLIC_KEY_PATH:}
+      # Đường dẫn public key cũ khi rotation
+      previous-public-key-path: ${JWT_PREVIOUS_PUBLIC_KEY_PATH:}
+    login:
+      rate-limit:
+        # đường dẫn đến file pepper trong redis limiter sử dụng HMAC để tạo key từ email đã chuẩn hóa - HMAC-SHA256(email, pepper) -
+        pepper-path: ${LOGIN_RATE_LIMIT_PEPPER_PATH:}
 
 server:
   port: ${SERVER_PORT:0}

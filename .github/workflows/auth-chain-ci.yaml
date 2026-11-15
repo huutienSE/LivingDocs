@@ -1,0 +1,102 @@
+name: S01 Gateway Authentication CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Workflow chỉ cần đọc source; không dùng GitHub secrets hay ghi vào repository.
+permissions:
+  contents: read
+
+jobs:
+  auth-chain:
+    name: Real JWT through Gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      # 1. Lấy đúng commit của PR và cài Node để chạy Newman.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # 2. Tạo .env và RSA key pair/pepper chỉ dùng trong runner CI.
+      # S01 chạy bằng UID 10001, nên cấp quyền đọc file tạm cho UID đó.
+      - name: Prepare ephemeral CI configuration
+        working-directory: infrastructure/docker
+        run: |
+          set -euo pipefail
+          umask 077
+          cp .env.example .env
+          sed -i 's/CHANGE_ME_POSTGRES_PASSWORD/ci_local_password/g' .env
+          secret_dir="$(mktemp -d "${RUNNER_TEMP}/liv137-secrets.XXXXXX")"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 \
+            -out "$secret_dir/s01_jwt_private.pem"
+          openssl pkey -in "$secret_dir/s01_jwt_private.pem" -pubout \
+            -out "$secret_dir/s01_jwt_public.pem"
+          openssl rand -hex 32 > "$secret_dir/s01_login_rate_pepper"
+          sudo chown -R 10001:10001 "$secret_dir"
+          sed -i "s|^S01_JWT_SECRETS_DIR=.*|S01_JWT_SECRETS_DIR=$secret_dir|" .env
+          docker compose --profile services --profile gateway config --quiet
+
+      # 3. PostgreSQL và Redis phải healthy trước khi S01 dùng Flyway và rate limiter.
+      - name: Start PostgreSQL and Redis
+        working-directory: infrastructure/docker
+        run: docker compose --profile services up -d --wait --wait-timeout 120 postgres redis
+
+      # 4. Tạo roles/schema trong database CI mới, với mật khẩu tạm khớp Compose .env.
+      - name: Bootstrap S01 database roles
+        working-directory: infrastructure/docker
+        run: |
+          docker compose exec -T postgres psql -U postgres -d livingdocs \
+            -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE ld_s01_migrator LOGIN PASSWORD 'ci_local_password';
+          CREATE ROLE ld_s01_app LOGIN PASSWORD 'ci_local_password';
+          GRANT CONNECT ON DATABASE livingdocs TO ld_s01_migrator, ld_s01_app;
+          CREATE SCHEMA identity AUTHORIZATION ld_s01_migrator;
+          GRANT USAGE ON SCHEMA identity TO ld_s01_app;
+          SQL
+
+      # 5. Build và chạy S01 cùng Gateway; Gateway dùng JWKS URL nội bộ Compose.
+      - name: Start S01 and Gateway
+        working-directory: infrastructure/docker
+        run: docker compose --profile services --profile gateway up -d --build identity-organization-service api-gateway
+
+      # 6. Chờ JWKS 200 và Gateway 401 khi thiếu token trước khi chạy collection.
+      - name: Wait for JWKS and Gateway
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8081/.well-known/jwks.json &&
+               [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/users/me)" = 401 ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      # 7. Một lượt Newman kiểm tra Login, JWT/JWKS, Gateway và Redis rate limit.
+      # Chỉ in báo cáo CLI; không lưu access token hoặc response thành artifact.
+      - name: Run LIV-137 HTTP security collection
+        run: |
+          npx --yes newman@6.2.3 run tests/postman/liv137-login.postman_collection.json \
+            --env-var baseUrl=http://127.0.0.1:8081 \
+            --env-var gatewayUrl=http://127.0.0.1:8080 \
+            --reporters cli
+
+      # 8. In trạng thái container để hỗ trợ chẩn đoán, không in key/pepper.
+      - name: Show container status
+        if: always()
+        working-directory: infrastructure/docker
+        run: if [ -f .env ]; then docker compose --profile services --profile gateway ps; fi
+
+      # Dọn container và volume chỉ thuộc runner CI tạm thời.
+      - name: Stop isolated CI containers
+        if: always()
+        working-directory: infrastructure/docker
+        run: if [ -f .env ]; then docker compose --profile services --profile gateway down -v; fi
