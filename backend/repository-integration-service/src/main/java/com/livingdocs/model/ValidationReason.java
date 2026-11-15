@@ -1,0 +1,8 @@
+package com.livingdocs.model;
+
+/** Lý do đạt hoặc không đạt của lần xác minh. */
+public enum ValidationReason {
+    CURRENT, INVALID_REQUEST, UNKNOWN_CONNECTION, CONNECTION_INACTIVE, CONFIG_CHANGED,
+    UNKNOWN_REF, SOURCE_BINDING_MISMATCH, INVALID_SOURCE, VALIDATION_EXPIRED, STALE_SHA, SOURCE_UNAVAILABLE
+}
+

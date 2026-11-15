@@ -37,7 +37,7 @@ jobs:
             db_schema: repository
             app_role: ld_s02_app
             migrator_role: ld_s02_migrator
-            expected_migrations: 1
+            expected_migrations: 2
             expected_rls_tables: 9
 
           - name: S04 Document
