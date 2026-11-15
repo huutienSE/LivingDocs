@@ -12,7 +12,7 @@ DocumentVersion, ReviewDecision, DocumentAudit và Flyway persistence.
 - PASS cần ít nhất một evidence ID đã lưu đúng tenant/version; tối đa 100, không trùng.
   Đây là giới hạn kỹ thuật của implementation.
 - Không nhận target state, tenant, actor hoặc quyền từ body/header tự khai; field lạ bị từ chối.
-- Thành công trả `DocumentVersionView` và strong ETag. Contract:
+- Thành công trả `SuccessResponse<DocumentVersionView>` và strong ETag. Contract:
   [s04-document-review.yaml](../../contracts/openapi/s04-document-review.yaml).
 
 ```json
@@ -23,16 +23,64 @@ DocumentVersion, ReviewDecision, DocumentAudit và Flyway persistence.
 }
 ```
 
-JDBC repositories dùng cùng transaction với `set_config('app.tenant_id', ..., true)` cho RLS.
+Response HTTP 200 có dạng:
+
+```json
+{
+  "code": "STAFF_REVIEW_RECORDED",
+  "message": "Staff review decision recorded",
+  "data": {
+    "documentId": "11111111-1111-1111-1111-111111111111",
+    "versionId": "22222222-2222-2222-2222-222222222222",
+    "state": "DRAFT",
+    "reviewStage": null,
+    "revision": 1,
+    "sourceBinding": null
+  }
+}
+```
+
+Contract `0.2.0` thay response phẳng bằng `{code, message, data}`; consumer đọc các field version
+qua `data`. HTTP status, strong ETag và lỗi RFC 9457 giữ nguyên. `model.SuccessCode` cung cấp
+wire code/message; không có `success/status` trong envelope và không bọc Problem Details.
+
+Spring Data JPA/Hibernate repositories dùng cùng transaction với `set_config('app.tenant_id', ..., true)` cho RLS.
 Service khóa version bằng `FOR UPDATE`, scope rows bằng `FOR SHARE`, kiểm quyền, replay,
-revision và state trước conditional update. Một transaction ghi version + decision + audit;
+revision và state trước update có optimistic lock `@Version`. Một transaction ghi version + decision + audit;
 lỗi ghi bất kỳ rollback toàn bộ. Content revisions, decisions và audit cũ được giữ nguyên.
 Runtime role chỉ được đọc/thêm decisions và audit, không sửa/xóa chúng.
+
+Ba entity nằm trong `entity`, tách khỏi immutable business models trong `model`.
+Version chỉ map các cột cần cho review; những cột tạo version/content không thuộc write path này.
+Decision/audit dùng `@Immutable`, UUID cấp trước và `Persistable.isNew()` để Spring Data gọi
+`persist` cho row mới. MapStruct chuyển domain sang entity; JSONB giữ response snapshot/metadata
+với data version như cũ. `ddl-auto: validate`, `open-in-view: false`; Flyway tiếp tục sở hữu DDL.
+Native SQL chỉ còn tenant context, khóa scope và bulk evidence check; lý do nằm ngay tại query.
 
 Idempotency được scope theo tenant/version/reviewer/operation. Exact retry với If-Match, decision,
 feedback và danh sách evidence theo thứ tự ban đầu trả response/ETag gốc; nội dung khác với cùng key
 trả 409. Request mới với revision cũ trả 412. V3 lưu response snapshot; keyed V2 decisions được
-backfill từ audit. Không đủ audit để tái tạo response lịch sử trả `409 REPLAY_SNAPSHOT_UNAVAILABLE`.
+backfill từ audit. Snapshot mới lưu cả envelope để replay giữ nguyên code/message/data, kể cả khi
+default message thay đổi ở lần deploy sau. Snapshot cũ chỉ có version view được bọc khi đọc;
+không rewrite decision/audit hay migration. Không đủ audit để tái tạo response lịch sử trả
+`409 REPLAY_SNAPSHOT_UNAVAILABLE`.
+
+Các lỗi nghiệp vụ dùng `ReviewException` abstract và exception theo điều kiện cụ thể như
+`DocumentVersionNotFoundException`, `ReviewRevisionConflictException`, `InvalidReviewTransitionException`,
+`ReviewIdempotencyConflictException`, `ReturnFeedbackRequiredException`, `SourceChangedException` và
+`SourceValidationUnavailableException`. Lỗi transport dùng `ReviewRequestException` với typed code.
+`ReviewErrorCode` giữ wire code/HTTP status; advice và security filter dùng cùng registry.
+
+Controller chuyển `ReviewRequest` thành `StaffDecisionCommand` và nhận `StaffReviewResult` từ service.
+`StaffDecisionMapper` chuyển result sang response DTO; Controller dựng success envelope/ETag.
+Business result giữ receipt của lần ghi đầu để replay không bị thay default message mới.
+Service không nhận/trả public DTO hoặc success envelope.
+
+`ReviewSnapshotCodec` là port nhận/trả business result và chuỗi snapshot opaque;
+`JacksonReviewSnapshotCodec` ở mapper adapter xử lý DTO/JSON và tương thích snapshot cũ.
+Repository chỉ đọc/ghi snapshot string, không chọn success code hoặc deserialize public response.
+Encoding và lưu snapshot diễn ra trước commit cùng version/decision/audit; lỗi encoding rollback
+toàn bộ và không tiêu thụ idempotency key. Không dùng callback sau commit hoặc transaction ở Controller.
 
 ## Quyền và xác minh source
 
@@ -74,8 +122,7 @@ SourceBinding response chỉ có repositoryConnectionId/headSha đã lưu; targe
 comparisonSha, configRevision và capturedAt hiện null. Không suy diễn source provenance từ SHA.
 
 API đọc version/queue/context (API-106/115/116), UI, Final Approval, Publish và API S02 không được
-triển khai trong slice này. Điểm tích hợp còn lại được ghi ở
-[handoff](../../docs/implementation/LIV-118-review-handoff.md).
+triển khai trong slice này. Các giới hạn tích hợp S01/S02 và SourceBinding được mô tả ở trên.
 
 ## Migration và chạy service
 
@@ -109,20 +156,72 @@ Kết quả, source hashes, report/log references và CI gắn commit được l
 [LIV-118-test-evidence.json](../../docs/implementation/LIV-118-test-evidence.json).
 Surefire reports ở `target/surefire-reports`; build outputs không được commit.
 Tests dùng authority giả lập không chứng minh tích hợp S01/S02/GitHub thật hoặc deployment TLS.
-Nguồn yêu cầu, tác giả, thời gian và giới hạn tin cậy được ghi trong handoff.
+Nguồn yêu cầu và giới hạn tin cậy nằm trong bảng tham chiếu bên dưới.
+
+### DTO, mapping và runtime OpenAPI
+
+Request/response API-120 dùng Java class với private fields và Lombok, không dùng `@Data`.
+Request giữ immutable input, chuẩn hóa evidence null/omitted thành danh sách rỗng.
+Giới hạn evidence dùng chung qua business command, giữ các mã lỗi 400/422 hiện có.
+`mapper/StaffDecisionMapper` dùng MapStruct Spring component với
+`unmappedTargetPolicy = ERROR`; mapper chỉ chuyển dữ liệu, không truy cập DB hoặc quyết định quyền.
+Repository-free document trả `sourceBinding = null`; các thuộc tính source chưa lưu tiếp tục null.
+Response class vẫn đọc được JSON snapshot V3 trước đây; legacy replay giữ version data/ETag và
+thêm envelope mới. Snapshot được ghi từ rollout này giữ nguyên toàn bộ body khi exact replay.
+
+Springdoc chỉ sinh runtime spec cho API-120. Mặc định `S04_OPENAPI_ENABLED=false`; bật biến này
+trong môi trường dev/test cần đối chiếu rồi khởi động lại S04. `GET /v3/api-docs` (JSON) và
+`GET /v3/api-docs.yaml` yêu cầu `Authorization: Bearer <verified JWT>` theo trust config S01.
+Không mở anonymous docs, Swagger UI S04 hoặc route docs qua Gateway. Docker Swagger tĩnh hiện tại
+được giữ nguyên. Tests so sánh method/path/status/media types, header preconditions, schema fields,
+required fields, types/formats/enums và evidence limits giữa YAML và runtime; đồng thời kiểm tra
+resource OpenAPI không được đăng ký khi tắt và snapshot lịch sử vẫn replay được.
+
+Dependency: Springdoc 3.2.0 như S01; MapStruct 1.6.3 cùng Lombok do Spring Boot quản lý và
+`lombok-mapstruct-binding` 0.2.0 theo [MapStruct reference](https://mapstruct.org/documentation/stable/reference/html/#_lombok).
+Xem [Springdoc WebMVC API module](https://springdoc.org/#spring-webmvc-support) về runtime spec.
 
 
 ## Package layout (LIV-118)
 
-LIV-118 follows the proposed layout in LD-SAD-001 v1.0, section 3.4.2,
-as selected for this slice; this is not a backend-wide team mandate.
+Cập nhật 14/11/2026 theo [Backend Engineering Standards v3](../../docs/engineering/LivingDocs_Backend_Engineering_Standards_v3.md)
+và [Coding Standards Amendment §2](../../docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md#2-cấu-trúc-chuẩn).
+Cây package S04 hiện tại thay cấu trúc SAD được chọn trước đây cho LIV-118:
 
-- `api/controller`: HTTP entry point, errors, correlation and ETags.
-- `api/request`, `api/response`: HTTP contract types.
-- `application/service`: review orchestration and source-validation port/guard.
-- `domain/model`, `domain/policy`: business models and transition rules.
-- `infrastructure/persistence`: JDBC repositories.
-- `security`: actor resolution and security configuration.
+```text
+com/livingdocs/document/
+├── DocumentGovernanceServiceApplication.java
+├── controller/       # Staff decision endpoint và strong ETag
+├── dto/
+│   ├── request/
+│   └── response/
+├── service/          # DocumentReviewService interface và source guard
+│   └── impl/         # DocumentReviewServiceImpl, transaction boundary
+├── entity/           # JPA mappings: version, decision, audit
+├── repository/       # JpaRepository và adapter khóa/RLS đặc biệt
+├── model/            # Business models, enums và transition policy
+├── mapper/           # MapStruct domain ↔ entity, domain → response DTO
+├── exception/        # ReviewException, advice và Problem Details
+├── security/         # JWT trust và actor/resource scopes
+├── config/           # Correlation filter và OpenAPI
+└── client/           # SourceReviewValidator integration port
+```
 
-JDBC classes remain concrete persistence implementations; no unused repository
-interfaces or feature-level `review` package are introduced.
+Các package `api`, `application`, `domain`, `infrastructure` cũ đã được chuyển sang cây trên.
+Spring application vẫn ở root `com.livingdocs.document` để scan các component.
+
+## Nguồn yêu cầu và giới hạn tin cậy
+
+| Nguồn | Tác giả / thời gian / nơi đăng | Giá trị và giới hạn |
+| --- | --- | --- |
+| [Master Decisions](../../docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md) | Nguồn chính do Owner chọn; snapshot 13/11/2026; Git ghi tác giả huutienSE tại e32b1c3 ngày 14/11/2026; repository docs/engineering. | Baseline cho kiến trúc, JPA, DTO, typed errors và success wrapper. Tài liệu bàn giao chờ Owner review, không tự là ADR hoặc bằng chứng runtime; các gate đề xuất chưa thành quy trình team. |
+| [LIV-118](https://huutiense25.atlassian.net/browse/LIV-118) | Reporter TIỀN HUỲNH PHẠM HỮU; cập nhật 08/11/2026; Jira LivingDocsPro; đọc trực tiếp 14/11/2026. | Nguồn chính cho scope DocumentVersion/ReviewDecision/DocumentAudit, guarded PASS/RETURN, unit+DB tests và state/audit sau restart. Không phải bằng chứng implementation PASS. |
+| [PR #26](https://github.com/huutienSE/LivingDocs/pull/26) | Tác giả tài khoản nguyenxuanhai-arch; tạo 07/11/2026; GitHub huutienSE/LivingDocs; đọc trực tiếp 08/11/2026. | Code tại 69d0c03 và check runs là nguồn trực tiếp cho implementation/CI của commit đó; không bao phủ thay đổi local sau commit. |
+| [LD-API-001](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/11337744) | Confluence LPKB; page version 2, nội dung v0.4; tác giả version TIỀN HUỲNH PHẠM HỮU, 24/10/2026; đọc trực tiếp 14/11/2026. | Thiết kế API-120, ETag/idempotency/Problem; tài liệu tự ghi candidate, chưa Accepted ADR/G2/runtime evidence. Không xác nhận claim S01 hay wire contract S02 đã chốt. |
+| [REQ-05](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/3702785) | Confluence LPKB; page version 6; tác giả version HAI NGUYEN XUAN, 21/10/2026 (UTC+7), nội dung đề ngày 20/10/2026; đọc trực tiếp 14/11/2026. | Tham chiếu transition T-DOC-03/04B; nội dung tự ghi FINAL CANDIDATE, không dùng thay test code hoặc xác nhận nghiệm thu. |
+| [LD-ARCH-005](https://huutiense25.atlassian.net/wiki/spaces/LPKB/pages/10715150) | Confluence LPKB; page version 1, nội dung v1.4; tác giả version TIỀN HUỲNH PHẠM HỮU, 23/10/2026; đọc trực tiếp 14/11/2026. | Tham chiếu scope/RLS/service ownership; nguồn ghi reviewed candidate/pending ADR. |
+| [Backend Engineering Standards v3](../../docs/engineering/LivingDocs_Backend_Engineering_Standards_v3.md) | Repository `docs/engineering/`; tài liệu đề ngày 13/11/2026; Git ghi tác giả huutienSE tại commit e32b1c3 ngày 14/11/2026. | Nguồn nội bộ cho yêu cầu Service interface/implementation; tự ghi Owner decision. Metadata Git không thay independent approval hoặc runtime evidence. |
+
+Các mốc đọc nguồn trong bảng là lịch sử đối chiếu, không phải trạng thái remote mới nhất.
+Tài liệu dự án cung cấp scope/contract; source/report/log chỉ xác nhận phiên bản và môi trường
+được ghi rõ. Local PASS không thay peer approval hoặc nghiệm thu parent Story.
