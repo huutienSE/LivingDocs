@@ -1,7 +1,7 @@
 package com.livingdocs.document;
 
-import com.livingdocs.document.domain.model.*;
-import com.livingdocs.document.application.service.SourceReviewValidator;
+import com.livingdocs.document.model.*;
+import com.livingdocs.document.client.SourceReviewValidator;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;

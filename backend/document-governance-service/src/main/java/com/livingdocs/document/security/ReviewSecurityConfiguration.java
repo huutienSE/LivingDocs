@@ -1,6 +1,6 @@
 package com.livingdocs.document.security;
 
-import com.livingdocs.document.api.controller.ApiProblems;
+import com.livingdocs.document.exception.ApiProblems;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

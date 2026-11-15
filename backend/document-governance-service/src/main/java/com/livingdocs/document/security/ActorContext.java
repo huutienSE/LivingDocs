@@ -1,7 +1,7 @@
 package com.livingdocs.document.security;
 
-import com.livingdocs.document.domain.model.DocumentVersion;
-import com.livingdocs.document.domain.ReviewException;
+import com.livingdocs.document.model.DocumentVersion;
+import com.livingdocs.document.exception.ReviewException;
 import java.util.Set;
 import java.util.UUID;
 
