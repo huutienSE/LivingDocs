@@ -1,6 +1,10 @@
 spring:
   application:
     name: document-governance-service
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
   jackson:
     deserialization:
       fail-on-unknown-properties: true
@@ -16,6 +20,7 @@ management:
   endpoints:
     exposure:
       include: health, info
+
 
 livingdocs:
   security:

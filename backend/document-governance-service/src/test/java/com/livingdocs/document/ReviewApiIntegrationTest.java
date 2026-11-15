@@ -32,6 +32,9 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     @Autowired JsonMapper json;
     @Autowired DocumentReviewService service;
     @Autowired ReviewSourceValidationTestConfiguration.TestValidator sourceValidator;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired com.livingdocs.document.repository.DocumentVersionRepository versions;
+    @Autowired jakarta.persistence.EntityManager entities;
     final HttpClient http = HttpClient.newHttpClient();
 
     record Fixture(UUID tenant, UUID workspace, UUID repository, UUID document, UUID version, UUID evidence, UUID actor) {
@@ -443,5 +446,56 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         }
         assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(3L);
         assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(12L);
+    }
+
+    @Test
+    void orm_shouldShareTransactionLocalRlsAndClearTenantAfterCompletion() throws Exception {
+        var first = fixture();
+        var second = fixture();
+        assertThat(transactions).isInstanceOf(org.springframework.orm.jpa.JpaTransactionManager.class);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        var connectionId = new java.util.concurrent.atomic.AtomicReference<Object>();
+        tx.executeWithoutResult(status -> {
+            connectionId.set(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult());
+            versions.setTenant(first.tenant);
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNotNull();
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
+        });
+        tx.executeWithoutResult(status -> {
+            // Prove reuse of the physical pooled connection, not just another clean connection.
+            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
+                    .isEqualTo(connectionId.get());
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
+            versions.setTenant(second.tenant);
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNotNull();
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
+            status.setRollbackOnly();
+        });
+        tx.executeWithoutResult(status -> {
+            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
+                    .isEqualTo(connectionId.get());
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
+        });
+        assertThatThrownBy(() -> versions.setTenant(first.tenant))
+                .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
+    }
+
+    @Test
+    void orm_shouldRejectStaleManagedVersionAtFlushWithoutAppendingHistory() throws Exception {
+        var f = fixture();
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status -> {
+            versions.setTenant(f.tenant);
+            var before = versions.find(f.version, f.tenant, false).orElseThrow();
+            try {
+                // An independent writer wins after the ORM snapshot was loaded.
+                execute("UPDATE document.document_versions SET revision=revision+1 WHERE document_version_id=?", f.version);
+            } catch (Exception e) { throw new RuntimeException(e); }
+            versions.update(before, before.reviewed(ReviewAction.PASS));
+        })).isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+        assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(0L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(0L);
     }
 }

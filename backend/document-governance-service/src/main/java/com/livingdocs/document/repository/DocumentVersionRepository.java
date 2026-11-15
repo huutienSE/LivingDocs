@@ -1,60 +1,71 @@
 package com.livingdocs.document.repository;
 
+import lombok.RequiredArgsConstructor;
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.model.*;
-import com.livingdocs.document.exception.ReviewException;
+import jakarta.persistence.EntityManager;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.hibernate.query.NativeQuery;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional(propagation = Propagation.MANDATORY)
+@RequiredArgsConstructor
 public class DocumentVersionRepository {
-    private final JdbcClient jdbc;
-
-    public DocumentVersionRepository(JdbcClient jdbc) { this.jdbc = jdbc; }
+    private final EntityManager entities;
+    private final DocumentVersionJpaRepository versions;
 
     public void setTenant(UUID tenantId) {
-        // Transaction-local: never leak a tenant onto a pooled connection's next request.
-        jdbc.sql("SELECT set_config('app.tenant_id', :tenant, true)")
-                .param("tenant", tenantId.toString()).query(String.class).single();
+        // Transaction-local RLS context on the same connection as all ORM operations.
+        entities.createNativeQuery("SELECT set_config('app.tenant_id', :tenant, true)", String.class)
+                .setParameter("tenant", tenantId.toString()).getSingleResult();
     }
 
     public Optional<DocumentVersion> find(UUID id, UUID tenantId, boolean forUpdate) {
-        return jdbc.sql("""
-                SELECT v.*, d.repository_connection_id, c.workspace_id
+        // Intentional native SQL: separate UPDATE/SHARE locks also freeze authorization scope.
+        var scopes = entities.createNativeQuery("""
+                SELECT c.workspace_id, d.repository_connection_id
                 FROM document.document_versions v
                 JOIN document.documents d ON d.tenant_id = v.tenant_id AND d.document_id = v.document_id
                 JOIN document.document_collections c ON c.tenant_id = d.tenant_id AND c.collection_id = d.collection_id
                 WHERE v.document_version_id = :id AND v.tenant_id = :tenant
-                """ + (forUpdate ? " FOR UPDATE OF v FOR SHARE OF d, c" : ""))
-                .param("id", id).param("tenant", tenantId)
-                .query((rs, row) -> new DocumentVersion(rs.getObject("document_version_id", UUID.class),
-                        rs.getObject("tenant_id", UUID.class), rs.getObject("document_id", UUID.class),
-                        rs.getObject("workspace_id", UUID.class), rs.getObject("repository_connection_id", UUID.class),
-                        rs.getString("source_sha"), DocumentState.valueOf(rs.getString("state")),
-                        rs.getString("review_stage") == null ? null : ReviewStage.valueOf(rs.getString("review_stage")),
-                        rs.getLong("revision"))).optional();
+                """ + (forUpdate ? " FOR UPDATE OF v FOR SHARE OF d, c" : ""), Object[].class)
+                .setParameter("id", id).setParameter("tenant", tenantId).getResultList();
+        if (scopes.isEmpty()) return Optional.empty();
+        var version = versions.findById(id).orElse(null);
+        if (version == null || !version.getTenantId().equals(tenantId)) return Optional.empty();
+        Object[] scope = (Object[]) scopes.getFirst();
+        return Optional.of(new DocumentVersion(version.getId(), version.getTenantId(), version.getDocumentId(),
+                (UUID) scope[0], (UUID) scope[1], version.getSourceSha(), version.getState(),
+                version.getReviewStage(), version.getRevision()));
     }
 
     public void update(DocumentVersion before, DocumentVersion after) {
-        int changed = jdbc.sql("""
-                UPDATE document.document_versions
-                SET state = :state, review_stage = :stage, revision = :next
-                WHERE tenant_id = :tenant AND document_version_id = :id AND revision = :expected
-                  AND state = 'IN_REVIEW' AND review_stage = 'STAFF_REVIEW'
-                """).param("state", after.state().name())
-                .param("stage", after.reviewStage() == null ? null : after.reviewStage().name())
-                .param("next", after.revision()).param("expected", before.revision())
-                .param("id", before.id()).param("tenant", before.tenantId()).update();
-        if (changed != 1) throw ReviewException.revisionConflict();
+        var version = versions.findById(before.id()).orElse(null);
+        if (version == null || !version.getTenantId().equals(before.tenantId())
+                || version.getRevision() != before.revision() || version.getState() != DocumentState.IN_REVIEW
+                || version.getReviewStage() != ReviewStage.STAFF_REVIEW) {
+            throw ReviewException.revisionConflict();
+        }
+        version.review(after.state(), after.reviewStage());
+        // Flush @Version update before appending history; outer service transaction owns rollback.
+        versions.flush();
+        if (version.getRevision() != after.revision()) throw ReviewException.revisionConflict();
     }
 
-    public boolean hasEvidence(UUID tenantId, UUID versionId, java.util.List<UUID> evidenceIds) {
+    public boolean hasEvidence(UUID tenantId, UUID versionId, List<UUID> evidenceIds) {
         if (evidenceIds.isEmpty()) return true;
-        return jdbc.sql("""
+        // Scoped bulk existence check avoids loading evidence outside the review aggregate.
+        var query = entities.createNativeQuery("""
                 SELECT count(*) FROM document.document_evidence_refs
                 WHERE tenant_id = :tenant AND document_version_id = :version AND document_evidence_id IN (:evidence)
-                """).param("tenant", tenantId).param("version", versionId).param("evidence", evidenceIds)
-                .query(Integer.class).single() == evidenceIds.size();
+                """, Long.class).unwrap(NativeQuery.class);
+        query.setParameter("tenant", tenantId).setParameter("version", versionId);
+        query.setParameterList("evidence", evidenceIds);
+        return ((Number) query.getSingleResult()).longValue() == evidenceIds.size();
     }
 }
