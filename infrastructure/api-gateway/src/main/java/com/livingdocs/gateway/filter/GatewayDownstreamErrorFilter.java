@@ -22,6 +22,10 @@ import org.springframework.web.server.ServerWebExchange;
 
 import reactor.core.publisher.Mono;
 
+//==========
+//GatewayFilter - GlobalFilter
+//Bắt lỗi kết nối downstream, chuyển thành HTTP 503/504
+//==========
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GatewayDownstreamErrorFilter implements GlobalFilter {

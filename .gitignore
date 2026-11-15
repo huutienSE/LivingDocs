@@ -41,3 +41,4 @@ __pycache__/
 
 # Ignore all AI agent documentation and configurations
 /docs/ai-agent/
+/AGENTS.md

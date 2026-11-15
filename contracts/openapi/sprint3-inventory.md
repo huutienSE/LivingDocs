@@ -6,8 +6,8 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 
 | API | Service | Method | Path | Trạng thái | Gateway |
 | --- | --- | --- | --- | --- | --- |
-| API-001 | S01 | `POST` | `/api/v1/auth/register` | CANDIDATE | Allowlist (JWT) |
-| API-002 | S01 | `POST` | `/api/v1/auth/login` | CANDIDATE | Allowlist (JWT) |
+| API-001 | S01 | `POST` | `/api/v1/auth/register` | IN_PROGRESS | Allowlist (public; implementation verification in LIV-136) |
+| API-002 | S01 | `POST` | `/api/v1/auth/login` | IN_PROGRESS | Allowlist (public; access JWT only) |
 | API-003 | S01 | `POST` | `/api/v1/auth/logout` | BLOCKED_SECURITY | Không public |
 | API-004 | S01 | `POST` | `/api/v1/auth/refresh` | BLOCKED_SECURITY | Không public |
 | API-005 | S01 | `GET` | `/api/v1/auth/github/start` | BLOCKED_SECURITY | Không public |
@@ -125,7 +125,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 2. **M02 API-116:** S04 chưa có `GET /api/v1/document-versions/{versionId}/review-context`; phải trả `ReviewContextView` và strong `ETag` dạng `"{versionId}:revision-{revision}"` tương thích API-120.
 3. **M03:** FE xử lý `FORBIDDEN_SCOPE`, S04 PR #20 trả `REVIEW_FORBIDDEN`; Thịnh cần bổ sung mã mới vào `describeError()` hoặc thống nhất lỗi với Hải.
 4. **M04:** S04 API-120 đã có `documentId` và `sourceBinding`; không còn coi đó là thiếu DTO. FE cần xác thực evidence `ref` là `document_evidence_id` UUID, giới hạn tối đa 100 phần tử không trùng, và semantics retry nguyên `If-Match`/key.
-5. **M05:** S01 issuer/JWKS/audience/claims/token refresh thật chưa E2E. Gateway vẫn fail closed, không sử dụng mock issuer làm runtime.
+5. **M05:** S01/Gateway access JWT và JWKS đã có implementation LIV-137; domain service E2E và Refresh Token thuộc task sau. Không dùng mock issuer để tuyên bố FLOW PASS.
 6. **M06:** S02 LIV-122 dùng contract authoritative SHA internal; `source/resolve`, `source/validate` không được route public. Chốt `SourceValidationReceipt` cùng Tiến trước khi S04 publish.
 7. **M07:** Cookie-backed auth refresh/logout và GitHub OAuth callback chưa đạt chính sách CSRF/session. Webhook chưa có HMAC/replay evidence nên không public.
 8. **M08:** Manager approval LIVE task LIV-120 cần no-self-approval, fresh authorization; Publish LIVE task LIV-123 cần source validation; có route không thay thế business guards.
@@ -135,3 +135,20 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 - Owner S04 Hải chốt API-115/116/120; owner FE Thịnh chốt DTO, 401/403/409/412/428, ETag và UUID evidence.
 - Owner S02 Tiến chốt receipt nội bộ; owner S01 chốt JWT trust; Gateway chỉ mở đúng public method/path.
 - Cần PR, CI, review và integration evidence trước khi chuyển từ Candidate sang Implemented.
+
+## LIV-137 vận hành và handoff
+
+`POST /api/v1/auth/login` nhận email/password local và trả `SuccessResponse` chứa access JWT 15 phút. S01 tra cứu identity, so khớp BCrypt, giới hạn 10 lần/5 phút theo HMAC của email chuẩn hóa và 300 lần/phút toàn hệ thống qua Redis. Không lấy IP từ forwarded headers; proxy trust và phân bổ quota nhiều client là follow-up production hardening. Redis hoặc pepper không khả dụng thì Login trả 503, không phát token. Sai credential trả cùng 401; vượt quota trả 429 với `Retry-After`. Mọi Login response có `Cache-Control: no-store`.
+
+Key RSA >=2048 bit được mount ngoài repository: S01 dùng PKCS#8 private PEM và X.509 public PEM; `/.well-known/jwks.json` chỉ công bố public key. `JWT_ISSUER=urn:livingdocs:s01`, `JWT_AUDIENCE=livingdocs-api`, Gateway container dùng `http://identity-organization-service:8081/.well-known/jwks.json`, host dùng `http://127.0.0.1:8081/.well-known/jwks.json`. Khi rotation, mount previous public key cùng current public key ít nhất 15 phút cộng thời gian JWKS cache; đổi private/public/current atomically rồi mới bỏ previous. Không commit PEM, pepper hoặc JWT. Gateway dùng Spring Security/Nimbus để xác minh chữ ký và cache response JWKS 30 giây với single-flight để hạn chế unknown-`kid` refetch; khi không thể xác minh bằng trusted key thì fail closed.
+
+Kiểm thử cục bộ: chạy Maven bằng JDK 21 trong `backend/identity-organization-service` và `infrastructure/api-gateway`; S01 integration cần Docker cho PostgreSQL 17 và Redis. OpenAPI validator: `python3 scripts/validate_gateway_openapi.py` với PyYAML. Postman: `bash tests/postman/setup-liv137-env.sh`, sau đó chạy Newman command được in ra trên S01 local. Gateway/domain E2E phải dùng token thật đi qua Gateway tới protected business endpoint có chính sách quyền đã được chốt; hiện chờ LIV-138/S04, không tính test mock là FLOW PASS.
+
+| Follow-up | Dependency | Owner đề xuất |
+| --- | --- | --- |
+| Refresh Rotation | Session store, rotation và CSRF contract | S01 owner |
+| Logout/Revocation | Refresh/session lifecycle và token policy | S01 owner |
+| Session Management | Session model, thiết bị và retention | S01 owner |
+| Password Reset/Change | Identity proof, email delivery và credential lifecycle | S01 owner |
+| Email Verification | Mail delivery và verification state | S01 owner |
+| Domain JWT + 403 E2E | Protected S04 endpoint và quyền LIV-138/PR #26 | S04 owner cùng S01 owner |

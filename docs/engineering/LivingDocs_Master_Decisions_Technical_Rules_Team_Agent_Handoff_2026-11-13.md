@@ -105,7 +105,7 @@ flowchart LR
 | LD-D09 | Gateway management 9091; Prometheus 9090; Grafana 3001 theo kế hoạch | **[BASELINE/ĐỀ XUẤT cho Grafana]** | Không nhầm control-plane port với business port; không coi Grafana đã chạy. |
 | LD-D10 | S01 cấp JWT thật; Gateway xác thực, domain service enforce scope/guards; quyền nhạy cảm cần fresh validation | **[ĐÃ CHỐT]** | Không tin client role header, self-issued JWT hoặc token grants hết hiệu lực. |
 | LD-D11 | Lỗi API **RFC 9457 `application/problem+json`** + stable `code` + `correlationId` | **[ĐÃ CHỐT theo API baseline]** | `@RestControllerAdvice` + Spring Security entry-point/denied handlers; không leak secrets. |
-| LD-D12 | **`ApiResponse<T>` success wrapper** được Owner yêu cầu bàn cách chuẩn hóa nhưng **chưa duyệt thay contract** | **[ĐỀ XUẤT]** | Chưa bọc đồng loạt success; phải chốt OpenAPI/FE/Login/201-204 trước. |
+| LD-D12 | **`SuccessResponse<T>` success wrapper** `{code, message, data}` cho JSON success thông thường S01–S04; lỗi giữ RFC 9457 Problem | **[ĐÃ CHỐT 2026-11-13]** | API-001 dùng `ResponseEntity<SuccessResponse<RegisterResponse>>` và HTTP 201. `model.SuccessCode` giữ `wireCode`/`defaultMessage`; các API khác migrate theo task riêng sau khi đồng bộ OpenAPI/consumer. 204 không có body; redirect, file/stream, webhook và protocol-specific responses có contract riêng. |
 | LD-D13 | Kafka là **pipeline thật** với outbox/inbox/idempotency/retry/replay | **[ĐÃ CHỐT]** | S02→Kafka→S03 phải có persisted job và recovery evidence. |
 | LD-D14 | Kubernetes thực hiện **native service discovery/LB/failover** trên service thật | **[ĐÃ CHỐT]** | Jira `LIV-111` còn chữ “Conditional” cần Owner chấp thuận rebaseline; **Eureka không mặc nhiên bắt buộc**. |
 | LD-D15 | **Prometheus + Grafana bắt buộc** trên Gateway/S01–S05 và K8s | **[ĐÃ CHỐT]** | Jira `LIV-135`; `/metrics` 200 không đủ, cần time-series/dashboard/alerts/failure evidence. |
@@ -193,7 +193,8 @@ backend/<service-name>/
     │   │   ├── dto/
     │   │   │   ├── request/          # Input DTO + Bean Validation
     │   │   │   └── response/         # Output DTO theo OpenAPI
-    │   │   ├── service/              # Business use cases, transaction
+    │   │   ├── service/              # Business use-case interfaces
+    │   │   │   └── impl/            # @Service implementation, transaction boundary
     │   │   ├── entity/               # JPA entity + persistence mappings
     │   │   ├── repository/           # JpaRepository, scoped queries
     │   │   ├── model/                # Enum/domain policy/value object khi cần
@@ -210,31 +211,31 @@ backend/<service-name>/
     └── test/java/...                # Unit/Integration/API tests
 ```
 
-**Không bắt buộc tạo tất cả folder.** Tạo khi use case cần; không sinh `BaseController`, `CommonUtils`, `ServiceInterface` + `ServiceImpl`, `Mapper` rỗng hoặc shared business `common-lib` chỉ để “đủ layer”. **Gateway WebFlux và S05 FastAPI không bị ép theo cây Java JPA**.
+**Không bắt buộc tạo tất cả folder.** Tạo khi use case cần; không sinh `BaseController`, `CommonUtils`, `Mapper` rỗng hoặc shared business `common-lib` chỉ để “đủ layer”. Business service S01–S04 dùng **Service interface + implementation** theo quyết định Owner 2026-11-13. **Gateway WebFlux và S05 FastAPI không bị ép theo cây Java JPA**.
 
 ### 4.1 Trách nhiệm và dependency boundaries
 
 | Layer | Được làm | Không được làm |
 |---|---|---|
-| `controller` | `@RestController`, routes, `@Valid @RequestBody`, response HTTP status/header, mapping | SQL/JPA trực tiếp, hash password, business approval logic |
+| `controller` | `@RestController`, routes, `@Valid @RequestBody`, response HTTP status/header; inject Service interface | SQL/JPA trực tiếp, hash password, business approval logic, trả Entity/credential |
 | `dto/request` | Java class private fields, Bean Validation transport-level | Transaction, repository, quyết định quyền |
 | `dto/response` | Public API shape theo contract; không rò Entity/secret | Trả raw JPA Entity, phơi passwordHash/grants nội bộ |
-| `service` | `@Service`, use case, domain guards, `@Transactional`, orchestration | Trả `ResponseEntity`/`HttpServletRequest` vô cớ, tự thao tác `JdbcClient` thay Repository |
+| `service` / `service/impl` | Interface mô tả use case; Impl dùng `@Service`, constructor injection, domain guards, `@Transactional` theo nghiệp vụ, orchestration | Trả `ResponseEntity`/`HttpServletRequest` vô cớ, tự thao tác `JdbcClient` thay Repository |
 | `entity` | `@Entity`, `@Table`, `@Id`, `@Column`, domain state mutation có chủ đích | Setter tự do làm mất invariant, `@Data` với relationship/lazy loading |
 | `repository` | `JpaRepository`, query có scope, locking, SQL adapter đặc biệt nếu cần | Ra quyết định approve/publish, gọi AI |
 | `model` | Domain enums, value objects/policies | Phụ thuộc servlet, JSON transport nếu không cần |
-| `mapper` | DTO↔domain mapping rõ; MapStruct nếu thật sự giảm độ phức tạp | Business decision hoặc DB queries |
+| `mapper` | Entity/domain ↔ DTO nhiều field hoặc tái sử dụng dùng MapStruct với `unmappedTargetPolicy = ReportingPolicy.ERROR`; một field UUID có thể dùng constructor | Business decision, DB queries, mapper rỗng, lộ Entity hoặc credential qua API |
 | `security` | Spring Security config, `JwtDecoder`, trusted principal, scoped permission | Tin client-supplied role header, tự mặc định tenant membership |
 | `exception` | Typed exception/error codes, Problem Details, security filter handlers | Nuốt lỗi hoặc trả HTTP 200 cho lỗi |
 | `client/messaging` | Typed HTTP/event boundary + timeout/retry/dedupe adapters | Biến remote call thành DB transaction cross-service giả |
 | `config` | Typed config/beans | Dồn nghiệp vụ vào file cấu hình |
 
-**Call-flow điển hình:** `HTTP → Controller → Service → (domain policy, repository, typed client) → DB/external → Response DTO`. Kafka listener cũng **gọi Service**, không nhúng use case vào listener. Giữ các class liên quan với nhau theo trách nhiệm, không chia thành hàng chục interface không cần thiết.
+**Call-flow điển hình:** `HTTP → Controller → Service interface → Service implementation → (domain policy, repository, typed client) → DB/external → Response DTO`. Kafka listener cũng **gọi Service**, không nhúng use case vào listener. Business service phải có interface và implementation; các abstraction khác chỉ tạo khi cần.
 
 ### 4.2 Coding conventions cụ thể — sửa các lỗi Owner đã từng phê bình
 
 - **Encapsulation:** object state phải `private`, ưu tiên `private final` cho dependency và response immutable. Tránh public/package-private mutable fields không có lý do.
-- **Java class cho DTO:** ưu tiên `class`, không chuyển sang `record` chỉ vì tiện. Bean Validation qua `jakarta.validation` và `@Valid` tại Controller.
+- **Java class cho DTO:** ưu tiên `class`, không chuyển sang `record` chỉ vì tiện. Bean Validation qua `jakarta.validation` trên request DTO và `@Valid` tại Controller; service method validation chỉ khi có method constraints thực tế.
 - **Lombok có chủ đích:** request dùng `@Getter`, `@Setter`, `@NoArgsConstructor`; `@AllArgsConstructor` nếu cần. Service/Controller dùng `@RequiredArgsConstructor` cho `private final` dependency. Không viết boilerplate getter/setter vô ích.
 - **Không lạm dụng `@Data`:** nhất là Entity JPA và DTO chứa password; auto `toString()` có thể đưa mật khẩu ra log, `equals/hashCode` trên Entity dễ sai lazy-loading/identity.
 - **Spring đúng chỗ:** `@Service`, `@Repository` khi cần, `@Entity`, `@Transactional` ở use-case boundary, `@ConfigurationProperties` cho cấu hình; không annotate chỉ cho đẹp.
@@ -243,14 +244,14 @@ backend/<service-name>/
 - **Transactions:** service quyết định phạm vi; hiểu self-invocation, flush, optimistic/pessimistic locking, atomic state+audit trong *cùng service DB*; không giữ remote call chậm trong transaction nếu có thể tránh, nhưng phải giữ invariants hợp lệ.
 - **RLS:** đặt `SET LOCAL` / `set_config('app.tenant_id', value, true)` trên cùng transaction/connection với Hibernate; test pooled connection không rò tenant. Không cho runtime role `BYPASSRLS`.
 - **DB uniqueness/concurrency:** precheck email trùng không đủ; dựa trên unique constraint/index và xử lý conflict đúng. Idempotency key/ETag/If-Match dùng theo contract, không áp dụng tùy tiện.
-- **MapStruct/Strategy/Factory** chỉ khi mang lại lợi ích thật; không dùng design pattern như đồ trang trí. SOLID/DRY/KISS/Separation of Concerns áp dụng cho behavior và dependency.
+- **MapStruct:** dùng cho Entity/domain ↔ DTO nhiều field hoặc mapping được tái sử dụng; `@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)`. Không tạo mapper rỗng, không đặt nghiệp vụ/truy cập DB trong mapper; UUID → `RegisterResponse` một field có thể dùng constructor. Strategy/Factory khác chỉ khi mang lại lợi ích thật; không dùng design pattern như đồ trang trí.
 - **Mỗi file phải giải thích được:** Tại sao nó tồn tại, lớp nào gọi, input/output, annotation/pattern và rủi ro tương tác các service.
 
-### 4.3 Ví dụ Register S01 và điều chưa chốt
+### 4.3 Register S01: contract đã chốt và các quyết định còn mở
 
 - `RegisterRequest.java` **đã được Owner xác nhận hoàn thành trong quá trình pair-programming**; normal Java `class`, `private` fields, Lombok, `@Email`, `@NotBlank`, `@Size`, `@Valid` ở Controller.
 - Password validation đã đề xuất **12–64 ký tự**, không ép regex chữ hoa/số/ký tự đặc biệt nếu không có policy; **[ĐỀ XUẤT]** chưa thay thế security ADR. BCrypt truyền thống có giới hạn **72 byte** chứ không phải 72 ký tự; kiểm soát Unicode/byte policy và không tự truncate.
-- `RegisterResponse` (`identityId`), `AuthController` và generic `ApiResponse<T>` từng được đề xuất trong chat, **không suy ra đã compile/test hay schema đã được duyệt**.
+- **Snapshot lịch sử đã được thay thế bởi LD-D12 và Phase F:** `RegisterResponse`, `AuthController` và wrapper từng chỉ là đề xuất trong chat. Contract API-001 hiện đã chốt: `AuthController` trả HTTP 201 với `ResponseEntity<SuccessResponse<RegisterResponse>>`; JSON có `code: "IDENTITY_REGISTERED"`, `message: "Registration completed"`, `data.identityId` là UUID. Lỗi vẫn dùng RFC 9457. Việc contract được chốt không tự chứng minh CI hoặc toàn bộ authentication đã hoàn tất.
 - Register chỉ tạo Identity (hash, normalized email unique), **không tự cấp tenant, workspace, role**. Duplicate phải được DB bảo vệ trong race.
 - `LIV-134` vẫn bao gồm Login, signed JWT/JWKS, effective grants/fresh authorization và bảo vệ domain endpoints: không coi Register DTO xong là Auth hoàn tất.
 
@@ -264,7 +265,7 @@ backend/<service-name>/
 - **Handler:** `@RestControllerAdvice` cho business/validation/JSON exceptions; Spring Security dùng `AuthenticationEntryPoint` cho 401, `AccessDeniedHandler` cho 403 trong filter chain.
 - **Correlation:** Gateway validate hoặc tạo `X-Correlation-ID`, propagate xuyên service/log/error (không dùng metric label).
 - **Success:** HTTP status/headers đúng semantics (`201`, `200`, `202`, `204`) và shape theo approved `LD-API-001`/OpenAPI.
-- **`ApiResponse<T>`:** Owner mong có mẫu success chung; đề xuất `{code, message, data}` đã được trao đổi. Tuy nhiên baseline OpenAPI hiện không áp dụng bao ngoài mặc định. **[CHƯA CHỐT]** Không tự bọc Register/Login/tất cả endpoints cho tới khi Owner chốt schema và cập nhật consumers/tests.
+- **`SuccessResponse<T>`:** Owner đã chốt `{code, message, data}` cho JSON success thông thường S01–S04. `model.SuccessCode` có `wireCode`/`defaultMessage`; dùng `SuccessResponse.of(SuccessCode, data)`, không serialize bằng `enum.name()`, không chứa HTTP status hay thêm `success/status`. Controller dùng `ResponseEntity<SuccessResponse<T>>` để đặt HTTP status/headers; API-001 trả 201. HTTP 204 không có body; redirect, file/stream, webhook và protocol-specific responses theo contract riêng. Mọi JSON success có body phải có schema cụ thể. Mỗi API đã triển khai phải đối chiếu OpenAPI YAML, runtime Springdoc, Controller DTO và HTTP tests; Swagger hiển thị không đủ để tuyên bố IMPLEMENTED. Giữ Docker Swagger hiện tại; các API khác đồng bộ OpenAPI/client/test theo task riêng, không bulk-refactor S02–S05 trong LIV-136. Errors luôn là Problem RFC 9457.
 - **Other contract-sensitive fields:** JWT claim names/TTL, refresh-cookie/CSRF/rotation, `If-Match`, `Idempotency-Key`, event keys/schema, error codes; mọi thay đổi cần API/event review trước khi code hàng loạt.
 
 ### 5.2 Authentication, authorization, RLS
@@ -411,7 +412,7 @@ flowchart TD
 
 ### 8.3 Parallel execution để không làm cả nhóm chờ S01
 
-- **Lane A — Identity + Contract:** Owner/người tiếp nhận `LIV-134`, `LIV-133` chốt JWT/claims, authZ endpoints và register success/error shape.
+- **Lane A — Identity + Contract:** Owner/người tiếp nhận `LIV-134`, `LIV-133` tiếp tục chốt JWT/claims và authZ endpoints. Register success/error shape API-001 đã chốt theo LD-D12; không suy ra Login/JWT đã hoàn thành.
 - **Lane B — Governance + Source:** S04 Staff/Manager/Publish và S02 SHA thực hiện độc lập trên contract đã duyệt; tích hợp S01 JWT ngay khi sẵn sàng.
 - **Lane C — Frontend + QA:** thống nhất nhánh frontend (#15/#25), kiểm thử API client, Queue/Detail, Newman/Playwright, quản lý expected failures.
 - **Lane D — Pipeline/Observability/Deployment:** Kafka→S03→AI S05 và monitoring/K8s triển khai cùng các feature service; không tách thành PoC không có business request.
@@ -428,7 +429,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    R[READ ONLY: inspect branch/status/requirements/current code] --> P[Proposal: business sequence + exact 1–3 paths + intended diff/tests]
+    R[READ ONLY: inspect branch/status/requirements/current code] --> P[Proposal: business sequence + exact allowlist + expected diff/tests]
     P --> A{Owner authorizes phase AND file allowlist?}
     A -- No --> X[STOP: no file changes]
     A -- Yes --> I[Implement only approved paths]
@@ -437,7 +438,7 @@ flowchart TD
 ```
 
 1. **Đầu vào:** Jira, actor, FR/NFR, approved API/event contract, current Git branch/status, relevant files/migrations/PR overlap, exact phase.
-2. **Trước code:** đưa HLD/sequence, business invariants, API/event request/response, failure cases, **exact list 1–3 files** cho mỗi lượt giải thích/review và proposed content/diff.
+2. **Trước code:** đưa HLD/sequence, business invariants, API/event request/response, failure cases, **exact file allowlist** và expected diff cho một vertical slice kiểm thử được; không có giới hạn cứng 1–3 file.
 3. **Chỉ viết khi được phép:** file allowlist và phase được Owner duyệt là phạm vi cứng; nếu phát sinh dependency/migration/config/new class khác, **STOP hỏi mở rộng scope**.
 4. **Sau code:** `git diff --check`, diff tập trung, tests thật đã chạy, report `PASS/FAIL/BLOCKED/NOT RUN`; STOP để review; không tự làm task tiếp.
 5. **Remote side effects có quyền riêng:** `git add/commit/push`, merge/rebase/cherry-pick/force, PR/Jira edit, deploy, database writes/load tests cần approval **riêng**. Quyền sửa code không bao gồm những hành động này.
@@ -462,14 +463,14 @@ Agent phải trình bày được, trước khi đề xuất thay code:
 Bạn đang hỗ trợ LivingDocs với vai trò Lead Backend Engineer + Product-minded Code Reviewer.
 Chỉ phân tích ở chế độ READ-ONLY cho đến khi tôi phê duyệt cụ thể.
 
-Đọc AGENTS.md đã được review, tài liệu Master Decision Log này,
+Đọc AGENTS.md tại worktree nếu có, tài liệu Master Decision Log này,
 Jira issue, approved API/event contract, source code/PR/migration hiện có.
 Kiểm tra branch, git status, changed files và những thay đổi chưa commit.
 
 1) Nêu business actor, use case, FR/NFR, input/output, data ownership.
 2) HLD + sequence ngắn, các lỗi/authorization/rollback/retry cần test.
 3) Inventory: hiện có API, class, DB, tests nào; cái gì thực sự đã PASS.
-4) Đề xuất micro-phase 1–3 file, exact allowlist, code/diff và lý do dùng Spring annotation/pattern.
+4) Đề xuất vertical slice có thể kiểm thử, exact allowlist, expected diff từng file và lý do dùng Spring annotation/pattern.
 5) Nêu impacted contract, test/evidence, dependency và non-goals.
 DỪNG để tôi review. KHÔNG sửa/format/xóa file, KHÔNG commit/push/merge,
 KHÔNG đổi Jira/sprint, KHÔNG nhảy sang phase hoặc service khác.
@@ -499,7 +500,7 @@ PR decision cần Owner review hôm nay:
 
 - Review theo **use case/endpoint và invariants**, không bắt đầu bằng đọc 44 file không có bản đồ.
 - Yêu cầu tác giả mô tả **Controller → Service → Entity/Repository → DB** và *sơ đồ trạng thái* trước khi soi annotation, naming, helper.
-- Trước merge, diff phải giới hạn scope; static checks/CI và tests thật; đối chiếu OpenAPI; reviewer kiểm tra auth, RLS, state/audit/idempotency và consistency.
+- Trước merge, diff phải giới hạn scope; static checks/CI và tests thật; đối chiếu OpenAPI YAML, runtime Springdoc, Controller DTO và HTTP response theo method/path/status/media type/concrete schema; reviewer kiểm tra auth, RLS, state/audit/idempotency và consistency. Swagger hiển thị riêng lẻ không chứng minh API đã IMPLEMENTED.
 - Khi PR cũ không phù hợp, ra quyết định *bounded salvage* hay *replace*; không ép cả team đợi một PR refactor khổng lồ.
 - Merge vào `develop` **không phải** đánh dấu Story Done. Daily integration sau merge phải tiếp tục.
 
@@ -509,8 +510,8 @@ PR decision cần Owner review hôm nay:
 
 | Mục | Vấn đề cần Owner/contract owner quyết định | Điều không được tự làm |
 |---|---|---|
-| Success envelope | Có dùng `ApiResponse<T>` với `code/message/data` không? Endpoint nào; Login/refresh/204 xử lý thế nào? | Không bọc toàn bộ success ngoài OpenAPI. |
-| Register response | `identityId` mẫu hay `IdentityView` trong contract candidate; HTTP status, error code | Không chỉ dựa vào code chat để sửa FE hoặc S01. |
+| Success envelope rollout | Quyết định LD-D12 đã chốt; cần lập task migrate từng JSON API S01–S04 cùng OpenAPI/client/test. | Không bulk-refactor S02–S05 trong LIV-136; 204 không có body, redirect/file/stream/webhook/protocol-specific theo contract riêng. |
+| Register response — đã giải quyết | **Snapshot câu hỏi cũ đã được thay thế:** `identityId` hay `IdentityView`, HTTP status và error shape từng chưa chốt. API-001 hiện trả HTTP 201, `SuccessResponse<RegisterResponse>` với `data.identityId` UUID; lỗi theo RFC 9457. | Không suy ra Login/JWT hay các API candidate khác đã IMPLEMENTED; kiểm tra runtime và contract theo §5.1. |
 | Password policy | 12–64 chars đang là đề xuất; hash algorithm, 72-byte Unicode/BCrypt, breached-password checks | Không tự chốt chính sách auth production. |
 | JWT trust/claims | Issuer, audience, JWKS rotation, TTL, refresh/logout cookie security, effective grants | Không phát token tùy tiện, hardcode secret hoặc disable verifier. |
 | S04 rescue PR #26 | Giữ branch JDBC cũ và migrate JPA hay viết lại bounded slice từ develop? | Không merge nguyên trạng, cũng không xóa lịch sử trước review. |
@@ -529,10 +530,10 @@ PR decision cần Owner review hôm nay:
 - `LivingDocs_Requirements_Architecture_Readiness_Audit_Report.md` — audit/readiness/requirements gates ở thời điểm trước triển khai; **không thay thế snapshot tiến độ hiện nay**.
 - `LivingDocs_Context_Handoff_2026-11-08.md` — domain, governance, S01–S05, Sprint 3/4, artifacts tham chiếu.
 - `LivingDocs_Gap_Audit_and_LIV134_Execution_2026-11-09.md` — gap sau presentation, real auth vertical slice, K8s/Kafka acceptance.
-- `LivingDocs_Backend_Engineering_Standards_v2.md` — Layered Architecture, JPA/Flyway/RLS, API/errors, observability.
+- `LivingDocs_Backend_Engineering_Standards_v2.md` — tham chiếu lịch sử; hướng dẫn tránh business Service Interface/Impl hoặc success không bọc **đã bị thay thế** bởi [Standards v3](LivingDocs_Backend_Engineering_Standards_v3.md) và LD-D12.
 - `LivingDocs_Technical_Architecture_Coding_Rules_Handoff_2026-11-12.md` — các đính chính chi tiết trong pair-programming và LIV-134.
 - `LivingDocs_Sprint_Rebaseline_Real_Implementation_2026-11-12.md` — mục tiêu Sprint 3/4 và snapshot Jira.
-- `LivingDocs_Codex_Rules_Review/AGENTS.md`, `docs/ai/WORKFLOW_GATES.md` trong bộ **review draft** — agent governance; không tự nhận đã được cài vào repo.
+- `LivingDocs_Codex_Rules_Review/AGENTS.md`, `docs/ai/WORKFLOW_GATES.md` trong bộ **review draft lịch sử** — các hướng dẫn trái LD-D12/LD-D18 hoặc giới hạn cứng 1–3 file **đã bị thay thế**. Dùng `AGENTS.md` tại worktree nếu hiện diện và [Coding Agent Guide](LivingDocs_Coding_Agent_Guide_2026-11-13.md); `AGENTS.md` hiện bị Git ignore, việc phân phối/tracking cần Owner quyết định riêng.
 
 ### 12.2 Nguồn dự án cần đọc bản hiện hành (khi triển khai)
 

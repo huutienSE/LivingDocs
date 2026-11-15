@@ -18,6 +18,7 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${JWT_ISSUER_URI}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://127.0.0.1:8081/.well-known/jwks.json} # đường dẫn để tải public key
           audiences:
             - ${JWT_AUDIENCE}
   cloud:

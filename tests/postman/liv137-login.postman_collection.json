@@ -1,0 +1,1098 @@
+{
+  "info": {
+    "name": "LIV-137 API-002 Login, JWKS and Gateway authentication",
+    "description": "Run folders in order against local S01 :8081 and Gateway :8080. Gateway valid-Bearer probe targets candidate /api/v1/users/me and currently expects downstream 404; it does not prove domain business authorization. Access tokens remain in run-local variables and are never exported.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8081"
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": "A-secure-password-123"
+    },
+    {
+      "key": "rateEmail",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Flow 1 - S01 credentials and JWKS",
+      "item": [
+        {
+          "name": "01 Register a fresh identity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('email', 'liv137-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');",
+                  "pm.collectionVariables.set('rateEmail', 'liv137-rate-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Register 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Register returns identityId without JWT', () => { const data = pm.response.json().data; pm.expect(data.identityId).to.match(/^[0-9a-f-]{36}$/i); pm.expect(pm.response.text()).not.to.include('accessToken'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "02 Login returns access JWT only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login 200 JSON no-store', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Exact access-token-only wrapper', () => { pm.expect(body.code).to.eql('LOGIN_SUCCEEDED'); pm.expect(body.data.tokenType).to.eql('Bearer'); pm.expect(body.data.expiresIn).to.eql(900); pm.expect(Object.keys(body.data).sort()).to.eql(['accessToken','expiresIn','tokenType']); });",
+                  "const token = body.data.accessToken; const parts = token.split('.');",
+                  "pm.test('JWT claims and lifetime', () => { pm.expect(parts).to.have.length(3); const header = JSON.parse(atob(parts[0].replace(/-/g,'+').replace(/_/g,'/'))); const claims = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/'))); pm.expect(header.alg).to.eql('RS256'); pm.expect(header.kid).to.be.a('string').and.not.empty; pm.expect(claims.sub).to.match(/^[0-9a-f-]{36}$/i); pm.expect(claims.iss).to.eql('urn:livingdocs:s01'); pm.expect(claims.aud).to.include('livingdocs-api'); pm.expect(claims.exp - claims.iat).to.eql(900); pm.expect(claims.nbf).to.be.a('number'); ['tenant_id','roles','permissions'].forEach(k => pm.expect(claims).not.to.have.property(k)); pm.variables.set('jwtKid', header.kid); });",
+                  "pm.variables.set('accessToken', token);",
+                  "pm.variables.set('tamperedToken', parts[0] + '.' + parts[1] + '.' + (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "03 Login normalizes email case and outer spaces",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('emailUpper', pm.collectionVariables.get('email').toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Normalized email login 200', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().code).to.eql('LOGIN_SUCCEEDED'); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"  {{emailUpper}}  \",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "04 JWKS publishes public RSA key only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('JWKS 200 and public only', () => { pm.response.to.have.status(200); const keys = pm.response.json().keys; pm.expect(keys).to.be.an('array').that.is.not.empty; keys.forEach(k => { pm.expect(k.kty).to.eql('RSA'); pm.expect(k.kid).to.be.a('string').and.not.empty; ['d','p','q','dp','dq','qi'].forEach(secret => pm.expect(k).not.to.have.property(secret)); }); pm.expect(keys.map(k => k.kid)).to.include(pm.variables.get('jwtKid')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/.well-known/jwks.json"
+          }
+        },
+        {
+          "name": "05 Wrong password is generic 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 401 INVALID_CREDENTIALS', () => pm.response.to.have.status(401));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_CREDENTIALS', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(401); pm.expect(problem.code).to.eql('INVALID_CREDENTIALS'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));",
+                  "pm.test('No account disclosure', () => { const p = pm.response.json(); pm.expect(pm.response.text()).not.to.include(pm.collectionVariables.get('email')); pm.expect(pm.response.text()).not.to.include('wrong-password'); pm.variables.set('wrongCredentialPublicError', JSON.stringify([p.status,p.code,p.title,p.detail])); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "06 Unknown email has the same public 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 401 INVALID_CREDENTIALS', () => pm.response.to.have.status(401));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_CREDENTIALS', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(401); pm.expect(problem.code).to.eql('INVALID_CREDENTIALS'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));",
+                  "pm.test('Same public error as wrong password', () => { const p = pm.response.json(); pm.expect(JSON.stringify([p.status,p.code,p.title,p.detail])).to.eql(pm.variables.get('wrongCredentialPublicError')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"unknown-{{$guid}}@example.com\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 Missing email is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "08 Missing password is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "09 Empty email is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "10 Empty password is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "11 Invalid email format is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "12 Password over 64 characters is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "13 Password over 72 UTF-8 bytes is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "14 Malformed JSON is 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST', () => pm.response.to.have.status(400));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 INVALID_REQUEST', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(400); pm.expect(problem.code).to.eql('INVALID_REQUEST'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{email}}\",\"password\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "15 Unsupported Content-Type is 415",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 415 UNSUPPORTED_MEDIA_TYPE', () => pm.response.to.have.status(415));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 UNSUPPORTED_MEDIA_TYPE', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(415); pm.expect(problem.code).to.eql('UNSUPPORTED_MEDIA_TYPE'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "email={{email}}&password=wrong",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 2 - Gateway Bearer authentication (domain E2E blocked)",
+      "item": [
+        {
+          "name": "16 Public login works through Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway forwards public login', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().code).to.eql('LOGIN_SUCCEEDED'); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "17 Protected route without Bearer is 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway denies missing token before downstream', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me"
+          }
+        },
+        {
+          "name": "18 Forged identity headers without Bearer are 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Client identity headers do not authenticate', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "forged"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "forged"
+              },
+              {
+                "key": "X-Roles",
+                "value": "MANAGER"
+              }
+            ]
+          }
+        },
+        {
+          "name": "19 Malformed Bearer is 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway denies malformed JWT', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not-a-jwt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "20 Tampered JWT signature is 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway denies tampered JWT', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tamperedToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "21 Valid Bearer passes Gateway to S01 candidate route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway accepts signed JWT and S01 returns its NOT_FOUND Problem', () => { pm.response.to.have.status(404); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().code).to.eql('NOT_FOUND'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "22 Internal path is 403 even with valid Bearer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway blocks internal route', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/internal/v1/source/resolve",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 1 - Redis rate limiting (run last, in order)",
+      "item": [
+        {
+          "name": "23.01 Unknown identity attempt 1/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 1 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.02 Unknown identity attempt 2/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 2 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.03 Unknown identity attempt 3/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 3 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.04 Unknown identity attempt 4/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 4 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.05 Unknown identity attempt 5/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 5 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.06 Unknown identity attempt 6/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 6 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.07 Unknown identity attempt 7/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 7 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.08 Unknown identity attempt 8/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 8 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.09 Unknown identity attempt 9/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 9 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23.10 Unknown identity attempt 10/10 returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rate attempt 10 remains generic 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_CREDENTIALS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "24 Eleventh attempt returns 429 Retry-After",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 429 LOGIN_RATE_LIMITED', () => pm.response.to.have.status(429));",
+                  "const problem = pm.response.json();",
+                  "pm.test('RFC 9457 LOGIN_RATE_LIMITED', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(problem.status).to.eql(429); pm.expect(problem.code).to.eql('LOGIN_RATE_LIMITED'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(problem[k], k).to.be.a('string').and.not.empty); pm.expect(pm.response.text()).not.to.include('accessToken'); });",
+                  "pm.test('Login response is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));",
+                  "pm.test('Retry-After is positive seconds', () => { const retry = Number(pm.response.headers.get('Retry-After')); pm.expect(retry).to.be.greaterThan(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rateEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
