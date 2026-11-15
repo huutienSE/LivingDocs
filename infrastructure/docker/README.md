@@ -102,12 +102,12 @@ docker compose --profile services logs --tail=100
 
 | Service | Host port → container port |
 | --- | --- |
-| S01 | `127.0.0.1:8082` → `8080` |
-| S02 | `127.0.0.1:8083` → `8080` |
-| S03 | `127.0.0.1:8085` → `8080` |
-| S04 | `127.0.0.1:8084` → `8080` |
+| S01 | `127.0.0.1:8081` → `8081` |
+| S02 | `127.0.0.1:8082` → `8082` |
+| S03 | `127.0.0.1:8083` → `8083` |
+| S04 | `127.0.0.1:8084` → `8084` |
 
-Không dùng `localhost` giữa các container: ví dụ Gateway gọi S03 bằng `http://source-intelligence-service:8080`, không phải `127.0.0.1:8085`.
+S01 trong Compose cần Redis và thư mục ngoài Git chứa JWT private/public PEM cùng login rate pepper, mount chỉ đọc tại `/run/secrets`. Không dùng `localhost` giữa các container: Gateway gọi S03 bằng `http://source-intelligence-service:8083`, không phải loopback host.
 
 ### 2.5 Chạy API Gateway (chỉ khi có JWT S01 thật)
 
@@ -119,7 +119,7 @@ docker compose --profile gateway ps
 docker compose --profile gateway logs --tail=100 api-gateway
 ```
 
-Gateway được publish trên host `127.0.0.1:8081`; port management `127.0.0.1:9091` được khai báo trong Compose. **Chưa bảo đảm health endpoint ở 9091 truy cập được từ host:** tại baseline remote, `application.yaml` cố định `management.server.address: 127.0.0.1`, trong khi Compose truyền `GATEWAY_MANAGEMENT_ADDRESS: 0.0.0.0` nhưng YAML chưa sử dụng biến này. Cần đồng bộ cấu hình và test runtime riêng trước khi coi 9091 qua Docker là PASS; không giả lập issuer để vượt qua điều kiện khởi động.
+Gateway được publish trên host `127.0.0.1:8080`; port management `127.0.0.1:9091` được khai báo trong Compose. **Chưa bảo đảm health endpoint ở 9091 truy cập được từ host:** `application.yaml` cố định `management.server.address: 127.0.0.1`, trong khi Compose truyền `GATEWAY_MANAGEMENT_ADDRESS: 0.0.0.0` nhưng YAML chưa sử dụng biến này. Cần đồng bộ cấu hình và test runtime riêng trước khi coi 9091 qua Docker là PASS.
 
 **Nếu bạn chỉ cần hoàn thành LIV-133**, không chạy bước này: dùng Python validators, Gateway Maven build và `docker compose config --quiet` là đủ để kiểm chứng baseline tĩnh. Các bài E2E/JWT thuộc giai đoạn service integration.
 
