@@ -49,12 +49,12 @@ public class DocumentVersionRepository {
         if (version == null || !version.getTenantId().equals(before.tenantId())
                 || version.getRevision() != before.revision() || version.getState() != DocumentState.IN_REVIEW
                 || version.getReviewStage() != ReviewStage.STAFF_REVIEW) {
-            throw ReviewException.revisionConflict();
+            throw new ReviewRevisionConflictException();
         }
         version.review(after.state(), after.reviewStage());
         // Flush @Version update before appending history; outer service transaction owns rollback.
         versions.flush();
-        if (version.getRevision() != after.revision()) throw ReviewException.revisionConflict();
+        if (version.getRevision() != after.revision()) throw new ReviewRevisionConflictException();
     }
 
     public boolean hasEvidence(UUID tenantId, UUID versionId, List<UUID> evidenceIds) {

@@ -1,5 +1,6 @@
 package com.livingdocs.document.security;
 
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.model.DocumentVersion;
 import com.livingdocs.document.exception.ReviewException;
 import java.util.Set;
@@ -21,7 +22,7 @@ public record ActorContext(UUID identityId, UUID tenantId, Set<WorkspaceGrant> g
                 g.workspaceId().equals(version.workspaceId()) && g.roles().contains("STAFF")
                         && (version.repositoryConnectionId() == null
                             || g.repositoryIds().contains(version.repositoryConnectionId())))) {
-            throw ReviewException.forbidden();
+            throw new InsufficientReviewScopeException();
         }
     }
 }

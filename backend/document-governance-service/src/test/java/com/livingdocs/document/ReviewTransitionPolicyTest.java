@@ -47,14 +47,14 @@ class ReviewTransitionPolicyTest {
     void return_withoutReason_shouldReject(String feedback) {
         assertThatThrownBy(() -> policy.requireStaffReview(version(DocumentState.IN_REVIEW, ReviewStage.STAFF_REVIEW),
                 ReviewAction.RETURN_FOR_REVISION, feedback, List.of()))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("RETURN_REASON_REQUIRED"));
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.RETURN_REASON_REQUIRED));
     }
 
     @ParameterizedTest
     @EnumSource(value = DocumentState.class, names = "IN_REVIEW", mode = EnumSource.Mode.EXCLUDE)
     void review_fromOtherState_shouldReject(DocumentState state) {
         assertThatThrownBy(() -> policy.requireStaffReview(version(state, null), ReviewAction.PASS, null, List.of(id)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("STATE_TRANSITION_FORBIDDEN"));
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.STATE_TRANSITION_FORBIDDEN));
     }
 
     @Test
@@ -69,7 +69,7 @@ class ReviewTransitionPolicyTest {
                 ReviewAction.PASS, null, List.of())).isInstanceOf(ReviewException.class);
         var noSource = new DocumentVersion(id, id, id, id, id, null, DocumentState.IN_REVIEW, ReviewStage.STAFF_REVIEW, 0);
         assertThatThrownBy(() -> policy.requireStaffReview(noSource, ReviewAction.PASS, null, List.of(id)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("SOURCE_EVIDENCE_INSUFFICIENT"));
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_EVIDENCE_INSUFFICIENT));
     }
 
     @Test

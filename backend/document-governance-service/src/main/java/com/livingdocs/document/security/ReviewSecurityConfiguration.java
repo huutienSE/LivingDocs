@@ -1,5 +1,6 @@
 package com.livingdocs.document.security;
 
+import com.livingdocs.document.exception.ReviewErrorCode;
 import com.livingdocs.document.exception.ApiProblems;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
@@ -36,14 +37,14 @@ public class ReviewSecurityConfiguration {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ApiProblems problems) throws Exception {
         var entryPoint = (AuthenticationEntryPoint) (request, response, exception) -> {
             response.setHeader("WWW-Authenticate", "Bearer");
-            problems.write(request, response, 401, "UNAUTHENTICATED", "A valid access token is required.");
+            problems.write(request, response, ReviewErrorCode.UNAUTHENTICATED, "A valid access token is required.");
         };
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/api/v1/document-versions/**").authenticated().anyRequest().denyAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler((request, response, exception) ->
-                        problems.write(request, response, 403, "REVIEW_FORBIDDEN", "Access denied.")))
+                        problems.write(request, response, ReviewErrorCode.REVIEW_FORBIDDEN, "Access denied.")))
                 .oauth2ResourceServer(o -> o.jwt(j -> {}).authenticationEntryPoint(entryPoint)).build();
     }
 }

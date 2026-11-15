@@ -25,7 +25,7 @@ class DocumentGovernanceServiceApplicationTests extends PostgresTestSupport {
                 0, "no-source-adapter", f.context(), "no-adapter"))
                 .isInstanceOfSatisfying(ReviewException.class, e -> {
                     assertThat(e.status()).isEqualTo(503);
-                    assertThat(e.code()).isEqualTo("SOURCE_VALIDATION_UNAVAILABLE");
+                    assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_VALIDATION_UNAVAILABLE);
                 });
         assertThat(ReviewApiIntegrationTest.scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version())).isEqualTo(0L);
         assertThat(ReviewApiIntegrationTest.scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?", f.version())).isEqualTo("STAFF_REVIEW");

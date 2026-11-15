@@ -1,5 +1,6 @@
 package com.livingdocs.document.model;
 
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.exception.ReviewException;
 
 import java.time.Instant;
@@ -19,13 +20,11 @@ public record SourceReviewValidation(String validationId, UUID tenantId, UUID wo
             throw unavailable();
         }
         if (!version.sourceSha().equals(validatedHeadSha)) {
-            throw new ReviewException(409, "SOURCE_CHANGED_REVALIDATION_REQUIRED",
-                    "The bound source is no longer current. Revalidate before passing Staff Review.");
+            throw new SourceChangedException();
         }
     }
 
     public static ReviewException unavailable() {
-        return new ReviewException(503, "SOURCE_VALIDATION_UNAVAILABLE",
-                "Current source could not be verified. No review changes were committed.");
+        return new SourceValidationUnavailableException();
     }
 }

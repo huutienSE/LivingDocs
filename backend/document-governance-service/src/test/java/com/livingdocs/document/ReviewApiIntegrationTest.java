@@ -179,9 +179,9 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     void evidenceBudgetAndDuplicates_shouldRejectBeforeVersionLookup() throws Exception {
         var f = fixture();
         assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, Collections.nCopies(101, f.evidence)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("EVIDENCE_LIMIT_EXCEEDED"));
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.EVIDENCE_LIMIT_EXCEEDED));
         assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence, f.evidence)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.code()).isEqualTo("DUPLICATE_EVIDENCE"));
+                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.DUPLICATE_EVIDENCE));
         var oversized = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", Collections.nCopies(101, f.evidence)));
         problem(review(f, token(f), oversized, "budget", VersionEtags.format(f.version, 0)), 422, "EVIDENCE_LIMIT_EXCEEDED");
         var repeated = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", List.of(f.evidence, f.evidence)));

@@ -26,7 +26,7 @@ class SourceReviewGuardTest {
     private void unavailable(SourceReviewValidation receipt) {
         assertThatThrownBy(() -> receipt.requireMatches(version, now)).isInstanceOfSatisfying(ReviewException.class, e -> {
             assertThat(e.status()).isEqualTo(503);
-            assertThat(e.code()).isEqualTo("SOURCE_VALIDATION_UNAVAILABLE");
+            assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_VALIDATION_UNAVAILABLE);
         });
     }
 
@@ -67,7 +67,7 @@ class SourceReviewGuardTest {
                 "b".repeat(40), r.checkedAt(), r.expiresAt()).requireMatches(version, now))
                 .isInstanceOfSatisfying(ReviewException.class, e -> {
                     assertThat(e.status()).isEqualTo(409);
-                    assertThat(e.code()).isEqualTo("SOURCE_CHANGED_REVALIDATION_REQUIRED");
+                    assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_CHANGED_REVALIDATION_REQUIRED);
                 });
     }
 

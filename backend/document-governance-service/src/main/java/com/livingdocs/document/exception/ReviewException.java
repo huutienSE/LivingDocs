@@ -1,27 +1,22 @@
 package com.livingdocs.document.exception;
 
-public class ReviewException extends RuntimeException {
-    private final int status;
-    private final String code;
+import java.util.Objects;
+import lombok.Getter;
 
-    public ReviewException(int status, String code, String message) {
-        super(message);
-        this.status = status;
-        this.code = code;
+/** Base for typed review failures; RFC 9457 serialization belongs to the HTTP boundary. */
+@Getter
+public abstract class ReviewException extends RuntimeException {
+    private final ReviewErrorCode errorCode;
+
+    protected ReviewException(ReviewErrorCode errorCode, String message) {
+        this(errorCode, message, null);
     }
 
-    public int status() { return status; }
-    public String code() { return code; }
-
-    public static ReviewException notFound() {
-        return new ReviewException(404, "DOCUMENT_VERSION_NOT_FOUND", "Document version not found.");
+    protected ReviewException(ReviewErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = Objects.requireNonNull(errorCode);
     }
 
-    public static ReviewException forbidden() {
-        return new ReviewException(403, "REVIEW_FORBIDDEN", "Staff access to this resource is required.");
-    }
+    public int status() { return errorCode.getStatus().value(); }
 
-    public static ReviewException revisionConflict() {
-        return new ReviewException(412, "REVISION_CONFLICT", "Reload the version before reviewing it.");
-    }
 }

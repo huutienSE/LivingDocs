@@ -1,5 +1,6 @@
 package com.livingdocs.document.repository;
 
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.exception.ReviewException;
 import com.livingdocs.document.dto.response.ReviewResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,8 +36,7 @@ public class ReviewDecisionRepository {
 
     public ReviewResponse response(ReviewDecision d) {
         String snapshot = decisions.responseSnapshot(d.tenantId(), d.id());
-        if (snapshot == null) throw new ReviewException(409, "REPLAY_SNAPSHOT_UNAVAILABLE",
-                "Historical response cannot be reconstructed from immutable audit.");
+        if (snapshot == null) throw new ReviewReplaySnapshotUnavailableException();
         return json.readValue(snapshot, ReviewResponse.class);
     }
 

@@ -1,5 +1,6 @@
 package com.livingdocs.document.service.impl;
 
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.service.SourceReviewGuard;
 import com.livingdocs.document.service.DocumentReviewService;
 import com.livingdocs.document.model.*;
@@ -36,26 +37,26 @@ public class DocumentReviewServiceImpl implements DocumentReviewService {
     public ReviewResponse review(UUID versionId, ReviewRequest request, long expectedRevision,
                                  String key, ActorContext actor, String correlationId) {
         if (expectedRevision < 0 || key == null || !key.matches("[A-Za-z0-9._:-]{1,128}")) {
-            throw new ReviewException(400, "INVALID_REQUEST", "A valid revision and Idempotency-Key are required.");
+            throw new ReviewRequestException(ReviewErrorCode.INVALID_REQUEST, "A valid revision and Idempotency-Key are required.");
         }
         versions.setTenant(actor.tenantId());
         // Serialize decisions for the same version, including retries and review-round allocation.
         // Scope rows stay share-locked so a concurrent move cannot invalidate authorization.
-        var before = versions.find(versionId, actor.tenantId(), true).orElseThrow(ReviewException::notFound);
+        var before = versions.find(versionId, actor.tenantId(), true).orElseThrow(DocumentVersionNotFoundException::new);
         actor.requireStaffReview(before);
         var previous = decisions.findRequest(actor.tenantId(), versionId, actor.identityId(), key);
         if (previous.isPresent()) {
             var d = previous.get();
             if (d.expectedRevision() != expectedRevision || d.decision() != request.decision()
                     || !Objects.equals(d.feedback(), request.feedback()) || !d.evidenceRefs().equals(request.evidenceRefs())) {
-                throw new ReviewException(409, "IDEMPOTENCY_CONFLICT", "Idempotency-Key was already used for another request.");
+                throw new ReviewIdempotencyConflictException();
             }
             return decisions.response(d);
         }
-        if (before.revision() != expectedRevision) throw ReviewException.revisionConflict();
+        if (before.revision() != expectedRevision) throw new ReviewRevisionConflictException();
         policy.requireStaffReview(before, request.decision(), request.feedback(), request.evidenceRefs());
         if (!versions.hasEvidence(actor.tenantId(), versionId, request.evidenceRefs())) {
-            throw new ReviewException(422, "REVIEW_EVIDENCE_INVALID", "Evidence must belong to this document version.");
+            throw new ReviewEvidenceInvalidException();
         }
         var validation = request.decision() == ReviewAction.PASS ? sourceGuard.requireCurrent(before) : null;
         var after = before.reviewed(request.decision());

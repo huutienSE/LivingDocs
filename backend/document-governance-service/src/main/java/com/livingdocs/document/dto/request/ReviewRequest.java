@@ -1,5 +1,6 @@
 package com.livingdocs.document.dto.request;
 
+import com.livingdocs.document.exception.*;
 import com.livingdocs.document.model.ReviewAction;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -14,9 +15,9 @@ public record ReviewRequest(@NotNull ReviewAction decision, String feedback, Lis
     public ReviewRequest {
         evidenceRefs = evidenceRefs == null ? List.of() : evidenceRefs;
         if (evidenceRefs.size() > MAX_EVIDENCE_REFS)
-            throw new ReviewException(422, "EVIDENCE_LIMIT_EXCEEDED", "At most 100 evidence references are accepted.");
+            throw new ReviewEvidenceLimitExceededException();
         if (new HashSet<>(evidenceRefs).size() != evidenceRefs.size())
-            throw new ReviewException(422, "DUPLICATE_EVIDENCE", "Evidence references must be unique.");
+            throw new DuplicateReviewEvidenceException();
         evidenceRefs = List.copyOf(evidenceRefs);
     }
 }
