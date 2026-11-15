@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.livingdocs.model.*;
 import com.livingdocs.client.AuthoritativeHeadLookup;
 import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.service.impl.SourceValidationServiceImpl;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,7 +41,7 @@ class SourceValidationServiceTests {
     }
 
     private SourceValidationService service(AuthoritativeHeadLookup lookup) {
-        return new SourceValidationService((scope, id) -> Optional.of(connection), lookup, CLOCK, VALIDITY);
+        return new SourceValidationServiceImpl((scope, id) -> Optional.of(connection), lookup, CLOCK, VALIDITY);
     }
 
     private void assertFailure(SourceValidationResult result, ValidationReason reason) {
@@ -87,7 +88,7 @@ class SourceValidationServiceTests {
 
     @Test
     void unknownConnectionDoesNotCallProvider() {
-        SourceValidationService service = new SourceValidationService((s, id) -> Optional.empty(),
+        SourceValidationService service = new SourceValidationServiceImpl((s, id) -> Optional.empty(),
                 (c, k, r) -> fail("Unknown connections must not reach GitHub"), CLOCK, VALIDITY);
         assertFailure(service.validate(SCOPE, request()), ValidationReason.UNKNOWN_CONNECTION);
     }
@@ -96,7 +97,7 @@ class SourceValidationServiceTests {
     void connectionFromAnotherTenantOrWorkspaceIsHidden() {
         for (SourceScope foreign : new SourceScope[]{new SourceScope(UUID.randomUUID(), SCOPE.workspaceId()),
                 new SourceScope(SCOPE.tenantId(), UUID.randomUUID())}) {
-            SourceValidationService service = new SourceValidationService(
+            SourceValidationService service = new SourceValidationServiceImpl(
                     (s, id) -> Optional.of(new SourceConnection(foreign, REPO, CONFIG, true)),
                     (c, k, r) -> fail("Out-of-scope connections must not reach GitHub"), CLOCK, VALIDITY);
             assertFailure(service.validate(SCOPE, request()), ValidationReason.UNKNOWN_CONNECTION);
@@ -105,7 +106,7 @@ class SourceValidationServiceTests {
 
     @Test
     void wrongRepositoryReturnedByLookupIsHidden() {
-        SourceValidationService service = new SourceValidationService(
+        SourceValidationService service = new SourceValidationServiceImpl(
                 (s, id) -> Optional.of(new SourceConnection(SCOPE, UUID.randomUUID(), CONFIG, true)),
                 (c, k, r) -> fail("Wrong repository"), CLOCK, VALIDITY);
         assertFailure(service.validate(SCOPE, request()), ValidationReason.UNKNOWN_CONNECTION);
@@ -115,7 +116,7 @@ class SourceValidationServiceTests {
     void inactiveOrReconfiguredConnectionsDoNotReachProvider() {
         for (SourceConnection c : new SourceConnection[]{new SourceConnection(SCOPE, REPO, CONFIG, false),
                 new SourceConnection(SCOPE, REPO, "cfg-4", true)}) {
-            SourceValidationService service = new SourceValidationService((s, id) -> Optional.of(c),
+            SourceValidationService service = new SourceValidationServiceImpl((s, id) -> Optional.of(c),
                     (ignored, k, r) -> fail("SourceConnection guard must run first"), CLOCK, VALIDITY);
             assertFailure(service.validate(SCOPE, request()), c.active() ? ValidationReason.CONFIG_CHANGED : ValidationReason.CONNECTION_INACTIVE);
         }
@@ -130,7 +131,7 @@ class SourceValidationServiceTests {
     void providerOrConnectionStoreFailureDoesNotLeakSecrets() {
         String secret = "Bearer secret-token credential_ref https://private.example";
         SourceValidationService providerFailure = service((c, k, r) -> { throw new SourceUnavailableException(secret); });
-        SourceValidationService storeFailure = new SourceValidationService((s, id) -> { throw new DataAccessResourceFailureException(secret); },
+        SourceValidationService storeFailure = new SourceValidationServiceImpl((s, id) -> { throw new DataAccessResourceFailureException(secret); },
                 (c, k, r) -> fail("Store failed"), CLOCK, VALIDITY);
         for (SourceValidationService service : new SourceValidationService[]{providerFailure, storeFailure}) {
             SourceValidationResult result = service.validate(SCOPE, request());
@@ -185,7 +186,7 @@ class SourceValidationServiceTests {
     @ValueSource(strings = {"main", "refs/tags/v1", "refs/heads/", "refs/heads/a..b", "refs/heads/.hidden",
             "refs/heads/a.lock", "refs/heads/a b", "refs/heads/a~1", "refs/heads/a//b", "refs/heads/a@{1}"})
     void ambiguousOrInvalidRefIsRejectedBeforeLookup(String ref) {
-        SourceValidationService service = new SourceValidationService((s, id) -> fail("Invalid request"),
+        SourceValidationService service = new SourceValidationServiceImpl((s, id) -> fail("Invalid request"),
                 (c, k, r) -> fail("Invalid request"), CLOCK, VALIDITY);
         assertFailure(service.validate(SCOPE, new SourceValidationRequest(REPO, TargetKind.BRANCH, ref, SHA, CONFIG)), ValidationReason.INVALID_REQUEST);
     }
@@ -215,7 +216,7 @@ class SourceValidationServiceTests {
             public Clock withZone(ZoneId zone) { return this; }
             public Instant instant() { return calls++ == 0 ? NOW : NOW.plus(VALIDITY); }
         };
-        SourceValidationService service = new SourceValidationService((s, id) -> Optional.of(connection),
+        SourceValidationService service = new SourceValidationServiceImpl((s, id) -> Optional.of(connection),
                 (c, k, r) -> Optional.of(head(SHA)), advancing, VALIDITY);
         assertFailure(service.validate(SCOPE, request()), ValidationReason.VALIDATION_EXPIRED);
     }
@@ -224,13 +225,13 @@ class SourceValidationServiceTests {
     void deploymentMustSupplyPositiveValidity() {
         for (Duration duration : new Duration[]{Duration.ZERO, Duration.ofSeconds(-1)}) {
             assertThrows(IllegalArgumentException.class,
-                    () -> new SourceValidationService((s, id) -> Optional.empty(), (c, k, r) -> Optional.empty(), CLOCK, duration));
+                    () -> new SourceValidationServiceImpl((s, id) -> Optional.empty(), (c, k, r) -> Optional.empty(), CLOCK, duration));
         }
     }
 
     @Test
     void missingCurrentConfigurationIsUnavailableAndDoesNotCallGithub() {
-        SourceValidationService service = new SourceValidationService(
+        SourceValidationService service = new SourceValidationServiceImpl(
                 (scope, id) -> Optional.of(new SourceConnection(scope, id, null, true)),
                 (connection, kind, ref) -> fail("Không gọi GitHub khi thiếu phiên bản cấu hình"),
                 CLOCK, VALIDITY);

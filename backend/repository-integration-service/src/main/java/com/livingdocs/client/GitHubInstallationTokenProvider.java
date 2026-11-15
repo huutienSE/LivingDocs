@@ -5,7 +5,6 @@ import com.livingdocs.exception.SourceUnavailableException;
 import com.livingdocs.model.SourceScope;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +32,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -46,7 +44,6 @@ import tools.jackson.databind.ObjectMapper;
 @EnableConfigurationProperties(GitHubAppProperties.class)
 public final class GitHubInstallationTokenProvider {
     private static final int MAX_KEY_BYTES = 16 * 1024;
-    private static final int MAX_RESPONSE_BYTES = 256 * 1024;
     private static final int CACHE_CAPACITY = 128;
     private static final Duration EXPIRY_MARGIN = Duration.ofSeconds(60);
     private static final Pattern KEY_REFERENCE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
@@ -63,7 +60,7 @@ public final class GitHubInstallationTokenProvider {
 
     @Autowired
     public GitHubInstallationTokenProvider(GitHubAppProperties properties, ObjectMapper json) {
-        this(properties, json, httpClientBuilder(), Clock.systemUTC());
+        this(properties, json, GitHubHttp.clientBuilder(), Clock.systemUTC());
     }
 
     GitHubInstallationTokenProvider(GitHubAppProperties properties, ObjectMapper json,
@@ -71,7 +68,7 @@ public final class GitHubInstallationTokenProvider {
         this.properties = properties;
         this.json = json;
         this.clock = clock;
-        this.client = builder.baseUrl("https://api.github.com")
+        this.client = builder.baseUrl(GitHubHttp.BASE_URL)
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
                 .defaultHeader("X-GitHub-Api-Version", "2026-03-10")
                 .defaultHeader(HttpHeaders.USER_AGENT, "LivingDocs-S02")
@@ -107,12 +104,20 @@ public final class GitHubInstallationTokenProvider {
                     tokens.remove(tokens.keySet().iterator().next());
                 }
             }
-            return new RepositoryAccess(repositoryId, nodeId, token.value);
+            return new RepositoryAccess(nodeId, key, token);
         } catch (SourceUnavailableException failure) {
-            synchronized (tokens) {
-                tokens.remove(key, token);
-            }
+            discardToken(key, token);
             throw failure;
+        }
+    }
+
+    void discardAccess(RepositoryAccess access) {
+        discardToken(access.key, access.token);
+    }
+
+    private void discardToken(TokenKey key, InstallationToken token) {
+        synchronized (tokens) {
+            tokens.remove(key, token);
         }
     }
 
@@ -166,11 +171,7 @@ public final class GitHubInstallationTokenProvider {
                 if (incoming.getStatusCode().value() != expectedStatus) {
                     throw unavailable();
                 }
-                byte[] body = incoming.getBody().readNBytes(MAX_RESPONSE_BYTES + 1);
-                if (body.length > MAX_RESPONSE_BYTES) {
-                    throw unavailable();
-                }
-                return json.readTree(body);
+                return GitHubHttp.readBody(incoming, json);
             });
         } catch (RestClientException | JacksonException failure) {
             // Không truyền lỗi thô của HTTP client hoặc GitHub sang luồng nghiệp vụ.
@@ -250,14 +251,6 @@ public final class GitHubInstallationTokenProvider {
         output.writeBytes(value);
     }
 
-    private static RestClient.Builder httpClientBuilder() {
-        HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))
-                .followRedirects(HttpClient.Redirect.NEVER).build();
-        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(http);
-        requests.setReadTimeout(Duration.ofSeconds(2));
-        return RestClient.builder().requestFactory(requests);
-    }
-
     private static long parseId(String id) {
         if (id == null || !POSITIVE_ID.matcher(id).matches()) {
             throw unavailable();
@@ -302,12 +295,16 @@ public final class GitHubInstallationTokenProvider {
 
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class RepositoryAccess {
-        @Getter private final long repositoryId;
         @Getter private final String nodeId;
-        private final String token;
+        private final TokenKey key;
+        private final InstallationToken token;
+
+        public long getRepositoryId() {
+            return key.repositoryId;
+        }
 
         void authenticate(HttpHeaders headers) {
-            headers.setBearerAuth(token);
+            headers.setBearerAuth(token.value);
         }
     }
 }

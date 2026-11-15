@@ -1,7 +1,16 @@
 package com.livingdocs.repository;
 
+import com.livingdocs.client.GitHubInstallationTokenProvider;
+import com.livingdocs.client.GitHubInstallationTokenProvider.RepositoryAccess;
+import com.livingdocs.client.GitHubSourceClient;
+import com.livingdocs.client.GitHubSourceClient.CommitObservation;
+import com.livingdocs.entity.TrackedBranchEntity;
+import com.livingdocs.exception.SourceUnavailableException;
 import com.livingdocs.model.*;
+import com.livingdocs.service.GitHubSourceLookup;
+import com.livingdocs.service.GitHubSourceLookup.Outcome;
 import com.livingdocs.service.SourceValidationService;
+import com.livingdocs.service.impl.SourceValidationServiceImpl;
 import com.livingdocs.entity.GithubConnectionEntity;
 import com.livingdocs.entity.RepositoryConnectionEntity;
 import jakarta.persistence.EntityManager;
@@ -18,12 +27,19 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 /** Đọc phiên bản cấu hình do PostgreSQL cấp, với trạng thái GitHub dành cho kiểm thử. */
 @SpringBootTest(properties = {"spring.jpa.hibernate.ddl-auto=validate",
@@ -31,9 +47,13 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("db")
 @EnabledIfEnvironmentVariable(named = "DB_URL", matches = "jdbc:postgresql:.*")
 class JpaConnectionLookupTests {
+    private static final String TRACKED_REF = "refs/heads/Release/v1";
     @Autowired private ConnectionLookup lookup;
+    @Autowired private GitHubSourceLookup sourceLookup;
     @Autowired private PlatformTransactionManager transactions;
     @PersistenceContext private EntityManager entityManager;
+    @MockitoBean private GitHubInstallationTokenProvider tokens;
+    @MockitoBean private GitHubSourceClient github;
     private final List<Fixture> fixtures = new ArrayList<>();
 
     @Value
@@ -74,12 +94,106 @@ class JpaConnectionLookupTests {
         for (Fixture fixture : fixtures) {
             new TransactionTemplate(transactions).executeWithoutResult(transaction -> {
                 tenant(fixture.scope().tenantId());
+                entityManager.createNativeQuery("delete from repository.tracked_branches where tenant_id = :tenant and repository_connection_id = :id")
+                        .setParameter("tenant", fixture.scope().tenantId()).setParameter("id", fixture.repositoryId()).executeUpdate();
                 entityManager.createNativeQuery("delete from repository.repository_connections where tenant_id = :tenant and repository_connection_id = :id")
                         .setParameter("tenant", fixture.scope().tenantId()).setParameter("id", fixture.repositoryId()).executeUpdate();
                 entityManager.createNativeQuery("delete from repository.github_connections where tenant_id = :tenant and github_connection_id = :id")
                         .setParameter("tenant", fixture.scope().tenantId()).setParameter("id", fixture.githubId()).executeUpdate();
             });
         }
+    }
+
+    @Test
+    void scopedLookupStopsBeforeGithubOnInvalidUnknownInactiveChangedOrUntrackedTarget() {
+        Fixture active = fixture("ACTIVE", "READY_TEST");
+        Fixture inactive = fixture("ACTIVE", "REVOKED");
+        track(active, TRACKED_REF, false);
+        String revision = connection(active).configRevision();
+
+        for (String ref : List.of("2147483648", "0", "042", "-1")) {
+            assertEquals(Outcome.INVALID_REQUEST, sourceLookup.readCurrent(
+                    active.scope(), active.repositoryId(), TargetKind.PR, ref, revision, false).getOutcome());
+        }
+        assertEquals(Outcome.UNKNOWN_CONNECTION, sourceLookup.readCurrent(
+                new SourceScope(active.scope().tenantId(), UUID.randomUUID()), active.repositoryId(),
+                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+        assertEquals(Outcome.UNKNOWN_CONNECTION, sourceLookup.readCurrent(
+                new SourceScope(UUID.randomUUID(), active.scope().workspaceId()), active.repositoryId(),
+                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+        assertEquals(Outcome.CONNECTION_INACTIVE, sourceLookup.readCurrent(inactive.scope(), inactive.repositoryId(),
+                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+        assertEquals(Outcome.CONFIG_CHANGED, sourceLookup.readCurrent(active.scope(), active.repositoryId(),
+                TargetKind.BRANCH, TRACKED_REF, "old-config", false).getOutcome());
+        assertEquals(Outcome.UNKNOWN_REF, sourceLookup.readCurrent(active.scope(), active.repositoryId(),
+                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+        verifyNoInteractions(tokens, github);
+    }
+
+    @Test
+    void scopedLookupReadsAnExactTrackedBranchOutsideTheDatabaseTransaction() {
+        Fixture fixture = fixture("ACTIVE", "READY_TEST");
+        track(fixture, TRACKED_REF, true);
+        String revision = connection(fixture).configRevision();
+        RepositoryAccess access = authorize(fixture, revision);
+        CommitObservation commit = mock(CommitObservation.class);
+        when(github.readBranch(access, TRACKED_REF, false)).thenAnswer(invocation -> {
+            assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
+            return Optional.of(commit);
+        });
+
+        new TransactionTemplate(transactions).executeWithoutResult(transaction -> {
+            tenant(fixture.scope().tenantId());
+            var result = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.BRANCH,
+                    TRACKED_REF, revision, false);
+            assertEquals(Outcome.OBSERVED, result.getOutcome());
+            assertSame(commit, result.getCommit());
+            assertEquals(revision, result.getConnection().configRevision());
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive());
+            assertEquals(fixture.scope().tenantId().toString(), entityManager
+                    .createNativeQuery("select current_setting('app.tenant_id')").getSingleResult());
+        });
+        assertEquals(Outcome.UNKNOWN_REF, sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(),
+                TargetKind.BRANCH, "refs/heads/release/v1", revision, false).getOutcome());
+    }
+
+    @Test
+    void scopedLookupDistinguishesGithubAbsenceAndAnUnavailableSourceWithoutRequiringATrackedBranchForPr() {
+        Fixture fixture = fixture("ACTIVE", "READY_TEST");
+        String revision = connection(fixture).configRevision();
+        RepositoryAccess access = authorize(fixture, revision);
+        when(github.readPullRequest(access, Integer.MAX_VALUE, false)).thenReturn(Optional.empty())
+                .thenThrow(new SourceUnavailableException("Chi tiết lỗi chỉ dành cho kiểm thử"));
+
+        var absent = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.PR,
+                Integer.toString(Integer.MAX_VALUE), revision, false);
+        assertEquals(Outcome.REF_ABSENT, absent.getOutcome());
+        assertNull(absent.getCommit());
+        var unavailable = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.PR,
+                Integer.toString(Integer.MAX_VALUE), revision, false);
+        assertEquals(Outcome.SOURCE_UNAVAILABLE, unavailable.getOutcome());
+        assertNull(unavailable.getCommit());
+    }
+
+    private void track(Fixture fixture, String ref, boolean active) {
+        new TransactionTemplate(transactions).executeWithoutResult(transaction -> {
+            tenant(fixture.scope().tenantId());
+            var branch = new TrackedBranchEntity(fixture.scope().tenantId(), fixture.repositoryId(), ref);
+            if (!active) {
+                branch.deactivate();
+            }
+            entityManager.persist(branch);
+        });
+    }
+
+    private RepositoryAccess authorize(Fixture fixture, String revision) {
+        RepositoryAccess access = mock(RepositoryAccess.class);
+        when(tokens.openRepository(eq(fixture.scope()), anyString(), eq("123456"),
+                eq("test-private-secret-reference"), eq(revision))).thenAnswer(invocation -> {
+            assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
+            return access;
+        });
+        return access;
     }
 
     @Test
@@ -127,7 +241,7 @@ class JpaConnectionLookupTests {
         String afterRepositoryChange = connection(fixture).configRevision();
         assertNotEquals(original, afterRepositoryChange);
 
-        SourceValidationService service = new SourceValidationService(lookup,
+        SourceValidationService service = new SourceValidationServiceImpl(lookup,
                 (connection, kind, ref) -> fail("Không được gọi GitHub khi cấu hình đã thay đổi"),
                 Clock.systemUTC(), Duration.ofSeconds(30));
         assertEquals(ValidationReason.CONFIG_CHANGED, service.validate(fixture.scope(),
@@ -151,7 +265,7 @@ class JpaConnectionLookupTests {
     void validationCanUseARealDatabaseLookupAndAnExplicitTestHeadProvider() {
         Fixture fixture = fixture("ACTIVE", "READY_TEST");
         String revision = connection(fixture).configRevision();
-        SourceValidationService service = new SourceValidationService(lookup,
+        SourceValidationService service = new SourceValidationServiceImpl(lookup,
                 (connection, kind, ref) -> Optional.of(new SourceHead(connection.scope(),
                         connection.repositoryConnectionId(), kind, ref, "a".repeat(40), connection.configRevision(), "test-fence")),
                 Clock.systemUTC(), Duration.ofSeconds(30));
