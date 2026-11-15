@@ -13,8 +13,8 @@
     "service": "S01",
     "method": "POST",
     "path": "/api/v1/auth/login",
-    "business": "Đăng nhập, phát JWT và refresh cookie",
-    "state": "CANDIDATE",
+    "business": "Đăng nhập local credential, phát access JWT 15 phút",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {

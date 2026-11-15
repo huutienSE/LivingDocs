@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SuccessCode {
 
-    IDENTITY_REGISTERED("IDENTITY_REGISTERED", "Registration completed");
+    IDENTITY_REGISTERED("IDENTITY_REGISTERED", "Registration completed"),
+    LOGIN_SUCCEEDED("LOGIN_SUCCEEDED", "Login completed");
 
     private final String wireCode;
     private final String defaultMessage;

@@ -5,6 +5,7 @@ info:
   description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
     thái. Domain owner phải duyệt request/response còn để CandidateObject.
 x-livingdocs-source: LD-API-001 v0.4 / LIV-133
+x-livingdocs-jwks-path: /.well-known/jwks.json
 paths:
   /api/v1/auth/register:
     post:
@@ -149,25 +150,138 @@ paths:
       tags:
         - S01 Public
       operationId: api002_post
-      summary: Đăng nhập, phát JWT và refresh cookie
-      description: 'LD-API-001 API-002. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      summary: Đăng nhập bằng local credential và phát access JWT
+      description: >-
+        LIV-137 API-002. Email/password thật; chỉ phát access token 15 phút.
+        Identity không cần tenant membership. Không phát refresh token, cookie,
+        role hoặc tenant claim. Email không tồn tại, sai password và identity
+        inactive cùng trả INVALID_CREDENTIALS (401). Request sai định dạng trả
+        INVALID_REQUEST (400); Content-Type khác application/json trả
+        UNSUPPORTED_MEDIA_TYPE (415). Quá giới hạn đăng nhập trả 429 kèm
+        Retry-After; Redis/pepper không khả dụng trả 503 và không cấp JWT.
       x-api-id: API-002
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Access token đã phát. Cache-Control no-store.
+          headers:
+            Cache-Control: &loginNoStoreHeader
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccessTokenView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/LoginApiResponse'
+              example:
+                code: LOGIN_SUCCEEDED
+                message: Login completed
+                data:
+                  accessToken: eyJ...redacted
+                  tokenType: Bearer
+                  expiresIn: 900
+        '400':
+          description: Body thiếu/sai định dạng hoặc không qua Bean Validation.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Invalid request
+                status: 400
+                detail: Login request is invalid
+                instance: urn:uuid:40000000-0000-4000-8000-000000000002
+                code: INVALID_REQUEST
+                correlationId: example-correlation-400
+        '401':
+          description: Unknown email, wrong password hoặc inactive identity; cùng một public error.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Invalid credentials
+                status: 401
+                detail: Invalid email or password
+                instance: urn:uuid:40000000-0000-4000-8000-000000000003
+                code: INVALID_CREDENTIALS
+                correlationId: example-correlation-401
+        '415':
+          description: Content-Type phải là application/json.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Unsupported media type
+                status: 415
+                detail: Content-Type must be application/json
+                instance: urn:uuid:40000000-0000-4000-8000-000000000004
+                code: UNSUPPORTED_MEDIA_TYPE
+                correlationId: example-correlation-415
+        '429':
+          description: Giới hạn đăng nhập theo normalized identifier hoặc toàn hệ thống.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+            Retry-After:
+              description: Số giây cần chờ trước khi thử lại.
+              schema:
+                type: string
+                pattern: '^[0-9]+$'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Too many requests
+                status: 429
+                detail: Too many login attempts
+                instance: urn:uuid:40000000-0000-4000-8000-000000000005
+                code: LOGIN_RATE_LIMITED
+                correlationId: example-correlation-429
+        '503':
+          description: Redis hoặc pepper không khả dụng; login fail closed.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Service unavailable
+                status: 503
+                detail: Login is temporarily unavailable
+                instance: urn:uuid:40000000-0000-4000-8000-000000000006
+                code: LOGIN_SECURITY_UNAVAILABLE
+                correlationId: example-correlation-503
+        '500':
+          description: Lỗi xử lý nội bộ không chứa credential hoặc JWT.
+          headers:
+            Cache-Control: *loginNoStoreHeader
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Internal error
+                status: 500
+                detail: The request could not be completed
+                instance: urn:uuid:40000000-0000-4000-8000-000000000007
+                code: INTERNAL_ERROR
+                correlationId: example-correlation-500
       security: []
       requestBody:
         required: true
@@ -175,6 +289,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: person@example.com
+              password: A-secure-password-123
   /api/v1/auth/logout:
     post:
       tags:
@@ -933,6 +1050,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'LIV-137 RS256 access JWT; issuer urn:livingdocs:s01; audience livingdocs-api; public JWKS at S01 /.well-known/jwks.json. No tenant or role claim.'
     serviceAuth:
       type: http
       scheme: bearer
@@ -1025,6 +1143,14 @@ components:
         expiresIn:
           type: integer
           minimum: 1
+    LoginApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/AccessTokenView'
     LoginRequest:
       type: object
       required:
@@ -1034,9 +1160,13 @@ components:
         email:
           type: string
           format: email
+          maxLength: 320
+          description: Outer ASCII spaces are trimmed before lookup.
         password:
           type: string
           format: password
+          maxLength: 64
+          description: Required, non-blank, at most 72 UTF-8 bytes; no minimum length enforced at login.
     RegisterRequest:
       type: object
       required:
