@@ -1,7 +1,6 @@
 package com.livingdocs.document.model;
 
 import com.livingdocs.document.exception.*;
-import com.livingdocs.document.exception.ReviewException;
 import com.livingdocs.document.model.*;
 
 import java.util.List;

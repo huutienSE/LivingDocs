@@ -5,8 +5,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.livingdocs.document.service.DocumentReviewService;
 import com.livingdocs.document.model.*;
-import com.livingdocs.document.exception.ReviewException;
-import com.livingdocs.document.dto.request.ReviewRequest;
 import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 
@@ -21,9 +19,9 @@ class DocumentGovernanceServiceApplicationTests extends PostgresTestSupport {
     @Test
     void noSourceAdapter_shouldFailClosedWithNoDatabaseChanges() throws Exception {
         var f = ReviewApiIntegrationTest.fixture();
-        assertThatThrownBy(() -> reviews.review(f.version(), new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence())),
+        assertThatThrownBy(() -> reviews.review(f.version(), new StaffDecisionCommand(ReviewAction.PASS, null, List.of(f.evidence())),
                 0, "no-source-adapter", f.context(), "no-adapter"))
-                .isInstanceOfSatisfying(ReviewException.class, e -> {
+                .isInstanceOfSatisfying(com.livingdocs.document.exception.SourceValidationUnavailableException.class, e -> {
                     assertThat(e.status()).isEqualTo(503);
                     assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_VALIDATION_UNAVAILABLE);
                 });

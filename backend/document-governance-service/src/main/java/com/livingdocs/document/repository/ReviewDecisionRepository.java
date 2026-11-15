@@ -1,8 +1,5 @@
 package com.livingdocs.document.repository;
 
-import com.livingdocs.document.exception.*;
-import com.livingdocs.document.exception.ReviewException;
-import com.livingdocs.document.dto.response.ReviewResponse;
 import lombok.RequiredArgsConstructor;
 import com.livingdocs.document.model.ReviewDecision;
 import com.livingdocs.document.mapper.ReviewPersistenceMapper;
@@ -34,14 +31,12 @@ public class ReviewDecisionRepository {
         return decisions.nextRound(tenant, version);
     }
 
-    public ReviewResponse response(ReviewDecision d) {
-        String snapshot = decisions.responseSnapshot(d.tenantId(), d.id());
-        if (snapshot == null) throw new ReviewReplaySnapshotUnavailableException();
-        return json.readValue(snapshot, ReviewResponse.class);
+    public Optional<String> responseSnapshot(UUID tenantId, UUID decisionId) {
+        return Optional.ofNullable(decisions.responseSnapshot(tenantId, decisionId));
     }
 
-    public void insert(ReviewDecision d, ReviewResponse response) {
+    public void insert(ReviewDecision d, String responseSnapshot) {
         // Persist assigned UUIDs as new rows; never merge append-only history.
-        decisions.saveAndFlush(mapper.toEntity(d, json.writeValueAsString(d.evidenceRefs()), json.writeValueAsString(response)));
+        decisions.saveAndFlush(mapper.toEntity(d, json.writeValueAsString(d.evidenceRefs()), responseSnapshot));
     }
 }

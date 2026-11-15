@@ -2,7 +2,11 @@ package com.livingdocs.document;
 
 import com.livingdocs.document.controller.VersionEtags;
 import com.livingdocs.document.model.*;
-import com.livingdocs.document.exception.ReviewException;
+import com.livingdocs.document.exception.*;
+import com.livingdocs.document.service.ReviewSnapshotCodec;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.argThat;
 import com.livingdocs.document.dto.request.ReviewRequest;
 import com.livingdocs.document.security.ActorContext;
 import com.livingdocs.document.service.DocumentReviewService;
@@ -11,6 +15,8 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.*;
 import java.net.URI;
 import java.net.http.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -23,14 +29,17 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import org.yaml.snakeyaml.Yaml;
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "springdoc.api-docs.enabled=true")
 @Import(ReviewSourceValidationTestConfiguration.class)
 class ReviewApiIntegrationTest extends PostgresTestSupport {
     @LocalServerPort int port;
     @Autowired JsonMapper json;
     @Autowired DocumentReviewService service;
+    @MockitoSpyBean ReviewSnapshotCodec snapshotCodec;
     @Autowired ReviewSourceValidationTestConfiguration.TestValidator sourceValidator;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired com.livingdocs.document.repository.DocumentVersionRepository versions;
@@ -110,6 +119,199 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
 
     JsonNode body(HttpResponse<String> response) { return json.readTree(response.body()); }
 
+    JsonNode data(HttpResponse<String> response) {
+        var envelope = body(response);
+        assertThat(envelope.propertyNames()).containsExactlyInAnyOrder("code", "message", "data");
+        assertThat(envelope.path("code").asString()).isEqualTo("STAFF_REVIEW_RECORDED");
+        assertThat(envelope.path("message").asString()).isEqualTo("Staff review decision recorded");
+        return envelope.path("data");
+    }
+
+    @Test
+    void orm_shouldShareTransactionLocalRlsAndClearTenantAfterCompletion() throws Exception {
+        var first = fixture();
+        var second = fixture();
+        assertThat(transactions).isInstanceOf(org.springframework.orm.jpa.JpaTransactionManager.class);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        var connectionId = new java.util.concurrent.atomic.AtomicReference<Object>();
+        tx.executeWithoutResult(status -> {
+            connectionId.set(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult());
+            versions.setTenant(first.tenant);
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNotNull();
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
+        });
+        tx.executeWithoutResult(status -> {
+            // Prove reuse of the physical pooled connection, not just another clean connection.
+            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
+                    .isEqualTo(connectionId.get());
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
+            versions.setTenant(second.tenant);
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNotNull();
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
+            status.setRollbackOnly();
+        });
+        tx.executeWithoutResult(status -> {
+            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
+                    .isEqualTo(connectionId.get());
+            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
+        });
+        assertThatThrownBy(() -> versions.setTenant(first.tenant))
+                .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
+    }
+
+    @Test
+    void orm_shouldRejectStaleManagedVersionAtFlushWithoutAppendingHistory() throws Exception {
+        var f = fixture();
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status -> {
+            versions.setTenant(f.tenant);
+            var before = versions.find(f.version, f.tenant, false).orElseThrow();
+            try {
+                // An independent writer wins after the ORM snapshot was loaded.
+                execute("UPDATE document.document_versions SET revision=revision+1 WHERE document_version_id=?", f.version);
+            } catch (Exception e) { throw new RuntimeException(e); }
+            versions.update(before, before.reviewed(ReviewAction.PASS));
+        })).isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+        assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(0L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(0L);
+    }
+
+    @Test
+    void runtimeOpenApi_shouldMatchReviewedContractAndRequireAuthentication() throws Exception {
+        var f = fixture();
+        var uri = URI.create("http://127.0.0.1:" + port + "/v3/api-docs");
+        assertThat(http.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode())
+                .isEqualTo(401);
+        var response = http.send(HttpRequest.newBuilder(uri).header("Authorization", "Bearer " + token(f)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        var runtime = body(response);
+        var reviewed = json.readTree(json.writeValueAsString(new Yaml().load(
+                Files.readString(Path.of("../../contracts/openapi/s04-document-review.yaml")))));
+        String path = "/api/v1/document-versions/{versionId}/staff-decisions";
+        assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
+        assertThat(runtime.path("paths").propertyNames()).containsExactly(path);
+        var actual = runtime.path("paths").path(path).path("post");
+        var expected = reviewed.path("paths").path(path).path("post");
+        assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());
+        assertThat(actual.path("responses").propertyNames()).containsExactlyInAnyOrderElementsOf(expected.path("responses").propertyNames());
+        assertThat(runtime.path("security").get(0).has("bearerAuth")).isTrue();
+        for (String header : List.of("If-Match", "Idempotency-Key")) {
+            boolean required = false;
+            for (var parameter : actual.path("parameters"))
+                if (header.equals(parameter.path("name").asString())) required = parameter.path("required").asBoolean();
+            assertThat(required).as(header).isTrue();
+        }
+        var request = resolveSchema(runtime, actual.path("requestBody").path("content").path("application/json").path("schema"));
+        var requestExpected = reviewed.path("components").path("schemas").path("StaffDecisionRequest");
+        assertSchemaShape(request, requestExpected);
+        assertThat(request.path("additionalProperties").asBoolean()).isFalse();
+        var refs = request.path("properties").path("evidenceRefs");
+        assertThat(refs.path("maxItems").asInt()).isEqualTo(100);
+        assertThat(refs.path("uniqueItems").asBoolean()).isTrue();
+        assertThat(refs.path("items").path("format").asString()).isEqualTo("uuid");
+        var success = actual.path("responses").path("200");
+        assertThat(success.path("content").propertyNames()).containsExactly("application/json");
+        assertThat(success.path("headers").propertyNames()).containsExactlyInAnyOrder("ETag", "X-Correlation-ID", "Cache-Control");
+        var envelope = resolveSchema(runtime, success.path("content").path("application/json").path("schema"));
+        assertSchemaShape(envelope, reviewed.path("components").path("schemas").path("StaffDecisionSuccess"));
+        var version = resolveSchema(runtime, envelope.path("properties").path("data"));
+        assertSchemaShape(version, reviewed.path("components").path("schemas").path("DocumentVersionView"));
+        assertThat(version.path("properties").path("revision").path("format").asString()).isEqualTo("int64");
+        assertThat(version.path("properties").path("revision").path("minimum").asInt()).isZero();
+        assertSchemaShape(runtime.path("components").path("schemas").path("SourceBinding"),
+                reviewed.path("components").path("schemas").path("SourceBinding"));
+        for (String status : List.of("400", "401", "403", "404", "409", "412", "422", "428", "500", "503")) {
+            var error = actual.path("responses").path(status);
+            assertThat(error.path("content").propertyNames()).containsExactly("application/problem+json");
+            var problem = resolveSchema(runtime, error.path("content").path("application/problem+json").path("schema"));
+            assertSchemaShape(problem, reviewed.path("components").path("schemas").path("Problem"));
+        }
+        var result = review(f, token(f), passBody(f), "runtime-schema", VersionEtags.format(f.version, 0));
+        assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
+        assertThat(body(result).propertyNames()).containsExactlyInAnyOrderElementsOf(envelope.path("properties").propertyNames());
+        assertThat(data(result).propertyNames()).containsExactlyInAnyOrderElementsOf(version.path("properties").propertyNames());
+    }
+
+    private JsonNode resolveSchema(JsonNode document, JsonNode schema) {
+        while (schema.has("$ref")) schema = document.at(schema.path("$ref").asString().substring(1));
+        return schema;
+    }
+
+    private void assertSchemaShape(JsonNode actual, JsonNode expected) {
+        assertThat(actual.path("properties").propertyNames()).containsExactlyInAnyOrderElementsOf(expected.path("properties").propertyNames());
+        for (var entry : expected.path("properties").properties()) {
+            var field = actual.path("properties").path(entry.getKey());
+            var baseline = entry.getValue();
+            for (String attribute : List.of("type", "format"))
+                if (baseline.has(attribute)) assertThat(field.path(attribute).asString()).as(entry.getKey() + "." + attribute)
+                        .isEqualTo(baseline.path(attribute).asString());
+            if (baseline.has("enum")) {
+                var values = new HashSet<String>();
+                field.path("enum").forEach(value -> { if (!value.isNull()) values.add(value.asString()); });
+                var expectedValues = new HashSet<String>();
+                baseline.path("enum").forEach(value -> { if (!value.isNull()) expectedValues.add(value.asString()); });
+                assertThat(values).as(entry.getKey() + ".enum").isEqualTo(expectedValues);
+            }
+        }
+        var required = new HashSet<String>();
+        actual.path("required").forEach(field -> required.add(field.asString()));
+        var expectedRequired = new HashSet<String>();
+        expected.path("required").forEach(field -> expectedRequired.add(field.asString()));
+        assertThat(required).isEqualTo(expectedRequired);
+    }
+
+    @Test
+    void legacyResponseSnapshot_shouldReplayWithClassDtoAndNoNewSourceCheck() throws Exception {
+        var f = fixture();
+        String snapshot = """
+                {"documentId":"%s","versionId":"%s","state":"IN_REVIEW","reviewStage":"MANAGER_APPROVAL","revision":1,
+                "sourceBinding":{"repositoryConnectionId":"%s","targetKind":null,"targetRef":null,"headSha":"%s",
+                "comparisonSha":null,"configRevision":null,"capturedAt":null}}
+                """.formatted(f.document, f.version, f.repository, "a".repeat(40));
+        execute("INSERT INTO document.review_decisions(tenant_id,document_version_id,reviewer_identity_id,decision,round_no,"
+                        + "idempotency_key,expected_revision,resulting_revision,resulting_state,resulting_stage,evidence_refs,response_snapshot) "
+                        + "VALUES (?,?,?,'PASS',1,'legacy-snapshot',0,1,'IN_REVIEW','MANAGER_APPROVAL',CAST(? AS jsonb),CAST(? AS jsonb))",
+                f.tenant, f.version, f.actor, "[\"" + f.evidence + "\"]", snapshot);
+        execute("UPDATE document.document_versions SET review_stage='MANAGER_APPROVAL',revision=1 WHERE document_version_id=?", f.version);
+        var response = review(f, token(f), passBody(f), "legacy-snapshot", VersionEtags.format(f.version, 0));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        assertThat(data(response)).isEqualTo(json.readTree(snapshot));
+        assertThat(json.readTree((String) scalar("SELECT response_snapshot::text FROM document.review_decisions WHERE document_version_id=?", f.version)))
+                .isEqualTo(json.readTree(snapshot));
+        assertThat(response.headers().firstValue("ETag")).contains(VersionEtags.format(f.version, 1));
+        assertThat(sourceValidator.calls(f.version)).isZero();
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+    }
+
+    @Test
+    void successEnvelope_shouldPersistAndReplayOriginalMessageWithoutNesting() throws Exception {
+        var f = fixture();
+        var jwt = token(f);
+        var etag = VersionEtags.format(f.version, 0);
+        var original = review(f, jwt, passBody(f), "envelope-replay", etag);
+        assertThat(original.statusCode()).as(original.body()).isEqualTo(200);
+        data(original);
+        var stored = json.readTree((String) scalar("SELECT response_snapshot::text FROM document.review_decisions WHERE document_version_id=?", f.version));
+        assertThat(stored).isEqualTo(body(original));
+        // A historical message may differ from today's default after a later deployment.
+        // Alter only test data using the fixture's admin role, never the application role.
+        execute("UPDATE document.review_decisions SET response_snapshot=jsonb_set(response_snapshot,'{message}',to_jsonb(?::text)) WHERE document_version_id=?",
+                "Previously recorded review", f.version);
+        var replay = review(f, jwt, passBody(f), "envelope-replay", etag);
+        assertThat(replay.statusCode()).as(replay.body()).isEqualTo(200);
+        assertThat(body(replay).path("message").asString()).isEqualTo("Previously recorded review");
+        assertThat(body(replay).path("code")).isEqualTo(body(original).path("code"));
+        assertThat(body(replay).path("data")).isEqualTo(data(original));
+        assertThat(body(replay).path("data").has("data")).isFalse();
+        assertThat(replay.headers().firstValue("ETag")).isEqualTo(original.headers().firstValue("ETag"));
+        assertThat(sourceValidator.calls(f.version)).isEqualTo(1);
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(1L);
+    }
+
     void unchanged(Fixture f) throws Exception {
         assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo(0L);
         assertThat(scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
@@ -130,11 +332,11 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         var f = fixture();
         var result = review(f, token(f), passBody(f), "pass", VersionEtags.format(f.version, 0));
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
-        assertThat(body(result).path("documentId").asString()).isEqualTo(f.document.toString());
-        assertThat(body(result).path("sourceBinding").path("repositoryConnectionId").asString()).isEqualTo(f.repository.toString());
-        assertThat(body(result).path("sourceBinding").path("headSha").asString()).isEqualTo("a".repeat(40));
-        assertThat(body(result).path("state").asString()).isEqualTo("IN_REVIEW");
-        assertThat(body(result).path("reviewStage").asString()).isEqualTo("MANAGER_APPROVAL");
+        assertThat(data(result).path("documentId").asString()).isEqualTo(f.document.toString());
+        assertThat(data(result).path("sourceBinding").path("repositoryConnectionId").asString()).isEqualTo(f.repository.toString());
+        assertThat(data(result).path("sourceBinding").path("headSha").asString()).isEqualTo("a".repeat(40));
+        assertThat(data(result).path("state").asString()).isEqualTo("IN_REVIEW");
+        assertThat(data(result).path("reviewStage").asString()).isEqualTo("MANAGER_APPROVAL");
         assertThat(result.headers().firstValue("ETag")).contains(VersionEtags.format(f.version, 1));
         assertThat(scalar("SELECT reviewer_identity_id FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(f.actor);
         assertThat(scalar("SELECT metadata->>'previousReviewStage' FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
@@ -153,8 +355,8 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 f.tenant, f.version, f.actor);
         var result = review(f, token(f), "{\"decision\":\"RETURN_FOR_REVISION\",\"feedback\":\"Cần sửa nguồn\"}", "return", VersionEtags.format(f.version, 0));
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
-        assertThat(body(result).path("state").asString()).isEqualTo("DRAFT");
-        assertThat(body(result).path("reviewStage").isNull()).isTrue();
+        assertThat(data(result).path("state").asString()).isEqualTo("DRAFT");
+        assertThat(data(result).path("reviewStage").isNull()).isTrue();
         assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(2L);
         assertThat(scalar("SELECT reason FROM document.review_decisions WHERE document_version_id=? AND round_no=2", f.version)).isEqualTo("Cần sửa nguồn");
         assertThat(scalar("SELECT content_ref FROM document.content_revisions WHERE document_version_id=?", f.version)).isEqualTo("test://original-content");
@@ -179,9 +381,9 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     void evidenceBudgetAndDuplicates_shouldRejectBeforeVersionLookup() throws Exception {
         var f = fixture();
         assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, Collections.nCopies(101, f.evidence)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.EVIDENCE_LIMIT_EXCEEDED));
+                .isInstanceOfSatisfying(ReviewEvidenceLimitExceededException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.EVIDENCE_LIMIT_EXCEEDED));
         assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence, f.evidence)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.DUPLICATE_EVIDENCE));
+                .isInstanceOfSatisfying(DuplicateReviewEvidenceException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.DUPLICATE_EVIDENCE));
         var oversized = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", Collections.nCopies(101, f.evidence)));
         problem(review(f, token(f), oversized, "budget", VersionEtags.format(f.version, 0)), 422, "EVIDENCE_LIMIT_EXCEEDED");
         var repeated = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", List.of(f.evidence, f.evidence)));
@@ -284,9 +486,30 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     }
 
     @Test
+    void snapshotEncodingFailure_shouldRollbackVersionAndLeaveKeyRetryable() throws Exception {
+        var f = fixture();
+        var etag = VersionEtags.format(f.version, 0);
+        doThrow(new ReviewSnapshotSerializationException(new IllegalStateException("private serializer detail")))
+                .when(snapshotCodec).encode(argThat(result -> result.versionId().equals(f.version)));
+        try {
+            var failed = review(f, token(f), passBody(f), "snapshot-fails", etag);
+            problem(failed, 500, "PERSISTENCE_ERROR");
+            assertThat(failed.body()).doesNotContain("private serializer detail");
+            unchanged(f);
+        } finally {
+            reset(snapshotCodec);
+        }
+        var retry = review(f, token(f), passBody(f), "snapshot-fails", etag);
+        assertThat(retry.statusCode()).as(retry.body()).isEqualTo(200);
+        data(retry);
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(1L);
+    }
+
+    @Test
     void concurrentReviews_shouldAllowOnlyOneTransition() throws Exception {
         var f = fixture();
-        var request = new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence));
+        var request = new StaffDecisionCommand(ReviewAction.PASS, null, List.of(f.evidence));
         var ready = new CountDownLatch(2);
         var go = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
@@ -313,10 +536,10 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     @Test
     void concurrentIdenticalRequests_shouldReplayOnePersistedDecision() throws Exception {
         var f = fixture();
-        var request = new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence));
+        var request = new StaffDecisionCommand(ReviewAction.PASS, null, List.of(f.evidence));
         var barrier = new CyclicBarrier(2);
         try (var executor = Executors.newFixedThreadPool(2)) {
-            Callable<com.livingdocs.document.dto.response.ReviewResponse> call = () -> {
+            Callable<StaffReviewResult> call = () -> {
                 barrier.await(10, TimeUnit.SECONDS);
                 return service.review(f.version, request, 0, "same-key", f.context(), "retry-race");
             };
@@ -366,7 +589,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         var result = review(f, token(f, overrides, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)), passBody(f), "document", etag);
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
         assertThat(sourceValidator.calls(f.version)).isZero();
-        assertThat(body(result).path("sourceBinding").isNull()).isTrue();
+        assertThat(data(result).path("sourceBinding").isNull()).isTrue();
     }
 
     @Test
@@ -409,7 +632,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         // RETURN does not promote the version and must remain available when source validation is down.
         var returned = review(f, jwt, "{\"decision\":\"RETURN_FOR_REVISION\",\"feedback\":\"Update source\"}", "return", etag);
         assertThat(returned.statusCode()).as(returned.body()).isEqualTo(200);
-        assertThat(body(returned).path("state").asString()).isEqualTo("DRAFT");
+        assertThat(data(returned).path("state").asString()).isEqualTo("DRAFT");
         assertThat(sourceValidator.calls(f.version)).isEqualTo(4);
     }
 
@@ -446,56 +669,5 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         }
         assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(3L);
         assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(12L);
-    }
-
-    @Test
-    void orm_shouldShareTransactionLocalRlsAndClearTenantAfterCompletion() throws Exception {
-        var first = fixture();
-        var second = fixture();
-        assertThat(transactions).isInstanceOf(org.springframework.orm.jpa.JpaTransactionManager.class);
-        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
-        var connectionId = new java.util.concurrent.atomic.AtomicReference<Object>();
-        tx.executeWithoutResult(status -> {
-            connectionId.set(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult());
-            versions.setTenant(first.tenant);
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNotNull();
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
-        });
-        tx.executeWithoutResult(status -> {
-            // Prove reuse of the physical pooled connection, not just another clean connection.
-            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
-                    .isEqualTo(connectionId.get());
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
-            versions.setTenant(second.tenant);
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNotNull();
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, first.version)).isNull();
-            status.setRollbackOnly();
-        });
-        tx.executeWithoutResult(status -> {
-            assertThat(entities.createNativeQuery("SELECT pg_backend_pid()", Integer.class).getSingleResult())
-                    .isEqualTo(connectionId.get());
-            assertThat(entities.find(com.livingdocs.document.entity.DocumentVersionEntity.class, second.version)).isNull();
-        });
-        assertThatThrownBy(() -> versions.setTenant(first.tenant))
-                .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
-    }
-
-    @Test
-    void orm_shouldRejectStaleManagedVersionAtFlushWithoutAppendingHistory() throws Exception {
-        var f = fixture();
-        var tx = new org.springframework.transaction.support.TransactionTemplate(transactions);
-        assertThatThrownBy(() -> tx.executeWithoutResult(status -> {
-            versions.setTenant(f.tenant);
-            var before = versions.find(f.version, f.tenant, false).orElseThrow();
-            try {
-                // An independent writer wins after the ORM snapshot was loaded.
-                execute("UPDATE document.document_versions SET revision=revision+1 WHERE document_version_id=?", f.version);
-            } catch (Exception e) { throw new RuntimeException(e); }
-            versions.update(before, before.reviewed(ReviewAction.PASS));
-        })).isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
-        assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo(1L);
-        assertThat(scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?", f.version)).isEqualTo("STAFF_REVIEW");
-        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(0L);
-        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(0L);
     }
 }

@@ -1,7 +1,6 @@
 package com.livingdocs.document.model;
 
 import com.livingdocs.document.exception.*;
-import com.livingdocs.document.exception.ReviewException;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -24,7 +23,7 @@ public record SourceReviewValidation(String validationId, UUID tenantId, UUID wo
         }
     }
 
-    public static ReviewException unavailable() {
+    public static SourceValidationUnavailableException unavailable() {
         return new SourceValidationUnavailableException();
     }
 }

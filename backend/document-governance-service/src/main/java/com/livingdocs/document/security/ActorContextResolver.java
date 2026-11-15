@@ -1,7 +1,6 @@
 package com.livingdocs.document.security;
 
 import com.livingdocs.document.exception.*;
-import com.livingdocs.document.exception.ReviewException;
 import java.util.*;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;

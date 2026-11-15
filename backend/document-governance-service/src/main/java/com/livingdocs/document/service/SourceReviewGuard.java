@@ -1,6 +1,8 @@
 package com.livingdocs.document.service;
 
+import lombok.RequiredArgsConstructor;
 import com.livingdocs.document.client.SourceReviewValidator;
+
 import com.livingdocs.document.model.*;
 import com.livingdocs.document.exception.ReviewException;
 import java.time.Instant;
@@ -8,10 +10,9 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class SourceReviewGuard {
     private final Optional<SourceReviewValidator> validator;
-
-    public SourceReviewGuard(Optional<SourceReviewValidator> validator) { this.validator = validator; }
 
     public SourceReviewValidation requireCurrent(DocumentVersion version) {
         if (version.repositoryConnectionId() == null) return null;

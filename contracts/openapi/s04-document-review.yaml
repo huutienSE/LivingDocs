@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LivingDocs S04 Staff Review
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     LIV-118 implementation slice of LD-API-001 API-120.
     Contract candidate for staff decisions; read endpoints are outside this persistence slice.
@@ -19,7 +19,10 @@ paths:
         Serializes changes to the version and commits state, decision and audit atomically.
         Idempotency is scoped by tenant, version, reviewer and operation. An exact retry
         (including original If-Match, feedback and ordered evidenceRefs) returns the original
-        response/ETag, even after restart. Changed content with that key returns 409.
+        success envelope/ETag, even after restart. Changed content with that key returns 409.
+        Success uses {code, message, data}; data is DocumentVersionView. Historical bare
+        snapshots are wrapped on replay without rewriting the stored decision or audit.
+        Consumers of the former bare response must now read the version fields from data.
         A new key with an obsolete If-Match returns 412. No client-supplied target state is accepted.
         Repository-backed PASS also requires a trusted current-source validation result bound to
         tenant/workspace/repository/version/revision/SHA. Missing integration or unknown/expired
@@ -118,6 +121,19 @@ components:
             Omitted or null becomes an empty list. Source-derived versions also require a bound SHA.
             Evidence membership alone does not prove source currentness; repository-backed PASS
             separately requires the trusted source validator. Validation receipts cannot be supplied in this body.
+    StaffDecisionSuccess:
+      type: object
+      additionalProperties: false
+      required: [code, message, data]
+      properties:
+        code:
+          type: string
+          example: STAFF_REVIEW_RECORDED
+        message:
+          type: string
+          example: Staff review decision recorded
+        data:
+          $ref: '#/components/schemas/DocumentVersionView'
     DocumentVersionView:
       type: object
       additionalProperties: false
@@ -214,7 +230,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/DocumentVersionView'
+            $ref: '#/components/schemas/StaffDecisionSuccess'
     Problem:
       description: Typed denial or persistence failure; no review mutation is committed.
       headers:

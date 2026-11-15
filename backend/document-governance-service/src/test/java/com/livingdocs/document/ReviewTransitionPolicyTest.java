@@ -2,8 +2,7 @@ package com.livingdocs.document;
 
 import com.livingdocs.document.controller.VersionEtags;
 import com.livingdocs.document.model.*;
-import com.livingdocs.document.exception.ReviewException;
-import com.livingdocs.document.model.ReviewTransitionPolicy;
+import com.livingdocs.document.exception.*;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -47,29 +46,29 @@ class ReviewTransitionPolicyTest {
     void return_withoutReason_shouldReject(String feedback) {
         assertThatThrownBy(() -> policy.requireStaffReview(version(DocumentState.IN_REVIEW, ReviewStage.STAFF_REVIEW),
                 ReviewAction.RETURN_FOR_REVISION, feedback, List.of()))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.RETURN_REASON_REQUIRED));
+                .isInstanceOfSatisfying(ReturnFeedbackRequiredException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.RETURN_REASON_REQUIRED));
     }
 
     @ParameterizedTest
     @EnumSource(value = DocumentState.class, names = "IN_REVIEW", mode = EnumSource.Mode.EXCLUDE)
     void review_fromOtherState_shouldReject(DocumentState state) {
         assertThatThrownBy(() -> policy.requireStaffReview(version(state, null), ReviewAction.PASS, null, List.of(id)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.STATE_TRANSITION_FORBIDDEN));
+                .isInstanceOfSatisfying(InvalidReviewTransitionException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.STATE_TRANSITION_FORBIDDEN));
     }
 
     @Test
     void managerStage_shouldRejectStaffDecision() {
         assertThatThrownBy(() -> policy.requireStaffReview(version(DocumentState.IN_REVIEW, ReviewStage.MANAGER_APPROVAL),
-                ReviewAction.PASS, null, List.of(id))).isInstanceOf(ReviewException.class);
+                ReviewAction.PASS, null, List.of(id))).isInstanceOf(InvalidReviewTransitionException.class);
     }
 
     @Test
     void pass_withoutEvidenceOrSourceBinding_shouldReject() {
         assertThatThrownBy(() -> policy.requireStaffReview(version(DocumentState.IN_REVIEW, ReviewStage.STAFF_REVIEW),
-                ReviewAction.PASS, null, List.of())).isInstanceOf(ReviewException.class);
+                ReviewAction.PASS, null, List.of())).isInstanceOf(ReviewEvidenceRequiredException.class);
         var noSource = new DocumentVersion(id, id, id, id, id, null, DocumentState.IN_REVIEW, ReviewStage.STAFF_REVIEW, 0);
         assertThatThrownBy(() -> policy.requireStaffReview(noSource, ReviewAction.PASS, null, List.of(id)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_EVIDENCE_INSUFFICIENT));
+                .isInstanceOfSatisfying(SourceEvidenceInsufficientException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.SOURCE_EVIDENCE_INSUFFICIENT));
     }
 
     @Test
@@ -81,6 +80,6 @@ class ReviewTransitionPolicyTest {
             assertThatThrownBy(() -> VersionEtags.require(id, invalid)).isInstanceOf(ReviewException.class);
         }
         assertThatThrownBy(() -> VersionEtags.require(id, VersionEtags.format(UUID.randomUUID(), 7)))
-                .isInstanceOfSatisfying(ReviewException.class, e -> assertThat(e.status()).isEqualTo(412));
+                .isInstanceOfSatisfying(ReviewRevisionConflictException.class, e -> assertThat(e.status()).isEqualTo(412));
     }
 }

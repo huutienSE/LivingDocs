@@ -1,7 +1,6 @@
 package com.livingdocs.document.controller;
 
 import com.livingdocs.document.exception.*;
-import com.livingdocs.document.exception.ReviewException;
 import java.util.UUID;
 import java.util.regex.Pattern;
 

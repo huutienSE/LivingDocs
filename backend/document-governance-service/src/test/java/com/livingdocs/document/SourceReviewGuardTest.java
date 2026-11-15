@@ -1,7 +1,6 @@
 package com.livingdocs.document;
 
 import com.livingdocs.document.model.*;
-import com.livingdocs.document.exception.ReviewException;
 import com.livingdocs.document.service.SourceReviewGuard;
 import java.time.Instant;
 import java.util.*;
@@ -24,7 +23,7 @@ class SourceReviewGuardTest {
     }
 
     private void unavailable(SourceReviewValidation receipt) {
-        assertThatThrownBy(() -> receipt.requireMatches(version, now)).isInstanceOfSatisfying(ReviewException.class, e -> {
+        assertThatThrownBy(() -> receipt.requireMatches(version, now)).isInstanceOfSatisfying(com.livingdocs.document.exception.SourceValidationUnavailableException.class, e -> {
             assertThat(e.status()).isEqualTo(503);
             assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_VALIDATION_UNAVAILABLE);
         });
@@ -65,7 +64,7 @@ class SourceReviewGuardTest {
         var r = valid();
         assertThatThrownBy(() -> receipt(r.tenantId(), r.workspaceId(), r.versionId(), r.versionRevision(), r.repositoryConnectionId(),
                 "b".repeat(40), r.checkedAt(), r.expiresAt()).requireMatches(version, now))
-                .isInstanceOfSatisfying(ReviewException.class, e -> {
+                .isInstanceOfSatisfying(com.livingdocs.document.exception.SourceChangedException.class, e -> {
                     assertThat(e.status()).isEqualTo(409);
                     assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_CHANGED_REVALIDATION_REQUIRED);
                 });

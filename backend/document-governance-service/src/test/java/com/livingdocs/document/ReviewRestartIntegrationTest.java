@@ -38,6 +38,11 @@ class ReviewRestartIntegrationTest extends PostgresTestSupport {
             var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY.getKeyID()).build(), claims);
             jwt.sign(new RSASSASigner(KEY));
             token = jwt.serialize();
+            int docsPort = ((WebServerApplicationContext) first).getWebServer().getPort();
+            var disabledDocs = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + docsPort + "/v3/api-docs"))
+                    .header("Authorization", "Bearer " + token).GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(disabledDocs.statusCode()).as("Disabled docs remain inaccessible through the deny-all error dispatch").isEqualTo(403);
+            assertThat(first.getBeansOfType(org.springdoc.webmvc.api.OpenApiWebMvcResource.class)).isEmpty();
             payload = first.getBean(JsonMapper.class).writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", List.of(f.evidence())));
             int port = ((WebServerApplicationContext) first).getWebServer().getPort();
             var response = http.send(post(port, f.version(), token, payload), HttpResponse.BodyHandlers.ofString());

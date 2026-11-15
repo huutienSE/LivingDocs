@@ -1,7 +1,7 @@
 package com.livingdocs.document.security;
 
-import com.livingdocs.document.exception.ReviewErrorCode;
 import com.livingdocs.document.exception.ApiProblems;
+import com.livingdocs.document.exception.ReviewErrorCode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +42,7 @@ public class ReviewSecurityConfiguration {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/v3/api-docs", "/v3/api-docs.yaml").authenticated()
                         .requestMatchers("/api/v1/document-versions/**").authenticated().anyRequest().denyAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler((request, response, exception) ->
                         problems.write(request, response, ReviewErrorCode.REVIEW_FORBIDDEN, "Access denied.")))
