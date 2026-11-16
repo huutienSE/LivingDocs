@@ -10,6 +10,12 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+
+//===========
+// TẦNG Configuration / CORS
+//Tạo bean cấu hình origin, methods, headers được phép
+//==========
+
 @Configuration
 public class GatewayCorsConfig {
     @Bean

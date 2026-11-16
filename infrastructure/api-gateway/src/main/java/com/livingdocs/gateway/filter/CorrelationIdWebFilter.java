@@ -11,7 +11,10 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 import java.util.regex.Pattern;
-
+//==============
+// TẦNG WEB FILTER - WEBFLUX
+// Gắn/kiểm tra X-Correlation-ID cho request và response
+//==============
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdWebFilter implements WebFilter {
