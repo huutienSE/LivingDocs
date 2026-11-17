@@ -70,6 +70,9 @@ Các lỗi nghiệp vụ dùng `ReviewException` abstract và exception theo đi
 `ReviewIdempotencyConflictException`, `ReturnFeedbackRequiredException`, `SourceChangedException` và
 `SourceValidationUnavailableException`. Lỗi transport dùng `ReviewRequestException` với typed code.
 `ReviewErrorCode` giữ wire code/HTTP status; advice và security filter dùng cùng registry.
+Các lỗi transport trả 405 `METHOD_NOT_ALLOWED`, 406 `NOT_ACCEPTABLE`, 415 `UNSUPPORTED_MEDIA_TYPE`
+với Problem Details. HTTP 405 giữ header `Allow`. Correlation ID theo Gateway nhận 1–64 ký tự
+chữ/số/dấu chấm/gạch dưới/gạch ngang, bắt đầu bằng chữ hoặc số; ID không hợp lệ được thay bằng UUID.
 
 Controller chuyển `ReviewRequest` thành `StaffDecisionCommand` và nhận `StaffReviewResult` từ service.
 `StaffDecisionMapper` chuyển result sang response DTO; Controller dựng success envelope/ETag.
@@ -162,7 +165,10 @@ Nguồn yêu cầu và giới hạn tin cậy nằm trong bảng tham chiếu b�
 
 Request/response API-120 dùng Java class với private fields và Lombok, không dùng `@Data`.
 Request giữ immutable input, chuẩn hóa evidence null/omitted thành danh sách rỗng.
-Giới hạn evidence dùng chung qua business command, giữ các mã lỗi 400/422 hiện có.
+Request dùng `@Size(max=100)`, `@UniqueEvidenceRefs` và container-element `@NotNull`;
+header Idempotency-Key dùng `@NotNull`/`@Pattern`. Advice giữ lỗi evidence quá giới hạn/trùng
+là 422 với typed code, lỗi cấu trúc request/header là 400. Business command giữ invariant cho
+caller trực tiếp của service. Constructor DTO chỉ chuẩn hóa/copy input trước Bean Validation.
 `mapper/StaffDecisionMapper` dùng MapStruct Spring component với
 `unmappedTargetPolicy = ERROR`; mapper chỉ chuyển dữ liệu, không truy cập DB hoặc quyết định quyền.
 Repository-free document trả `sourceBinding = null`; các thuộc tính source chưa lưu tiếp tục null.
@@ -176,6 +182,8 @@ Không mở anonymous docs, Swagger UI S04 hoặc route docs qua Gateway. Docker
 được giữ nguyên. Tests so sánh method/path/status/media types, header preconditions, schema fields,
 required fields, types/formats/enums và evidence limits giữa YAML và runtime; đồng thời kiểm tra
 resource OpenAPI không được đăng ký khi tắt và snapshot lịch sử vẫn replay được.
+Customizer bổ sung giá trị JSON null vào nullable enum trong OpenAPI 3.0; parity test
+đối chiếu cả nullability và toàn bộ enum, bao gồm null.
 
 Dependency: Springdoc 3.2.0 như S01; MapStruct 1.6.3 cùng Lombok do Spring Boot quản lý và
 `lombok-mapstruct-binding` 0.2.0 theo [MapStruct reference](https://mapstruct.org/documentation/stable/reference/html/#_lombok).
@@ -201,6 +209,7 @@ com/livingdocs/document/
 ├── repository/       # JpaRepository và adapter khóa/RLS đặc biệt
 ├── model/            # Business models, enums và transition policy
 ├── mapper/           # MapStruct domain ↔ entity, domain → response DTO
+├── validation/       # Custom constraint cho evidence IDs không trùng
 ├── exception/        # ReviewException, advice và Problem Details
 ├── security/         # JWT trust và actor/resource scopes
 ├── config/           # Correlation filter và OpenAPI

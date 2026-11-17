@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.*;
 class ReviewApiIntegrationTest extends PostgresTestSupport {
     @LocalServerPort int port;
     @Autowired JsonMapper json;
+    @Autowired jakarta.validation.Validator validator;
     @Autowired DocumentReviewService service;
     @MockitoSpyBean ReviewSnapshotCodec snapshotCodec;
     @Autowired ReviewSourceValidationTestConfiguration.TestValidator sourceValidator;
@@ -223,9 +224,12 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         assertThat(version.path("properties").path("revision").path("minimum").asInt()).isZero();
         assertSchemaShape(runtime.path("components").path("schemas").path("SourceBinding"),
                 reviewed.path("components").path("schemas").path("SourceBinding"));
-        for (String status : List.of("400", "401", "403", "404", "409", "412", "422", "428", "500", "503")) {
+        for (String status : List.of("400", "401", "403", "404", "405", "406", "409", "412", "415", "422", "428", "500", "503")) {
             var error = actual.path("responses").path(status);
             assertThat(error.path("content").propertyNames()).containsExactly("application/problem+json");
+            var expectedError = resolveSchema(reviewed, expected.path("responses").path(status));
+            assertThat(error.path("headers").propertyNames())
+                    .containsExactlyInAnyOrderElementsOf(expectedError.path("headers").propertyNames());
             var problem = resolveSchema(runtime, error.path("content").path("application/problem+json").path("schema"));
             assertSchemaShape(problem, reviewed.path("components").path("schemas").path("Problem"));
         }
@@ -248,11 +252,13 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
             for (String attribute : List.of("type", "format"))
                 if (baseline.has(attribute)) assertThat(field.path(attribute).asString()).as(entry.getKey() + "." + attribute)
                         .isEqualTo(baseline.path(attribute).asString());
+            assertThat(field.path("nullable").asBoolean()).as(entry.getKey() + ".nullable")
+                    .isEqualTo(baseline.path("nullable").asBoolean());
             if (baseline.has("enum")) {
                 var values = new HashSet<String>();
-                field.path("enum").forEach(value -> { if (!value.isNull()) values.add(value.asString()); });
+                field.path("enum").forEach(value -> { values.add(value.isNull() ? null : value.asString()); });
                 var expectedValues = new HashSet<String>();
-                baseline.path("enum").forEach(value -> { if (!value.isNull()) expectedValues.add(value.asString()); });
+                baseline.path("enum").forEach(value -> { expectedValues.add(value.isNull() ? null : value.asString()); });
                 assertThat(values).as(entry.getKey() + ".enum").isEqualTo(expectedValues);
             }
         }
@@ -328,6 +334,67 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     }
 
     @Test
+    void requestConstraints_shouldValidateBeforeMappingToBusinessCommand() throws Exception {
+        UUID evidence = UUID.randomUUID();
+        var oversized = new ReviewRequest(ReviewAction.PASS, null, Collections.nCopies(101, evidence));
+        assertThat(validator.validate(oversized)).anySatisfy(violation ->
+                assertThat(violation.getConstraintDescriptor().getAnnotation()).isInstanceOf(jakarta.validation.constraints.Size.class));
+        var duplicate = new ReviewRequest(ReviewAction.PASS, null, List.of(evidence, evidence));
+        assertThat(validator.validate(duplicate)).anySatisfy(violation ->
+                assertThat(violation.getConstraintDescriptor().getAnnotation())
+                        .isInstanceOf(com.livingdocs.document.validation.UniqueEvidenceRefs.class));
+        assertThat(validator.validate(new ReviewRequest(ReviewAction.RETURN_FOR_REVISION, "reason", null))).isEmpty();
+        var f = fixture();
+        for (String payload : List.of("{\"decision\":\"PASS\",\"evidenceRefs\":[null]}",
+                "{\"decision\":\"PASS\",\"evidenceRefs\":[\"not-a-uuid\"]}")) {
+            problem(review(f, token(f), payload, "invalid-item", VersionEtags.format(f.version, 0)), 400, "INVALID_REQUEST");
+        }
+        for (String key : List.of("", "invalid key", "x".repeat(129))) {
+            problem(review(f, token(f), passBody(f), key, VersionEtags.format(f.version, 0)), 400, "INVALID_REQUEST");
+        }
+        unchanged(f);
+    }
+
+    @Test
+    void transportFailures_shouldKeepHttpStatusAndProblemContractWithoutMutation() throws Exception {
+        var f = fixture();
+        var endpoint = URI.create("http://127.0.0.1:" + port + "/api/v1/document-versions/" + f.version + "/staff-decisions");
+        String[][] cases = {{"POST", "text/plain", "application/json", "415", "UNSUPPORTED_MEDIA_TYPE"},
+                {"GET", "application/json", "application/json", "405", "METHOD_NOT_ALLOWED"},
+                {"POST", "application/json", "text/plain", "406", "NOT_ACCEPTABLE"}};
+        for (var test : cases) {
+            var request = HttpRequest.newBuilder(endpoint).header("Authorization", "Bearer " + token(f))
+                    .header("Content-Type", test[1]).header("Accept", test[2]).header("X-Correlation-ID", "liv-118-test")
+                    .header("If-Match", VersionEtags.format(f.version, 0)).header("Idempotency-Key", "transport-error")
+                    .method(test[0], HttpRequest.BodyPublishers.ofString(passBody(f))).build();
+            var response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            problem(response, Integer.parseInt(test[3]), test[4]);
+            if (response.statusCode() == 405) assertThat(response.headers().firstValue("Allow").orElse("")).contains("POST");
+            unchanged(f);
+        }
+        problem(review(f, null, "{}", "unauthenticated", VersionEtags.format(f.version, 0)), 401, "UNAUTHENTICATED");
+    }
+
+    @Test
+    void correlationId_shouldSurviveInSuccessAndAuditOrBeSafelyReplaced() throws Exception {
+        for (String id : List.of("audit.trace_118", "a".repeat(64), "invalid id", "a".repeat(65))) {
+            var f = fixture();
+            var endpoint = URI.create("http://127.0.0.1:" + port + "/api/v1/document-versions/" + f.version + "/staff-decisions");
+            var request = HttpRequest.newBuilder(endpoint).header("Authorization", "Bearer " + token(f))
+                    .header("Content-Type", "application/json").header("X-Correlation-ID", id)
+                    .header("If-Match", VersionEtags.format(f.version, 0)).header("Idempotency-Key", "correlation")
+                    .POST(HttpRequest.BodyPublishers.ofString(passBody(f))).build();
+            var response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+            String actual = response.headers().firstValue("X-Correlation-ID").orElseThrow();
+            if (id.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) assertThat(actual).isEqualTo(id);
+            else assertThatCode(() -> UUID.fromString(actual)).doesNotThrowAnyException();
+            assertThat(scalar("SELECT metadata->>'correlationId' FROM document.document_audits WHERE document_version_id=?", f.version))
+                    .isEqualTo(actual);
+        }
+    }
+
+    @Test
     void pass_shouldPersistDecisionAuditAndNewEtag() throws Exception {
         var f = fixture();
         var result = review(f, token(f), passBody(f), "pass", VersionEtags.format(f.version, 0));
@@ -380,9 +447,9 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     @Test
     void evidenceBudgetAndDuplicates_shouldRejectBeforeVersionLookup() throws Exception {
         var f = fixture();
-        assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, Collections.nCopies(101, f.evidence)))
+        assertThatThrownBy(() -> new StaffDecisionCommand(ReviewAction.PASS, null, Collections.nCopies(101, f.evidence)))
                 .isInstanceOfSatisfying(ReviewEvidenceLimitExceededException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.EVIDENCE_LIMIT_EXCEEDED));
-        assertThatThrownBy(() -> new ReviewRequest(ReviewAction.PASS, null, List.of(f.evidence, f.evidence)))
+        assertThatThrownBy(() -> new StaffDecisionCommand(ReviewAction.PASS, null, List.of(f.evidence, f.evidence)))
                 .isInstanceOfSatisfying(DuplicateReviewEvidenceException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ReviewErrorCode.DUPLICATE_EVIDENCE));
         var oversized = json.writeValueAsString(Map.of("decision", "PASS", "evidenceRefs", Collections.nCopies(101, f.evidence)));
         problem(review(f, token(f), oversized, "budget", VersionEtags.format(f.version, 0)), 422, "EVIDENCE_LIMIT_EXCEEDED");
@@ -638,6 +705,11 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
 
     @Test
     void databaseConstraintsRlsAndAppendOnlyPrivileges_shouldHold() throws Exception {
+        var versionColumn = com.livingdocs.document.entity.DocumentAuditEntity.class.getDeclaredField("versionId")
+                .getAnnotation(jakarta.persistence.Column.class);
+        assertThat(versionColumn.nullable()).isFalse();
+        assertThat(scalar("SELECT is_nullable FROM information_schema.columns WHERE table_schema='document' AND table_name='document_audits' AND column_name='document_version_id'"))
+                .isEqualTo("NO");
         var f = fixture();
         assertThatThrownBy(() -> execute("UPDATE document.document_versions SET review_stage=NULL WHERE document_version_id=?", f.version))
                 .isInstanceOf(SQLException.class);

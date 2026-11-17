@@ -1,8 +1,6 @@
 package com.livingdocs.document.model;
 
 import com.livingdocs.document.exception.*;
-import com.livingdocs.document.model.*;
-
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;

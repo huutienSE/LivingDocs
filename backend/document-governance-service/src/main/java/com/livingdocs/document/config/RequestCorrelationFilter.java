@@ -19,7 +19,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String id = request.getHeader("X-Correlation-ID");
-        if (id == null || !id.matches("[A-Za-z0-9-]{1,64}")) id = UUID.randomUUID().toString();
+        if (id == null || !id.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) id = UUID.randomUUID().toString();
         request.setAttribute(ATTRIBUTE, id);
         response.setHeader("X-Correlation-ID", id);
         chain.doFilter(request, response);

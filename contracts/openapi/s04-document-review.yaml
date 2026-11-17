@@ -50,7 +50,7 @@ paths:
           required: false
           schema:
             type: string
-          description: 1-64 ASCII letters, digits or hyphens; otherwise the server generates a UUID.
+          description: 1-64 ASCII letters, digits, dots, underscores or hyphens, starting with a letter or digit; otherwise a UUID is generated.
       requestBody:
         required: true
         content:
@@ -67,6 +67,23 @@ paths:
         '403':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+        '405':
+          description: HTTP method is not supported for this resource.
+          headers:
+            X-Correlation-ID:
+              schema:
+                type: string
+            Allow:
+              schema:
+                type: string
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '406':
+          $ref: '#/components/responses/Problem'
+        '415':
           $ref: '#/components/responses/Problem'
         '409':
           $ref: '#/components/responses/Problem'
@@ -205,7 +222,7 @@ components:
           description: Opaque urn:uuid occurrence identifier; does not reveal a resource path.
         code:
           type: string
-          enum: [INVALID_REQUEST, INVALID_IF_MATCH, UNAUTHENTICATED, REVIEW_FORBIDDEN,
+          enum: [METHOD_NOT_ALLOWED, NOT_ACCEPTABLE, UNSUPPORTED_MEDIA_TYPE, INVALID_REQUEST, INVALID_IF_MATCH, UNAUTHENTICATED, REVIEW_FORBIDDEN,
                  DOCUMENT_VERSION_NOT_FOUND, STATE_TRANSITION_FORBIDDEN, IDEMPOTENCY_CONFLICT,
                  CONCURRENT_REVIEW, REVISION_CONFLICT, RETURN_REASON_REQUIRED, REVIEW_EVIDENCE_REQUIRED,
                  SOURCE_CHANGED_REVALIDATION_REQUIRED, SOURCE_VALIDATION_UNAVAILABLE,

@@ -9,6 +9,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.EqualsAndHashCode;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import com.livingdocs.document.validation.UniqueEvidenceRefs;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +27,8 @@ public final class ReviewRequest {
     private final ReviewAction decision;
     @Schema(nullable = true, description = "Required and nonblank for RETURN_FOR_REVISION; stored verbatim.")
     private final String feedback;
+    @Size(max = MAX_EVIDENCE_REFS)
+    @UniqueEvidenceRefs
     @ArraySchema(arraySchema = @Schema(nullable = true), maxItems = MAX_EVIDENCE_REFS, uniqueItems = true,
             schema = @Schema(type = "string", format = "uuid"))
     private final List<@NotNull UUID> evidenceRefs;
@@ -31,9 +37,9 @@ public final class ReviewRequest {
     public ReviewRequest(@JsonProperty("decision") ReviewAction decision,
                          @JsonProperty("feedback") String feedback,
                          @JsonProperty("evidenceRefs") List<UUID> evidenceRefs) {
-        var command = new StaffDecisionCommand(decision, feedback, evidenceRefs);
-        this.decision = command.decision();
-        this.feedback = command.feedback();
-        this.evidenceRefs = command.evidenceRefs();
+        this.decision = decision;
+        this.feedback = feedback;
+        this.evidenceRefs = evidenceRefs == null ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(evidenceRefs));
     }
 }
