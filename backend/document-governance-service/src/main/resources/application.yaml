@@ -1,6 +1,13 @@
 spring:
   application:
     name: document-governance-service
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
   config:
     import: "optional:file:./.env[.properties]"
   profiles:
@@ -13,3 +20,17 @@ management:
   endpoints:
     exposure:
       include: health, info
+
+springdoc:
+  api-docs:
+    enabled: ${S04_OPENAPI_ENABLED:false}
+    version: OPENAPI_3_0
+  packages-to-scan: com.livingdocs.document.controller
+  paths-to-match: /api/v1/document-versions/*/staff-decisions
+  override-with-generic-response: false
+
+livingdocs:
+  security:
+    issuer-uri: ${S01_ISSUER_URI:}
+    jwk-set-uri: ${S01_JWK_SET_URI:}
+    audience: ${S04_TOKEN_AUDIENCE:}

@@ -1,0 +1,912 @@
+{
+  "issue": "LIV-118",
+  "preparedBy": "Codex",
+  "sourceSnapshot": {
+    "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+    "identity": "SHA256 of listed UTF-8 files normalized CRLF to LF; current S04 standards corrections; evidence JSON excluded",
+    "fileSha256": {
+      ".github/workflows/backend-ci.yaml": "56943a1cdf13fd2e78e6a54ca2f3c4a66050e43a81a69d9a57fcf66e5fc7b60e",
+      "backend/document-governance-service/README.md": "e655f786728a8ad96e94b737cd584ae67af89157e1642021f60b4e95137e473d",
+      "backend/document-governance-service/pom.xml": "b6371d7224655d0b875965111f6c430354f91b0ded76bbacb931f8b32f033c76",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/DocumentGovernanceServiceApplication.java": "8cb1cfcbb496525da4b06f593e7e4f1a91aee8798539a0d65397b7330b855d06",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/client/SourceReviewValidator.java": "f5d2f3f2d92a570a7dec32d0d7af9712af16b931076726c617cea77f171511aa",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/config/OpenApiConfiguration.java": "967817dc4c4e82202500fa1b7d35a038d2ea99788648afed90caff890d401147",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/config/RequestCorrelationFilter.java": "fb39a1d1e8a0a5ea1b00e0eecf4d5ec72327106b8eeb0558ce966939d31deff7",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentReviewController.java": "6f1baac014a4377b9fb88161a16bfdd451bccd7b69097dca865db241f55a2f64",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/VersionEtags.java": "f7e149e78c994afe959047cea5718e7b33efaceee6f4a0d4f1e5ee46442df7e2",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/ReviewRequest.java": "688ab5bada058036390cd0d33a69bd129e5e33a221505990b6b7f2a720364f8c",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/ReviewProblem.java": "a4a0ee23305fcafbcf8f30e30a382b5897503b630cbb52eb7881fa92a3e268e7",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/ReviewResponse.java": "a8c13cc4f9c4bda11046579125fe72c738f77448825a0f6c6a83beaaaa7bd112",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SuccessResponse.java": "9f9b8d881e2b7dabe6ea9c39e3603f26277152c8fead95257d8fca5809b2812b",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentAuditEntity.java": "84fec5e2f459af9c996c9543f98714a0327d26a5f670a09898dda62e1ea10ac9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentVersionEntity.java": "819f98c5ae3de3837c489669187419dad27242c98c990fea28ce2d8e7c6692a6",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/ReviewDecisionEntity.java": "877cf66a4d9ea395ef91e5cc8d87959daeeddcc046a288ea0881d4c9205c58f6",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ApiProblems.java": "c5946f740c60d008980ab85f786a3d8f2b97ca29d3e54f23f54f18e03e212f53",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/DocumentVersionNotFoundException.java": "1a3bcbf5a7698d14465bf3960320e4a93414a875321cc6fabb278b87772f094e",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/DuplicateReviewEvidenceException.java": "0700aab9e0af43388df9d6ce7fdbe0533195731a23febe61309b4fc07bdbdb39",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/InsufficientReviewScopeException.java": "0e809f64062e0918a6fa2a389abd2cc22bb15adb9a2c88dedd5b100e72ecf1ce",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/InvalidReviewTransitionException.java": "a7296af629d20f71b2e77465cb0bf17e1c64736cc855350bf7ffcea9a850ce78",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReturnFeedbackRequiredException.java": "c1caeab6537a2ffd1666f4a29e528a25489c0bfc5c7418533baa0f128fd0e40c",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewAuthenticationRequiredException.java": "77a3feac1552e2d355e5ccce87a336e9547bea958052001af8c08bdfbca8ca3c",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewErrorCode.java": "8cedc84022767269b8f46b2c9acbc8299dedd043f86f578e1a438c22aa4d3480",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceInvalidException.java": "efafb836c9365055ef67880d506e9454a9fb0bce826456d136c516afc5e07d46",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceLimitExceededException.java": "591136d91cd409a94f4f8e2b3c4e0b2da09c0aaaa690566a1a3c714b06a9b499",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceRequiredException.java": "670aed0fc87ed0400f09dc5e55d4b53ab040ae7558dda23fabf9462655181883",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewException.java": "a18fdc1b792b23b4a38dea131ca93a8f27c0ac278a47e8f02fb3a59621fc130f",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewExceptionHandler.java": "348428aa4a5833848cd28f4cbc5ccab507158523f82ec332f5aa70179f4a0eb5",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewIdempotencyConflictException.java": "5274c48f52c5de2dfe6e2ceaa45ae702a9fb43c4ec32750451f4afc26a893b18",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewReplaySnapshotUnavailableException.java": "dde9e1a106d5a1cbcac9912276830b7db68079f3137cb0f0b04009ea51bd1eb9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewRequestException.java": "7ec5cfe0be7a96d21353fa7aea6ef383467500ce0de78267c5b6c9542b49d063",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewRevisionConflictException.java": "b933d792e8ead15af3b52fe2871af90615befe158ae4dc651ea7c710021de6f9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewSnapshotSerializationException.java": "f8d7cecc463e5ba9bbb9c69ffacd0dac7c81c66baa84e9556f2e15ca8cbac7b4",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceChangedException.java": "284dce1a4548fd6e6589a81dfa2832e765e82945adbd7f6e808fa10a4e3582b9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceEvidenceInsufficientException.java": "57ef6a1978362bc39265c555085eb44dbca3be53c73788b1fe776aa6af6fb9e9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceValidationUnavailableException.java": "cbd84e1c3f5470e998499c9305bcc99e3eeeace7fa044b5ed43bf4b2693972a2",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonReviewSnapshotCodec.java": "43089da2c3c39862835970060df0d3e968b74966c9907c87b7dd807176f78cfd",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/ReviewPersistenceMapper.java": "8fb704b966eb407f27976f340b5e0ba25398e4966ab34fe04725f6e597b6aeed",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/StaffDecisionMapper.java": "0db8604e58004b90a23ff06b02b320c93bd9ed8a18d47f94e2459c498461b676",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentAudit.java": "f57c720057f9a871cf898c93da4c0d6fb8d6584dda70b1b4bebdcc270e98f515",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentState.java": "314fb6c472d9b183edcf5361bb39028a8306836fe67a0ae218e10e153c10acd6",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentVersion.java": "2487ce30099a199490c9be7768909e631aa30d0a79b8d8f124b8225abb38b5e9",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewAction.java": "7b314309b1997d217e7e1ceaf1d3d6997412c6809e938c5b977dd8116b60c90a",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewDecision.java": "df85b8aa28cb4f6c3792421307ad59a23d3cda9ca991f74ffe61b40a47851a94",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewStage.java": "9811652c07653b29647286169528e4647a442f452081b68aef28d42d91937b95",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewTransitionPolicy.java": "e51a00eafc7a400e3b8278161f9a38eafefa10232cb86ad5359e4af68f5e583c",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SourceReviewValidation.java": "8309baed7d0410b533343a01c8a25f930c101afe96d56be43a54a0d49e1f6406",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/StaffDecisionCommand.java": "fde16bce22c3b0e89d46648c19a7d460c3f7d538990a69b3eb511d27fce77322",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/StaffReviewResult.java": "7294d43f4fe66b141c8478390de7f2e5873116e28a948b5e1cb11d84ccf9cc62",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SuccessCode.java": "8c5c29b1c11f95dad59013ea6ce3d8e32645bc58469825ce8f869203c3bd3079",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentAuditJpaRepository.java": "66db94c34d24dc067ab93e97c72f1b932037a80cdd19b4b1b578d0f36685add8",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentAuditRepository.java": "09b308e976da001212422ae6f847a058150fdc7afa1ac7492344b9556544b334",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentVersionJpaRepository.java": "ad5869248bde1c432c20bf0699c400677740ea9054c8fb91c7bcb990d21033d4",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentVersionRepository.java": "6881638448f823e56259376fcab770c820e7a0c3657402282553426450d22edd",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/ReviewDecisionJpaRepository.java": "ea9cd2fdca6338d256887320bce54ed53794556b92a8b0e69fb0e1426c94d476",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/ReviewDecisionRepository.java": "33eb7f17be9663712df520759ed1d09f6e3d88b8071eeba1541b9e7b69bbea06",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ActorContext.java": "19037853a8ce1613e03f83e0e85ed61d5e464009c86f547bfb290531360d19a6",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ActorContextResolver.java": "e55ce0696a16eba14e90c553007262e09b90434cc2a94a1136462c63c4affb14",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ReviewSecurityConfiguration.java": "8f847af69222c3f6b3c5a1dce2dbde3dc0c825039e40eeed8ad6518c1edb63d0",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentReviewService.java": "768b162e4f2d7e1651f1295db8841f90ddd230f0d0f9876160fb7be02538b350",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/ReviewSnapshotCodec.java": "0981525484e284b08904ecc4ba8be8f2a56a6bf83b6b73dfb6c630c5a8c9e1b7",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SourceReviewGuard.java": "13e2c4a28210bcb8237195dc4b2311d605b8a01f000e4f3b23e36e7b4ac77beb",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentReviewServiceImpl.java": "72955e643225410e81949f1665c487a5c42186d268de7e2a165f43069c2a8baa",
+      "backend/document-governance-service/src/main/resources/application-db.yaml": "01469c7b68dfca4cab0b623fb9d6b386bee5bdcfdfbb7adb82c964d2541f48c1",
+      "backend/document-governance-service/src/main/resources/application.yaml": "d9ce92ed84bbff9704cd92462edd65df7de4a03867b203570080e4099ffddb23",
+      "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql": "7e32e3f87c242b815e22be58d42c8d689ba1f21d9b1bd582e9a056581b5cb7ed",
+      "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql": "05210aa332abac4c9aaaa990ca95fe5494d1bf3da16a6e4c3907ea749fac5a14",
+      "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql": "a1c48a5d91487fd3e1a0fab48cc7a87265012a53e9d22786c5ff7df2ca613185",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/DocumentGovernanceServiceApplicationTests.java": "d049e0d98378abd946aed57aa8d23343cb1a008ab52ee937a697462305292c95",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/PostgresTestSupport.java": "2a3143912da91b5c2cc32b08189917e6dcd7c98c3d73d411729567f1b3ee9ab4",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewApiIntegrationTest.java": "cf7a33edeeb058cbf533301542bf6a847a28262f88bef56a3138475bfa9df02e",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewMigrationIntegrationTest.java": "319dc2c0d6b9d3941bb674d5bbfd3ad3cab5d75fa00f7e89c1cd8d31d67b75f4",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewRestartIntegrationTest.java": "48a6573b63417d90eaa40ea2b2eaeaef3f6973cde67ef90227314e2151bfe618",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewSourceValidationTestConfiguration.java": "cc90043fcd652c8c3bff1458c1809cd528517aa38051df45320f0fe5ca83f9c9",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewTransitionPolicyTest.java": "dc64a45eecedc21a2e8fb608dcd043234fcd972b8f7a9a4d21dd32cf9676c19a",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/SourceReviewGuardTest.java": "fe4ce6bb322266e3bcbf09b0605c82d50b5ffb166d7423e4a8d3f8f8634c35e3",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/security/ReviewSecurityConfigurationTest.java": "cc66701f02724b7fbcab4b15fa9217aa0589cd232dc115e0c4dbaf8da8dcbc79",
+      "backend/document-governance-service/src/test/resources/db/bootstrap.sql": "52ad1c8655b95308df25218c674e19a9e701cce5f9499f2e97c9d4a56e3b13ba",
+      "contracts/openapi/s04-document-review.yaml": "e60eeb5f8f7f6cc61a0c60d4ef8256cb23219dcf1471f8762438ef62e8087fbe",
+      "docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md": "52edf17f6f1204d82cb4a9b9659727d7a6eae3f717945b212fce835b4c9d547a",
+      "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md": "055a3e828d1d6c673b251eab7609d87ca0b4d0bd0f9a566b0efb0d7f732e7c59",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefs.java": "060e6f6cf98fba9617db06b7712a5d4f352876e0facf1ab816917ce77a1502d7",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefsValidator.java": "867d0fec117f8042f6397cbc7dcef8a376741e123d71b55700acb2f95a908a11"
+    },
+    "excludes": [
+      "evidence JSON itself",
+      "unrelated Gateway/.gitignore/.codegraph changes"
+    ],
+    "codeCommit": "4f8a861fded8c3d902f8ef649970d7e047ff24aa",
+    "worktreeBaseCommit": "4f8a861fded8c3d902f8ef649970d7e047ff24aa",
+    "uncommittedChanges": true,
+    "preExistingWorktreeEdits": [
+      "ReviewTransitionPolicy.java import cleanup was present before this correction and is included in the tested worktree hash."
+    ]
+  },
+  "localVerification": {
+    "command": ".\\mvnw.cmd -B -ntp verify",
+    "workingDirectory": "backend/document-governance-service",
+    "completedAt": "2026-11-17T22:54:18+07:00",
+    "result": "BUILD SUCCESS",
+    "environment": {
+      "java": "21.0.9",
+      "postgresql": "17 (Testcontainers image postgres:17)",
+      "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+    },
+    "totals": {
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suites": [
+      {
+        "name": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.DocumentGovernanceServiceApplicationTests.xml",
+        "reportSha256": "68ade33c4f74ba13003f914770f6012a0bd1bdb5805b843c53bd2cfba05247c1"
+      },
+      {
+        "name": "com.livingdocs.document.ReviewApiIntegrationTest",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewApiIntegrationTest.xml",
+        "reportSha256": "ff413d892e9448a142bb24adc810be9d220de1e7286e492a174fc423a7dcf8ab"
+      },
+      {
+        "name": "com.livingdocs.document.ReviewMigrationIntegrationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewMigrationIntegrationTest.xml",
+        "reportSha256": "bbd27813656f92ae53855b89e696cb49616ce0dc172d2dacc5478aa0a513cbcf"
+      },
+      {
+        "name": "com.livingdocs.document.ReviewRestartIntegrationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewRestartIntegrationTest.xml",
+        "reportSha256": "d9202c0e4b94b1988d8e367b9fada24d2da2fbbb4d68ba90df95082c4d8270d5"
+      },
+      {
+        "name": "com.livingdocs.document.ReviewTransitionPolicyTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewTransitionPolicyTest.xml",
+        "reportSha256": "34f7f5f60c0665b48927fd591d8e8ab6bac988f02952558a9d188a3d80168296"
+      },
+      {
+        "name": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.security.ReviewSecurityConfigurationTest.xml",
+        "reportSha256": "0069d97ab2d08187b9f796babf19bb57d30bd3c62d3328be7cf5cbc2cbbb4371"
+      },
+      {
+        "name": "com.livingdocs.document.SourceReviewGuardTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "report": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SourceReviewGuardTest.xml",
+        "reportSha256": "8585b41953d392861af13de95161c112b10909700307cf0053a157d51253a0ff"
+      }
+    ],
+    "log": "backend/document-governance-service/target/liv118-prepush-20261117-retry.log",
+    "logSha256": "e1d41cc0cbd7d2d174113c58600d141c8816034526aca8792c325edcd3c7261e",
+    "jar": "backend/document-governance-service/target/document-governance-service-0.0.1-SNAPSHOT.jar",
+    "jarSha256": "06007d2d07dae247fca29f1cdd0e650d442e535a04c63036046847506f25ab9a",
+    "note": "Current local worktree verification. Reports/log/JAR are ignored local artifacts and can be overwritten by later builds; no new remote CI is claimed."
+  },
+  "remoteVerification": {
+    "commit": "69d0c03965248c87964a473bd38c82a97968fdca",
+    "checkedAt": "2026-11-08 08:44:05 UTC",
+    "checks": [
+      {
+        "name": "Validate OpenAPI Contracts",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189068/job/128423002782"
+      },
+      {
+        "name": "Build S04 Document",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189085/job/128423002767"
+      },
+      {
+        "name": "Build S01 Identity",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189085/job/128423002707"
+      },
+      {
+        "name": "Build S02 Repository",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189085/job/128423002683"
+      },
+      {
+        "name": "Build S03 Intelligence",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189085/job/128423002651"
+      },
+      {
+        "name": "Platform Compose Smoke",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189124/job/128423002630"
+      },
+      {
+        "name": "Build API Gateway",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189085/job/128423002508"
+      },
+      {
+        "name": "S05 FastAPI Build and Smoke Test",
+        "conclusion": "success",
+        "url": "https://github.com/huutienSE/LivingDocs/actions/runs/42379189051/job/128423002488"
+      }
+    ],
+    "coverage": "Historical results for the named remote commit only; not rechecked for this change and do not cover the current service interface/implementation worktree."
+  },
+  "historicalEvidence": {
+    "repository": "https://github.com/huutienSE/LivingDocs",
+    "committedEvidence": {
+      "commit": "69d0c03965248c87964a473bd38c82a97968fdca",
+      "path": "docs/implementation/LIV-118-test-evidence.json"
+    },
+    "note": "Historical summaries identify earlier runs. Repeated per-file manifests and report lists were condensed; current sourceSnapshot/localVerification are authoritative for this worktree. Older target reports may have been overwritten.",
+    "verifications": [
+      {
+        "phase": "Post-develop baseline",
+        "command": "mvn -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-12T12:19:57+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17.11",
+          "database": "isolated Testcontainers PostgreSQL 17"
+        },
+        "totals": {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-structure-verify.log",
+        "logSha256": "8cb64e43ece19e6bb2ca1a25d054ca3cee564049855233339031a1006da5c7fb",
+        "commit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+        "note": "Reports and log are local build artifacts, not committed; hashes identify this run and the command reproduces the tests."
+      },
+      {
+        "phase": "Service interface/implementation",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-14T19:17:09+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-service-interface-verify.log",
+        "logSha256": "15cba6e8a7fbc1397cf918fef7e289271347ae1e624e483e56338ebd6683c2bf",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 47,
+          "manifestSha256": "f4c8efe3fb634356239abcf7d18e72c1abd41ae6658f2d23a2bbdc7a2a287018"
+        },
+        "note": "Historical Service interface worktree run; its log remains at the named path. Surefire report paths were overwritten by the later package-layout run; historical report hashes identify the earlier artifacts, not the current reports."
+      },
+      {
+        "phase": "Layered packages",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-14T23:02:55+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-layered-layout-verify-rerun.log",
+        "logSha256": "f51820990f35b16f95c37eb760c31932ea1b7e106609dd580fc2a7b77aaa5040",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 47,
+          "manifestSha256": "8b1392b0f35bdecc128541ac84f35fdc59d48d46d66098058db802e91400d88f"
+        },
+        "note": "Historical package-only worktree run. Its log remains; Surefire reports were overwritten by the current DTO/OpenAPI run. Historical report hashes do not describe current reports."
+      },
+      {
+        "phase": "DTO/MapStruct/runtime OpenAPI",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-14T23:25:41+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 44,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-dto-openapi-verify-final.log",
+        "logSha256": "f278eac1fe2c3ddf1abc211441947cf300a27918a94b652c76dd7de3d75fe8b5",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 50,
+          "manifestSha256": "c0bb2f63d552e088b2168e9cb023245558267f7831f8b1a127c1e0ccf013e6a1"
+        },
+        "note": "Superseded by current JPA worktree. Historical report hashes identify that earlier run; target reports can be overwritten by subsequent Maven runs."
+      },
+      {
+        "phase": "JPA persistence",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-15T00:02:22+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 46,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-jpa-verify-final.log",
+        "logSha256": "53b5d103b3c8c8d079cc6abff5d5aa9b19e45a778ef7de2076ce8f6344017379",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 58,
+          "manifestSha256": "3a94432564e239e585db23ddecd78db4d2747fc73a66b48d931cac43b4aff2ad"
+        },
+        "note": "Superseded by the authorized typed-error/API-120 success-envelope rollout. Earlier protected-file claims apply only to this archived phase. target reports are overwritten by subsequent Maven runs."
+      },
+      {
+        "phase": "Typed errors and success envelope",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-15T17:46:45+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 47,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-errors-wrapper-verify-final.log",
+        "logSha256": "b4d0a6152e3d954dfe7f6fc8e4a3747c8a340574e860d6553385ec43afe43da8",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 67,
+          "manifestSha256": "9005d98e315c93f61a024d9a5d093a3ede4f7ccb88d1a3adff84349f0571e33f"
+        },
+        "priorAttempt": {
+          "log": "backend/document-governance-service/liv118-errors-wrapper-verify.log",
+          "logSha256": "88f0e0c30469e9f4a86e16ff5fd62af07c329246ae50e501c13377b6b1861e05",
+          "result": "47 tests, 1 failure: Springdoc inferred */* for the generic response",
+          "resolution": "Declared application/json on API-120; full clean verify passed with the concrete generic response schema."
+        }
+      },
+      {
+        "phase": "Cleanup before service/snapshot boundary refactor",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-15T18:54:11+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 47,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "log": "backend/document-governance-service/liv118-cleanup-verify.log",
+        "logSha256": "44aed7bbc5f8b6560f5bac2623f3e92c8379e5a5c818fba3d431e430f3049710",
+        "sourceSnapshot": {
+          "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+          "fileCount": 67,
+          "manifestSha256": "ff87d6de95db3839c517f99c8c3095e010a0d341b10e1f94c4cbe4fbc1b0c2d0"
+        }
+      },
+      {
+        "phase": "Service/snapshot boundaries before standards correction",
+        "command": ".\\mvnw.cmd -B -ntp clean verify",
+        "workingDirectory": "backend/document-governance-service",
+        "completedAt": "2026-11-15T19:20:11+07:00",
+        "result": "BUILD SUCCESS",
+        "environment": {
+          "java": "21.0.9",
+          "postgresql": "17 (Testcontainers image postgres:17)",
+          "database": "isolated Testcontainers PostgreSQL, runtime role ld_s04_app"
+        },
+        "totals": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "note": "Historical 48-test run. Its target reports were overwritten by later verification; current localVerification describes the latest run."
+      }
+    ],
+    "priorStructureVerification": {
+      "composeConfig": "passed; services + gateway profiles; no deployment",
+      "dockerBuild": {
+        "result": "success",
+        "tag": "livingdocs-s04:liv118-structure-check",
+        "log": "backend/document-governance-service/liv118-structure-docker-build.log",
+        "logSha256": "7a99829098e7e10b9af54ccf64aed9d6df0e80b02a5fe9dd27d5f3ccc0681786",
+        "tests": "Dockerfile skips tests; full 42-test run is recorded separately in localVerification"
+      }
+    }
+  },
+  "limits": [
+    "S01 JWT claim mapping remains an integration candidate; no real S01 token or immediate revocation evidence",
+    "No production S02 adapter; new repository-backed PASS fails closed with 503; positive source tests use a test-only provider",
+    "Legacy SourceBinding stores repository connection/head SHA only; other fields are null",
+    "Restart test reopens Spring context/server/pool on the same DB, not JVM/PostgreSQL",
+    "No real S01/S02/GitHub end-to-end or deployment TLS evidence",
+    "Local test results and CI success do not establish independent reviewer approval",
+    "Migration fixture tests do not certify the contents of the application/deployment database",
+    "API-120 v0.2.0 success envelope is a breaking representation change; external consumer adoption has not been verified"
+  ],
+  "serviceBoundaryVerification": {
+    "result": "PASS",
+    "interface": "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentReviewService.java",
+    "implementation": "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentReviewServiceImpl.java",
+    "controllerAndIntegrationTestsInject": "com.livingdocs.document.service.DocumentReviewService",
+    "transactionBoundary": "@Transactional on DocumentReviewServiceImpl.review; version/decision/audit and snapshot encoding/persistence use one transaction",
+    "scope": "Controller maps transport input/output. Service API uses business command/result and a snapshot codec port. Repository reads/writes opaque snapshot strings and evidence JSON; no DTO, envelope or success-code dependencies.",
+    "remoteCi": "NOT RUN for this worktree; remoteVerification contains historical checks only",
+    "input": "model.StaffDecisionCommand",
+    "output": "model.StaffReviewResult",
+    "snapshotPort": "service.ReviewSnapshotCodec",
+    "snapshotAdapter": "mapper.JacksonReviewSnapshotCodec"
+  },
+  "packageLayoutVerification": {
+    "result": "PASS",
+    "standard": "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md section 2; docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md section 4",
+    "javaFilesChecked": 72,
+    "packageDeclarationsMatchPaths": true,
+    "stalePackageReferences": 0,
+    "jar": {
+      "path": "backend/document-governance-service/target/document-governance-service-0.0.1-SNAPSHOT.jar",
+      "sha256": "a77499f1a78b6d27cd4a0b9a68e2c2ad0cdc1ecb78b8dcf9fd4120d4e8cb9f1a",
+      "currentDtoMapperAndOpenApiClassesPresent": true,
+      "legacyPackageClasses": 0,
+      "currentJpaClassesPresent": true,
+      "currentTypedErrorsAndSuccessEnvelopeClassesPresent": true,
+      "currentBusinessBoundaryClassesPresent": true
+    },
+    "limits": "Real S01/S02 integration and independent approval are outside local verification. Removed entity/.gitkeep after the folder gained real entity classes."
+  },
+  "dtoAndOpenApiVerification": {
+    "result": "PASS",
+    "reference": "Master Decisions sections 4.2 and 5.1; Jira LIV-118 scope reread 2026-11-14",
+    "dto": "ReviewRequest, ReviewResponse and nested SourceBinding are classes with private fields and selective Lombok; no @Data",
+    "mapper": {
+      "path": "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/StaffDecisionMapper.java",
+      "componentModel": "spring",
+      "unmappedTargetPolicy": "ERROR",
+      "generatedSource": "backend/document-governance-service/target/generated-sources/annotations/com/livingdocs/document/mapper/StaffDecisionMapperImpl.java",
+      "generatedSourceSha256": "e573a240572890e88bfd9e90108f5286899c29dbabfd34681d9a6ae17a919bd5"
+    },
+    "runtimeContractTest": "ReviewApiIntegrationTest.runtimeOpenApi_shouldMatchReviewedContractAndRequireAuthentication",
+    "contractChecks": [
+      "API-120 method/path and operationId",
+      "11 response statuses and media types",
+      "If-Match/Idempotency-Key required; ETag/correlation/cache headers",
+      "request/response/source/problem properties and required fields",
+      "scalar types/formats/enums; revision minimum; evidence maximum/uniqueness/UUID items",
+      "actual HTTP response fields match runtime response schema",
+      "API-120 concrete code/message/data success envelope; nested DocumentVersionView schema",
+      "Stored success envelope replay, legacy bare snapshot adaptation and restart replay"
+    ],
+    "exposure": {
+      "enabledByDefault": false,
+      "enableVariable": "S04_OPENAPI_ENABLED",
+      "anonymousEnabledDocsHttpStatus": 401,
+      "verifiedJwtEnabledDocsHttpStatus": 200,
+      "disabledDocsResourceBeanPresent": false,
+      "swaggerUiAdded": false,
+      "gatewayDocsRouteAdded": false
+    },
+    "legacySnapshotTest": "ReviewApiIntegrationTest.legacyResponseSnapshot_shouldReplayWithClassDtoAndNoNewSourceCheck",
+    "dependencyReferences": [
+      "https://mapstruct.org/documentation/stable/reference/html/#_lombok",
+      "https://springdoc.org/"
+    ],
+    "completedAt": "2026-11-15T19:20:11+07:00"
+  },
+  "jpaPersistenceVerification": {
+    "result": "PASS",
+    "completedAt": "2026-11-15T19:20:11+07:00",
+    "reference": "Owner-selected local Master Decisions LD-D03/04, sections 4.1/4.2; Owner authorized implementation after LIV-118 scope audit",
+    "implementation": {
+      "entities": [
+        "DocumentVersionEntity",
+        "ReviewDecisionEntity",
+        "DocumentAuditEntity"
+      ],
+      "repositories": [
+        "DocumentVersionJpaRepository",
+        "ReviewDecisionJpaRepository",
+        "DocumentAuditJpaRepository"
+      ],
+      "versionControl": "Hibernate @Version on existing revision column; flush before decision/audit",
+      "appendOnly": "@Immutable, assigned UUID Persistable.isNew callbacks, saveAndFlush; database SELECT/INSERT-only grants retained",
+      "mapping": "ReviewPersistenceMapper, Spring componentModel, ReportingPolicy.ERROR",
+      "ddlAuto": "validate",
+      "openInView": false,
+      "runtimeLibraries": [
+        "BOOT-INF/lib/hibernate-core-7.4.5.Final.jar",
+        "BOOT-INF/lib/spring-data-jpa-4.1.1.jar"
+      ]
+    },
+    "nativeSqlExceptions": [
+      {
+        "purpose": "transaction-local tenant RLS context",
+        "query": "set_config(app.tenant_id, tenant, true)"
+      },
+      {
+        "purpose": "freeze version and document/collection authorization scope",
+        "query": "FOR UPDATE OF v FOR SHARE OF d, c"
+      },
+      {
+        "purpose": "scoped bulk evidence existence check",
+        "query": "count with tenant/version/evidence IN"
+      }
+    ],
+    "newRegressionTests": [
+      "ReviewApiIntegrationTest.orm_shouldShareTransactionLocalRlsAndClearTenantAfterCompletion",
+      "ReviewApiIntegrationTest.orm_shouldRejectStaleManagedVersionAtFlushWithoutAppendingHistory"
+    ],
+    "rlsVerification": "JpaTransactionManager; same pg_backend_pid across reused pooled connection; cross-tenant ORM read denied; tenant cleared after commit and rollback; adapters reject missing outer transaction",
+    "existingRegressionCoverage": [
+      "HTTP PASS/RETURN and response contract",
+      "concurrent review and exact retry",
+      "historical response snapshot replay",
+      "atomic rollback on audit insert failure",
+      "RLS/append-only runtime grants",
+      "Flyway upgrade/invalid legacy data",
+      "Spring context/server/pool restart"
+    ],
+    "generatedMapper": {
+      "path": "backend/document-governance-service/target/generated-sources/annotations/com/livingdocs/document/mapper/ReviewPersistenceMapperImpl.java",
+      "sha256": "ca47621d0c99178d05eebe1918fe5cfea562e92553a2fb44b306254b3680c374"
+    }
+  },
+  "typedErrorsAndSuccessEnvelopeVerification": {
+    "result": "PASS",
+    "completedAt": "2026-11-16T18:42:42+07:00",
+    "authorization": "Owner explicitly requested both typed exceptions and success wrapper after scope audit, 2026-11-15",
+    "reference": "Owner-selected local Master Decisions section 4.1, LD-D11/12 and section 5.1",
+    "typedErrors": {
+      "base": "Abstract ReviewException with typed code/cause; concrete business exceptions fix their own code/detail. Generic ReviewRequestException remains only for malformed transport/preconditions.",
+      "subtypes": [
+        "DocumentVersionNotFoundException",
+        "DuplicateReviewEvidenceException",
+        "InsufficientReviewScopeException",
+        "InvalidReviewTransitionException",
+        "ReturnFeedbackRequiredException",
+        "ReviewAuthenticationRequiredException",
+        "ReviewEvidenceInvalidException",
+        "ReviewEvidenceLimitExceededException",
+        "ReviewEvidenceRequiredException",
+        "ReviewIdempotencyConflictException",
+        "ReviewReplaySnapshotUnavailableException",
+        "ReviewRevisionConflictException",
+        "ReviewSnapshotSerializationException",
+        "SourceChangedException",
+        "SourceEvidenceInsufficientException",
+        "SourceValidationUnavailableException"
+      ],
+      "wireCompatibility": "The original 20 wire codes remain. Standards correction adds METHOD_NOT_ALLOWED/405, NOT_ACCEPTABLE/406 and UNSUPPORTED_MEDIA_TYPE/415. Evidence cap/duplicates remain 422 through Jakarta validation; headers/structure remain 400.",
+      "registeredWireCodeCount": 23
+    },
+    "successContract": {
+      "api": "API-120 POST /api/v1/document-versions/{versionId}/staff-decisions",
+      "status": 200,
+      "mediaType": "application/json",
+      "contractVersion": "0.2.0",
+      "dto": "SuccessResponse<ReviewResponse>",
+      "schema": "StaffDecisionSuccess with code/message/data; data is DocumentVersionView",
+      "code": "STAFF_REVIEW_RECORDED",
+      "message": "Staff review decision recorded",
+      "factory": "Controller maps StaffReviewResult via StaffDecisionMapper and uses SuccessResponse.of(recorded receipt, data); fresh receipt comes from model.SuccessCode, replay retains recorded acknowledgement",
+      "etag": "Computed from data.versionId/revision, unchanged",
+      "breakingChange": "Consumers must read version fields from data; bare root version representation is replaced"
+    },
+    "replay": {
+      "newSnapshots": "Persist full code/message/data; replay stored envelope rather than regenerating default message",
+      "legacySnapshots": "Wrap bare version view at read time without changing original JSONB decision/audit history",
+      "newRegression": "ReviewApiIntegrationTest.successEnvelope_shouldPersistAndReplayOriginalMessageWithoutNesting",
+      "legacyRegression": "ReviewApiIntegrationTest.legacyResponseSnapshot_shouldReplayWithClassDtoAndNoNewSourceCheck",
+      "restartRegression": "ReviewRestartIntegrationTest.httpDecision_shouldSurviveApplicationRestartWithSameDatabase"
+    },
+    "runtimeContract": "ReviewApiIntegrationTest.runtimeOpenApi_shouldMatchReviewedContractAndRequireAuthentication; YAML/runtime/concrete nested schemas, status/media/header and actual HTTP envelope assertions",
+    "sourceExceptionRegression": [
+      "SourceReviewGuardTest asserts SourceChangedException or SourceValidationUnavailableException and stable enum codes",
+      "DocumentGovernanceServiceApplicationTests asserts concrete unavailable-source failure",
+      "ReviewTransitionPolicyTest asserts condition-specific feedback/state/evidence/revision failures"
+    ],
+    "migrationsUnchanged": [
+      "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql"
+    ],
+    "consumerInventory": {
+      "searched": [
+        "frontend",
+        "contracts",
+        "scripts"
+      ],
+      "frontendStaffDecisionClientFound": false,
+      "result": "No production frontend client calling staff-decisions exists in this checkout; external consumer rollout remains unverified"
+    },
+    "documentation": [
+      "backend/document-governance-service/README.md",
+      "contracts/openapi/s04-document-review.yaml"
+    ]
+  },
+  "references": [
+    {
+      "title": "Master Decisions",
+      "publisher": "LivingDocs repository; primary source selected by Owner",
+      "decisionDate": "2026-11-13",
+      "verifiedAt": "2026-11-15T00:02:22+07:00",
+      "path": "docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md",
+      "trust": "Authoritative project baseline for this task; not independent runtime verification"
+    },
+    {
+      "title": "Spring Data JPA - Persisting Entities",
+      "publisher": "Spring / Broadcom official documentation",
+      "url": "https://docs.spring.io/spring-data/jpa/reference/jpa/entity-persistence.html",
+      "accessedAt": "2026-11-15T00:02:22+07:00",
+      "trust": "Primary framework documentation for assigned-ID Persistable lifecycle; project behavior verified separately by local regression"
+    },
+    {
+      "path": "backend/identity-organization-service/src/main/java/com/livingdocs/identity/dto/response/SuccessResponse.java",
+      "trust": "Read-only implementation reference for the Owner-approved envelope pattern; no S01 modifications by this task"
+    },
+    {
+      "path": "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md",
+      "owner": "LivingDocs Project Owner decision as declared in the local document",
+      "decisionDate": "2026-11-13",
+      "verifiedAt": "2026-11-15T19:20:11+07:00",
+      "trust": "Project coding baseline for service business contracts and condition-specific exceptions; runtime proof recorded separately"
+    }
+  ],
+  "cleanupVerification": {
+    "scope": [
+      "8 assignment-only constructors replaced by Lombok RequiredArgsConstructor",
+      "5 redundant imports removed",
+      "Empty Maven project metadata and excess blank lines removed",
+      "Unused entity/.gitkeep removed",
+      "Repeated migration narrative and historical evidence manifests condensed",
+      "Removed duplicate LIV-118 handoff; retained source provenance in service README and verification metadata in evidence JSON",
+      "Removed 21 unreferenced local liv118 diagnostic logs; retained logs referenced by current and historical evidence"
+    ],
+    "behavior": "Business guards, typed error classes, response contract and legacy snapshot replay retained",
+    "historicalManifestDigest": "SHA256 of prior sourceSnapshot JSON serialized with UTF-8, sorted keys, ensure_ascii=false and compact separators; per-file lists are no longer repeated in historical summaries",
+    "result": "PASS",
+    "completedAt": "2026-11-15T19:20:11+07:00",
+    "protectedFilesUnchanged": [
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewErrorCode.java",
+      "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql",
+      "contracts/openapi/s04-document-review.yaml"
+    ],
+    "documentationAndLocalArtifactsCheckedAt": "2026-11-15T20:29:27+07:00"
+  },
+  "businessBoundaryVerification": {
+    "result": "PASS",
+    "completedAt": "2026-11-15T19:20:11+07:00",
+    "reference": "Owner-authorized correction of the three audit findings; Coding Amendment sections 4 and 5, Master sections 4.1 and 5.1",
+    "businessInput": "StaffDecisionCommand: normalized immutable input; shared evidence cap/uniqueness enforcement for transport and direct callers",
+    "businessOutput": "StaffReviewResult: recorded document state/source binding and receipt acknowledgement; no public DTO, JSON envelope or HTTP status",
+    "controller": "Maps request to command, result to ReviewResponse, wraps SuccessResponse and sets ETag",
+    "snapshotPort": "ReviewSnapshotCodec encode/decode business result; service knows no concrete JSON/DTO adapter",
+    "snapshotAdapter": "JacksonReviewSnapshotCodec owns current success-envelope JSON and legacy bare JSON compatibility through StaffDecisionMapper",
+    "repository": "ReviewDecisionRepository returns Optional<String> and persists provided snapshot; JsonMapper used only for evidence UUID JSON, never public response or success-code selection",
+    "atomicity": "Version flush, snapshot encoding, decision insert and audit insert participate in the same service transaction; no after-commit write, second transaction or Controller transaction",
+    "failureRegression": "ReviewApiIntegrationTest.snapshotEncodingFailure_shouldRollbackVersionAndLeaveKeyRetryable: HTTP 500/PERSISTENCE_ERROR without serializer detail, no DB mutation and successful same-key retry",
+    "retainedRegressions": [
+      "Exact stored message replay",
+      "Legacy snapshot unchanged in DB",
+      "Application-context restart replay",
+      "Concurrent identical/different-key review",
+      "Audit rollback",
+      "RLS/optimistic conflict"
+    ],
+    "staticBoundaryChecks": [
+      "No DTO/SuccessResponse/ResponseEntity/servlet types in service or repository",
+      "No concrete mapper dependency in service",
+      "No DTO dependency in business model",
+      "No SuccessCode selection in repository"
+    ],
+    "conditionSpecificExceptions": [
+      "DocumentVersionNotFoundException",
+      "DuplicateReviewEvidenceException",
+      "InsufficientReviewScopeException",
+      "InvalidReviewTransitionException",
+      "ReturnFeedbackRequiredException",
+      "ReviewAuthenticationRequiredException",
+      "ReviewEvidenceInvalidException",
+      "ReviewEvidenceLimitExceededException",
+      "ReviewEvidenceRequiredException",
+      "ReviewIdempotencyConflictException",
+      "ReviewReplaySnapshotUnavailableException",
+      "ReviewRevisionConflictException",
+      "ReviewSnapshotSerializationException",
+      "SourceChangedException",
+      "SourceEvidenceInsufficientException",
+      "SourceValidationUnavailableException"
+    ],
+    "removedGroupedExceptions": [
+      "ReviewStateException",
+      "ReviewAccessException",
+      "ReviewIdempotencyException",
+      "ReviewValidationException",
+      "SourceValidationException"
+    ],
+    "wireAndMigrationFilesUnchanged": [
+      "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql",
+      "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql",
+      "contracts/openapi/s04-document-review.yaml"
+    ],
+    "artifactChecks": "Clean JAR contains new command/result/codec/mapper/concrete failures; old grouped failures and old response mapper absent",
+    "limits": [
+      "No new real S01/S02 E2E or remote CI/reviewer approval",
+      "No commit/push or PR/Jira mutation",
+      "No claim that unrelated naming/entity-mutation audit suggestions were implemented"
+    ],
+    "coverage": "Boundary-refactor record from 2026-11-15; subsequent transport/OpenAPI/validation corrections are recorded under standardsCorrectionVerification."
+  },
+  "commitSplitVerification": {
+    "baselineCommit": "fb640525395d0a556f5a3f8d9920fd7bc999ed4b",
+    "codeHead": "1b3b8bc2c084ad60f068dfcfc67da59bacf40c6e",
+    "method": "Each cumulative code snapshot tested independently with Maven clean verify and PostgreSQL 17 Testcontainers before committing; main working-tree source was not swapped.",
+    "command": ".\\mvnw.cmd -B -ntp clean verify",
+    "commits": [
+      {
+        "stage": 1,
+        "commit": "fdbe681c1330d2646bc65325739dec3742676265",
+        "message": "refactor(LIV-118): adopt layered review packages",
+        "log": "backend/document-governance-service/target/commit-verification/fdbe681/verify.log",
+        "logSha256": "8c54296a4f0b4e27dce9468eeef679d7cbb3cb926342917d5f1907824a113b9e",
+        "completedAt": "2026-11-15T20:13:42+07:00",
+        "result": "BUILD SUCCESS",
+        "totals": {
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "stage": 2,
+        "commit": "e19ff9805b0872cd3a7846d4c78f17978c44953f",
+        "message": "refactor(LIV-118): migrate review persistence to JPA",
+        "log": "backend/document-governance-service/target/commit-verification/e19ff98/verify.log",
+        "logSha256": "3a007927c26894d95fec769686bf0ef9b5aa0d38f8bd5a65aa5bb30ed7baf596",
+        "completedAt": "2026-11-15T20:18:35+07:00",
+        "result": "BUILD SUCCESS",
+        "totals": {
+          "tests": 44,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "stage": 3,
+        "commit": "91eb46e4fff856621eaa29cc3f82a9e729bfdd2a",
+        "message": "refactor(LIV-118): type review failures by business condition",
+        "log": "backend/document-governance-service/target/commit-verification/91eb46e/verify.log",
+        "logSha256": "654812679a1e1d11892ae8085b40a240d115932b11d4371997ede5fd40fbaaa4",
+        "completedAt": "2026-11-15T20:20:18+07:00",
+        "result": "BUILD SUCCESS",
+        "totals": {
+          "tests": 44,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "stage": 4,
+        "commit": "1b3b8bc2c084ad60f068dfcfc67da59bacf40c6e",
+        "message": "feat(LIV-118): standardize review responses and snapshot boundaries",
+        "log": "backend/document-governance-service/target/commit-verification/1b3b8bc/verify.log",
+        "logSha256": "fd567271f8fb69f325a0835163744ed4e333a647a42e7f57677f0c4491003a7b",
+        "completedAt": "2026-11-15T20:22:08+07:00",
+        "result": "BUILD SUCCESS",
+        "totals": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "artifacts": "Logs are local ignored artifacts under target/commit-verification, not committed. Temporary snapshot trees were removed after verification; per-snapshot Surefire reports were not archived. Re-run the command at each commit to regenerate reports.",
+    "documentation": "Separate docs commit consolidates README/evidence and removes duplicate handoff; documentation links, source hashes and staged paths checked.",
+    "excluded": [
+      "unrelated root .gitignore change",
+      ".codegraph/",
+      "logs and target build outputs",
+      ".env"
+    ],
+    "remoteCi": "Not run for these local commits; historical remoteVerification is not current CI proof.",
+    "artifactAvailability": "Historical per-commit logs under target/commit-verification are no longer present after clean builds. Commit identities and historical results are retained; current localVerification has the latest reproducible worktree run."
+  },
+  "standardsCorrectionVerification": {
+    "completedAt": "2026-11-16T18:42:42+07:00",
+    "result": "PASS",
+    "scope": "Owner-requested correction of the five audited LIV-118 findings",
+    "requirements": {
+      "jira": "LIV-118 description re-read 2026-11-16; DocumentVersion/ReviewDecision/DocumentAudit, guarded PASS/RETURN and restart/negative tests",
+      "master": "Owner-selected local Master sections 4.1, 4.2, 5.1 and 10.3",
+      "amendment": "sections 2 through 5; annotation-first transport validation and schema mapping"
+    },
+    "httpErrors": "Authenticated 405/406/415 produce typed RFC 9457 Problems through ControllerAdvice, preserving Allow on 405; test proves no state/decision/audit mutation.",
+    "runtimeOpenApi": "Nullable enums include literal JSON null. Parity assertions compare nullability, all enum values including null, error statuses and response headers.",
+    "correlation": "Gateway-compatible [A-Za-z0-9][A-Za-z0-9._-]{0,63}; valid IDs retained in HTTP success and audit; invalid IDs replaced by UUID.",
+    "validation": "DTO @Size(max=100), @UniqueEvidenceRefs, element @NotNull; header @NotNull/@Pattern. Both MVC binding and method validation preserve evidence 422 codes; constructors only normalize/copy DTO input. Business command retains direct-caller invariants.",
+    "entityMapping": "DocumentAuditEntity.versionId nullable=false compared with PostgreSQL information_schema NOT NULL.",
+    "regressionTests": [
+      "requestConstraints_shouldValidateBeforeMappingToBusinessCommand",
+      "transportFailures_shouldKeepHttpStatusAndProblemContractWithoutMutation",
+      "correlationId_shouldSurviveInSuccessAndAuditOrBeSafelyReplaced",
+      "runtimeOpenApi_shouldMatchReviewedContractAndRequireAuthentication",
+      "databaseConstraintsRlsAndAppendOnlyPrivileges_shouldHold"
+    ],
+    "verification": {
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "environmentRecovery": "Docker Desktop was initially stopped. It was started to run isolated PostgreSQL 17 Testcontainers.",
+    "remoteVerification": "Remote CI for this correction must be checked against the pushed commit; historical remoteVerification is not current CI proof."
+  },
+  "prePushVerification": {
+    "developCommit": "5bba08e",
+    "developSync": "Fetched origin; origin/develop is already an ancestor of current branch; no additional merge required",
+    "command": ".\\mvnw.cmd -B -ntp verify",
+    "completedAt": "2026-11-17T22:54:18+07:00",
+    "result": "BUILD SUCCESS",
+    "totals": {
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "initialAttempt": "Docker was stopped; 30 integration-test errors. Docker Desktop started and full verify rerun successfully.",
+    "excluded": [
+      ".gitignore",
+      ".codegraph/",
+      "target outputs and local logs"
+    ],
+    "remoteCi": "Pending push; no current remote CI result claimed"
+  }
+}
