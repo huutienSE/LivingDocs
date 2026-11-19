@@ -65,6 +65,7 @@ public class JpaConnectionLookup implements ConnectionLookup {
     }
 
     void bindTenant(UUID tenantId) {
+        SourceRequestDatabase.constrain(entityManager);
         entityManager.createNativeQuery("select set_config('app.tenant_id', :tenant, true)")
                 .setParameter("tenant", tenantId.toString()).getSingleResult();
     }

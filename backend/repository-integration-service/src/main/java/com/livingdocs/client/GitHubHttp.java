@@ -1,6 +1,8 @@
 package com.livingdocs.client;
 
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
+import com.livingdocs.model.SourceRequestDeadline;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -21,15 +23,20 @@ final class GitHubHttp {
     static RestClient.Builder clientBuilder() {
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
-        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(http);
-        requests.setReadTimeout(Duration.ofSeconds(2));
-        return RestClient.builder().requestFactory(requests);
+        return RestClient.builder().requestFactory((uri, method) -> {
+            JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(http);
+            requests.setReadTimeout(SourceRequestDeadline.limit(Duration.ofSeconds(2)));
+            return requests.createRequest(uri, method);
+        });
     }
 
     static JsonNode readBody(ClientHttpResponse response, ObjectMapper json) throws IOException {
+        SourceRequestDeadline.check();
         byte[] body = response.getBody().readNBytes(MAX_RESPONSE_BYTES + 1);
+        SourceRequestDeadline.check();
         if (body.length > MAX_RESPONSE_BYTES) {
-            throw new SourceUnavailableException("Phản hồi GitHub vượt quá kích thước cho phép.");
+            // Phản hồi GitHub quá lớn nên S02 không có đủ bằng chứng để xác minh nguồn.
+            throw SourceApiException.unavailable(UnavailableReason.GITHUB_RESPONSE_TOO_LARGE);
         }
         return json.readTree(body);
     }

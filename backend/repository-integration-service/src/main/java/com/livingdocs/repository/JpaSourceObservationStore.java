@@ -2,7 +2,9 @@ package com.livingdocs.repository;
 
 import com.livingdocs.entity.SourceTargetHeadEntity;
 import com.livingdocs.entity.SourceTargetKey;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
+import com.livingdocs.model.SourceRequestDeadline;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.util.List;
@@ -53,14 +55,16 @@ public class JpaSourceObservationStore {
     public WriteResult writeObservation(SourceTargetKey target, String authorityId, String expectedConfigRevision,
                                         long expectedVersion, Observation observation) {
         if (expectedVersion < 0) {
-            throw new IllegalArgumentException("Phiên bản quan sát phải từ 0 trở lên.");
+            throw new IllegalArgumentException("Observation version must be non-negative");
         }
         Objects.requireNonNull(observation);
+        SourceRequestDeadline.check();
         Outcome access = lockAndCheckTarget(target, authorityId, expectedConfigRevision);
         if (access != Outcome.ACCEPTED) {
             return rejected(access);
         }
 
+        SourceRequestDatabase.constrain(entityManager);
         Query mutation = bindTarget(entityManager.createNativeQuery(expectedVersion == 0 ? INSERT_HEAD : UPDATE_HEAD), target)
                 .setParameter("authority", authorityId)
                 .setParameter("state", observation.state.name())
@@ -69,12 +73,15 @@ public class JpaSourceObservationStore {
         if (expectedVersion != 0) {
             mutation.setParameter("expected", expectedVersion);
         }
-        if (mutation.executeUpdate() != 1) {
+        int changed = mutation.executeUpdate();
+        SourceRequestDeadline.check();
+        if (changed != 1) {
             return rejected(Outcome.OBSERVATION_CONFLICT);
         }
 
         SourceTargetHeadEntity head = heads.findByTargetAndAuthorityRepositoryId(target, authorityId)
                 .orElseThrow(JpaSourceObservationStore::unavailable);
+        SourceRequestDeadline.check();
         return new WriteResult(Outcome.ACCEPTED, head);
     }
 
@@ -93,6 +100,7 @@ public class JpaSourceObservationStore {
                 select github_connection_id from repository.github_connections
                 where tenant_id = :tenant and github_connection_id = :github for no key update
                 """).setParameter("tenant", target.getTenantId()).setParameter("github", githubId).getResultList().isEmpty();
+        SourceRequestDatabase.constrain(entityManager);
         List<?> locked = bindConnection(entityManager.createNativeQuery(FIND_GITHUB_ID + " for no key update"), target)
                 .getResultList();
         if (locked.isEmpty()) {
@@ -102,6 +110,7 @@ public class JpaSourceObservationStore {
             return Outcome.CONFIG_CHANGED;
         }
 
+        SourceRequestDatabase.constrain(entityManager);
         var current = connections.findForWrite(target).orElseThrow(JpaSourceObservationStore::unavailable);
         if (!current.getConnection().active()) {
             return Outcome.CONNECTION_INACTIVE;
@@ -133,8 +142,8 @@ public class JpaSourceObservationStore {
         return new WriteResult(outcome, null);
     }
 
-    private static SourceUnavailableException unavailable() {
-        return new SourceUnavailableException("Không xác minh được dữ liệu đầu nguồn đã lưu.");
+    private static SourceApiException unavailable() {
+        return SourceApiException.unavailable(UnavailableReason.STORED_OBSERVATION_UNVERIFIED);
     }
 
     public enum Outcome {

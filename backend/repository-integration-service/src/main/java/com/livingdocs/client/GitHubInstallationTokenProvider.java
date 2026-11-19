@@ -1,7 +1,8 @@
 package com.livingdocs.client;
 
 import com.livingdocs.config.GitHubAppProperties;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
 import com.livingdocs.model.SourceScope;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -105,7 +106,7 @@ public final class GitHubInstallationTokenProvider {
                 }
             }
             return new RepositoryAccess(nodeId, key, token);
-        } catch (SourceUnavailableException failure) {
+        } catch (SourceApiException failure) {
             discardToken(key, token);
             throw failure;
         }
@@ -273,8 +274,8 @@ public final class GitHubInstallationTokenProvider {
         return node.asString();
     }
 
-    private static SourceUnavailableException unavailable() {
-        return new SourceUnavailableException("Không xác minh được quyền truy cập kho GitHub.");
+    private static SourceApiException unavailable() {
+        return SourceApiException.unavailable(UnavailableReason.GITHUB_ACCESS_UNVERIFIED);
     }
 
     @EqualsAndHashCode

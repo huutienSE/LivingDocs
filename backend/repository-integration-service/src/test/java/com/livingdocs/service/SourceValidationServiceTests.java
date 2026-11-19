@@ -1,10 +1,12 @@
 package com.livingdocs.service;
 
 import com.livingdocs.client.GitHubSourceClient.CommitObservation;
+import com.livingdocs.config.SourceRequestProperties;
 import com.livingdocs.entity.SourceTargetHeadEntity;
 import com.livingdocs.entity.SourceTargetHeadEntity.HeadState;
 import com.livingdocs.entity.SourceTargetKey;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
 import com.livingdocs.model.SourceConnection;
 import com.livingdocs.model.SourceScope;
 import com.livingdocs.model.SourceValidationRequest;
@@ -17,6 +19,7 @@ import com.livingdocs.repository.JpaSourceObservationStore.WriteResult;
 import com.livingdocs.service.GitHubSourceLookup.Outcome;
 import com.livingdocs.service.GitHubSourceLookup.Result;
 import com.livingdocs.service.impl.SourceValidationServiceImpl;
+import com.livingdocs.service.impl.SourceRequestExecutor;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,6 +53,21 @@ class SourceValidationServiceTests {
     private final GitHubSourceLookup github = mock(GitHubSourceLookup.class);
     private final JpaSourceObservationStore store = mock(JpaSourceObservationStore.class);
     private final SourceValidationService service = new SourceValidationServiceImpl(github, store, CLOCK, VALIDITY);
+
+    @Test
+    void expiredRequestCannotWriteAnObservationEvenWhenEvidenceTtlIsStillValid() {
+        var nanos = new java.util.concurrent.atomic.AtomicLong();
+        try (var requests = new SourceRequestExecutor(new SourceRequestProperties(Duration.ofSeconds(1)), 1, nanos::get)) {
+            when(github.readCurrent(SCOPE, REPO, TargetKind.BRANCH, REF, CONFIG)).thenAnswer(invocation -> {
+                nanos.set(Duration.ofSeconds(1).toNanos());
+                return new Result(Outcome.OBSERVED, new SourceConnection(SCOPE, REPO, CONFIG, true),
+                        commit(123456L, 123456L, SHA), AUTHORITY, 6);
+            });
+            var limited = new SourceValidationServiceImpl(github, store, CLOCK, VALIDITY, requests);
+            assertFailure(limited.validate(SCOPE, request()), ValidationReason.SOURCE_UNAVAILABLE);
+            verifyNoInteractions(store);
+        }
+    }
 
     @Test
     void currentShaReturnsBoundEvidenceFromTheCommittedHead() {
@@ -141,9 +159,10 @@ class SourceValidationServiceTests {
     @Test
     void providerAndWriteFailuresProduceNoEvidenceOrSecrets() {
         String secret = "Bearer secret-token credential_ref https://private.example";
+        var providerFailure = SourceApiException.unavailable(UnavailableReason.GITHUB_SOURCE_UNVERIFIED);
         when(github.readCurrent(SCOPE, REPO, TargetKind.BRANCH, REF, CONFIG))
-                .thenThrow(new SourceUnavailableException(secret));
-        assertUnavailable(service.validate(SCOPE, request()), secret);
+                .thenThrow(providerFailure);
+        assertUnavailable(service.validate(SCOPE, request()), providerFailure.getMessage());
 
         org.mockito.Mockito.reset(github);
         stubObserved(request(), commit(123456L, 123456L, SHA));

@@ -9,7 +9,8 @@ import com.livingdocs.entity.RepositoryConnectionEntity;
 import com.livingdocs.entity.SourceTargetHeadEntity.HeadState;
 import com.livingdocs.entity.SourceTargetKey;
 import com.livingdocs.entity.TrackedBranchEntity;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
 import com.livingdocs.model.SourceScope;
 import com.livingdocs.model.SourceResolveRequest;
 import com.livingdocs.model.SourceValidationRequest;
@@ -56,6 +57,44 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("db")
 @EnabledIfEnvironmentVariable(named = "DB_URL", matches = "jdbc:postgresql:.*")
 class SourceObservationPersistenceTests {
+    @Test
+    void databaseLockWaitExpiresAndKeepsTheAcceptedObservation() throws Exception {
+        SourceTargetKey target = fixture(TargetKind.BRANCH);
+        write(target, read(target), Observation.present(AUTHORITY, A));
+        var before = read(target);
+        var locked = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try (var workers = Executors.newVirtualThreadPerTaskExecutor()) {
+            var holder = workers.submit(() -> new TransactionTemplate(transactions).executeWithoutResult(tx -> {
+                tenant(target.getTenantId());
+                entityManager.createNativeQuery("""
+                        select repository_connection_id from repository.repository_connections
+                        where repository_connection_id = :id for no key update
+                        """).setParameter("id", target.getRepositoryConnectionId()).getSingleResult();
+                locked.countDown();
+                try {
+                    release.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+            try {
+                assertTrue(locked.await(2, TimeUnit.SECONDS));
+                try (var deadline = new com.livingdocs.model.SourceRequestDeadline(
+                        java.time.Duration.ofMillis(250), System::nanoTime)) {
+                    deadline.bind();
+                    org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () ->
+                            assertThrows(org.springframework.dao.DataAccessException.class,
+                                    () -> write(target, before, Observation.present(AUTHORITY, B))));
+                }
+            } finally {
+                release.countDown();
+            }
+            holder.get(2, TimeUnit.SECONDS);
+        }
+        assertEquals(A, read(target).getObservedHead().getHeadSha());
+        assertEquals(before.getObservationVersion(), read(target).getObservationVersion());
+    }
     private static final String AUTHORITY = "123456";
     private static final String FORK = "123457";
     private static final String A = "a".repeat(40);
@@ -128,15 +167,15 @@ class SourceObservationPersistenceTests {
     void resolveFailureWithholdsShaAndDoesNotCreateAnObservation() {
         SourceTargetKey target = fixture(TargetKind.BRANCH);
         var access = githubAccess(target, validationRequest(target, A));
-        String secret = "test-provider-secret";
-        when(github.readBranch(access, REF)).thenThrow(new SourceUnavailableException(secret));
+        var failure = SourceApiException.unavailable(UnavailableReason.GITHUB_SOURCE_UNVERIFIED);
+        when(github.readBranch(access, REF)).thenThrow(failure);
 
         var result = resolver.resolve(scope(target),
                 new SourceResolveRequest(target.getRepositoryConnectionId(), TargetKind.BRANCH, REF, null));
         assertEquals(ValidationReason.SOURCE_UNAVAILABLE, result.reason());
         assertNull(result.resolvedSha());
         assertNull(result.sourceRevision());
-        assertFalse(result.toString().contains(secret));
+        assertFalse(result.toString().contains(failure.getMessage()));
         assertEquals(0, read(target).getObservationVersion());
     }
 
@@ -177,7 +216,7 @@ class SourceObservationPersistenceTests {
         var access = githubAccess(target, input);
         var initial = Optional.of(commit(A));
         when(github.readBranch(access, REF)).thenReturn(initial)
-                .thenThrow(new SourceUnavailableException("Lỗi chỉ dùng trong kiểm thử"))
+                .thenThrow(SourceApiException.unavailable(UnavailableReason.GITHUB_SOURCE_UNVERIFIED))
                 .thenReturn(Optional.empty());
 
         assertEquals(ValidationReason.CURRENT, validation.validate(scope(target), input).reason());

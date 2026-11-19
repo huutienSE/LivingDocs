@@ -1,9 +1,11 @@
 package com.livingdocs.service.impl;
 
 import com.livingdocs.entity.SourceTargetHeadEntity;
+import com.livingdocs.config.SourceRequestProperties;
+import com.livingdocs.model.SourceRequestDeadline;
 import com.livingdocs.entity.SourceTargetHeadEntity.HeadState;
 import com.livingdocs.entity.SourceTargetKey;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
 import com.livingdocs.model.SourceResolveRequest;
 import com.livingdocs.model.SourceResolveResult;
 import com.livingdocs.model.SourceScope;
@@ -17,7 +19,7 @@ import jakarta.persistence.PersistenceException;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionException;
@@ -26,12 +28,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Tra SHA từ GitHub và chỉ trả kết quả sau khi PostgreSQL chấp nhận quan sát. */
 @Service
-@RequiredArgsConstructor
 public class SourceResolveServiceImpl implements SourceResolveService {
     private static final Pattern SHA = Pattern.compile("[0-9a-fA-F]{40}");
     private static final String ZERO_SHA = "0".repeat(40);
     private final GitHubSourceLookup github;
     private final JpaSourceObservationStore observations;
+    private final SourceRequestExecutor requests;
+
+    @Autowired
+    public SourceResolveServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations,
+                                    SourceRequestExecutor requests) {
+        this.github = Objects.requireNonNull(github);
+        this.observations = Objects.requireNonNull(observations);
+        this.requests = Objects.requireNonNull(requests);
+    }
+
+    public SourceResolveServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations) {
+        this(github, observations,
+                new SourceRequestExecutor(new SourceRequestProperties(SourceRequestProperties.DEFAULT_TIMEOUT), 10));
+    }
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -44,8 +59,20 @@ public class SourceResolveServiceImpl implements SourceResolveService {
             return result(scope, request, ValidationReason.INVALID_REQUEST, null, null);
         }
         try {
+            return requests.execute(() -> resolveWithinBudget(scope, request));
+        } catch (SourceApiException failure) {
+            if (!failure.isSourceUnavailable()) {
+                throw failure;
+            }
+            return result(scope, request, ValidationReason.SOURCE_UNAVAILABLE, null, null);
+        }
+    }
+
+    private SourceResolveResult resolveWithinBudget(SourceScope scope, SourceResolveRequest request) {
+        try {
             // API-069 tra cấu hình hiện hành từ S02 cùng lúc đọc phiên bản quan sát.
             var read = github.readCurrent(scope, request.repositoryConnectionId(), request.targetKind(), request.targetRef(), null);
+            SourceRequestDeadline.check();
             boolean absent = read.getOutcome() == GitHubSourceLookup.Outcome.REF_ABSENT;
             if (!absent && read.getOutcome() != GitHubSourceLookup.Outcome.OBSERVED) {
                 return result(scope, request, readFailure(read.getOutcome()), null, null);
@@ -80,8 +107,10 @@ public class SourceResolveServiceImpl implements SourceResolveService {
             var target = new SourceTargetKey(scope, request.repositoryConnectionId(), request.targetKind(), request.targetRef());
             Observation observation = absent ? Observation.absent() : Observation.present(
                     Long.toString(commit.getSourceRepositoryId()), commit.getSha().toLowerCase(Locale.ROOT));
+            SourceRequestDeadline.check();
             var written = observations.writeObservation(target, authorityId, configRevision,
                     read.getObservationVersion(), observation);
+            SourceRequestDeadline.check();
             if (written.getOutcome() != JpaSourceObservationStore.Outcome.ACCEPTED) {
                 return result(scope, request, writeFailure(written.getOutcome()), null, null);
             }
@@ -92,7 +121,10 @@ public class SourceResolveServiceImpl implements SourceResolveService {
             ValidationReason reason = request.explicitSha() == null || request.explicitSha().equalsIgnoreCase(head.getHeadSha())
                     ? ValidationReason.CURRENT : ValidationReason.STALE_SHA;
             return result(scope, request, reason, head, configRevision);
-        } catch (SourceUnavailableException | DataAccessException | PersistenceException | TransactionException failure) {
+        } catch (SourceApiException | DataAccessException | PersistenceException | TransactionException failure) {
+            if (failure instanceof SourceApiException sourceFailure && !sourceFailure.isSourceUnavailable()) {
+                throw sourceFailure;
+            }
             return result(scope, request, ValidationReason.SOURCE_UNAVAILABLE, null, null);
         }
     }
@@ -109,7 +141,7 @@ public class SourceResolveServiceImpl implements SourceResolveService {
             case CONFIG_CHANGED -> ValidationReason.CONFIG_CHANGED;
             case UNKNOWN_REF -> ValidationReason.UNKNOWN_REF;
             case SOURCE_UNAVAILABLE -> ValidationReason.SOURCE_UNAVAILABLE;
-            case OBSERVED, REF_ABSENT -> throw new IllegalArgumentException("Quan sát đã xác minh cần được ghi.");
+            case OBSERVED, REF_ABSENT -> throw new IllegalArgumentException("Verified observation must be persisted before returning a result");
         };
     }
 
@@ -120,7 +152,7 @@ public class SourceResolveServiceImpl implements SourceResolveService {
             case CONFIG_CHANGED -> ValidationReason.CONFIG_CHANGED;
             case UNKNOWN_REF -> ValidationReason.UNKNOWN_REF;
             case OBSERVATION_CONFLICT -> ValidationReason.SOURCE_OBSERVATION_CONFLICT;
-            case ACCEPTED -> throw new IllegalArgumentException("Quan sát đã được ghi.");
+            case ACCEPTED -> throw new IllegalArgumentException("An accepted observation is not a write failure");
         };
     }
 

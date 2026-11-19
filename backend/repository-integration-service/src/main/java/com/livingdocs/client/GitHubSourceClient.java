@@ -1,7 +1,8 @@
 package com.livingdocs.client;
 
 import com.livingdocs.client.GitHubInstallationTokenProvider.RepositoryAccess;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
 import com.livingdocs.model.TargetKind;
 import java.util.Locale;
 import java.util.Map;
@@ -190,7 +191,7 @@ public final class GitHubSourceClient {
         boolean exhausted = "0".equals(headers.getFirst("X-RateLimit-Remaining"));
         if (rateLimitReported || exhausted || retryAfter != null) {
             String reset = secondsHeader(headers.getFirst("X-RateLimit-Reset"));
-            LOG.warn("GitHub giới hạn tần suất, retryAfterSeconds={}, rateLimitResetEpochSeconds={}", retryAfter, reset);
+            LOG.warn("GitHub rate limit reached, retryAfterSeconds={}, rateLimitResetEpochSeconds={}", retryAfter, reset);
             return true;
         }
         return false;
@@ -234,8 +235,8 @@ public final class GitHubSourceClient {
         return sha.toLowerCase(Locale.ROOT);
     }
 
-    private static SourceUnavailableException unavailable() {
-        return new SourceUnavailableException("Không xác minh được dữ liệu nguồn từ GitHub.");
+    private static SourceApiException unavailable() {
+        return SourceApiException.unavailable(UnavailableReason.GITHUB_SOURCE_UNVERIFIED);
     }
 
     /** Quan sát từ GitHub trước khi PostgreSQL cấp phiên bản nguồn. */

@@ -3,7 +3,7 @@ package com.livingdocs.service.impl;
 import com.livingdocs.client.GitHubInstallationTokenProvider;
 import com.livingdocs.client.GitHubSourceClient;
 import com.livingdocs.client.GitHubSourceClient.CommitObservation;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
 import com.livingdocs.model.SourceConnection;
 import com.livingdocs.model.SourceScope;
 import com.livingdocs.model.TargetKind;
@@ -63,7 +63,10 @@ public class GitHubSourceLookupImpl implements GitHubSourceLookup {
             Outcome outcome = observation.isPresent() ? Outcome.OBSERVED : Outcome.REF_ABSENT;
             return new Result(outcome, connection, observation.orElse(null),
                     target.getExternalRepoId(), target.getObservationVersion());
-        } catch (SourceUnavailableException | PersistenceException | DataAccessException | TransactionException failure) {
+        } catch (SourceApiException | PersistenceException | DataAccessException | TransactionException failure) {
+            if (failure instanceof SourceApiException sourceFailure && !sourceFailure.isSourceUnavailable()) {
+                throw sourceFailure;
+            }
             return failure(Outcome.SOURCE_UNAVAILABLE);
         }
     }

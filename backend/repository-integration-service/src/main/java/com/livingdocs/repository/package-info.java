@@ -14,4 +14,4 @@
  * <p>Tra được source revision hoặc receipt không chứng minh GitHub còn hiện hành;
  * logic xác minh phải kiểm tra SHA/ref/config/freshness tại thời điểm sử dụng.
  */
-package com.livingdocs.repository.repository;
+package com.livingdocs.repository;

@@ -13,7 +13,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.livingdocs.config.GitHubAppProperties;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
 import com.livingdocs.model.SourceScope;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -131,7 +131,7 @@ class GitHubInstallationTokenProviderTests {
     void rejectsMissingIdentityOrABroaderRepoGrant(String repositoryResponse) {
         expectToken(TOKEN_RESPONSE);
         expectRepositories(repositoryResponse);
-        assertThrows(SourceUnavailableException.class, this::open);
+        assertThrows(SourceApiException.class, this::open);
         server.verify();
     }
 
@@ -139,14 +139,14 @@ class GitHubInstallationTokenProviderTests {
     @ValueSource(strings = {"2026-11-15T00:01:00Z", "not-a-timestamp"})
     void refusesTokenWithoutEnoughRemainingLifetime(String expiry) {
         expectToken(TOKEN_RESPONSE.replace("2026-11-15T01:00:00Z", expiry));
-        assertThrows(SourceUnavailableException.class, this::open);
+        assertThrows(SourceApiException.class, this::open);
         server.verify();
     }
 
     @Test
     void refusesAWritePermissionBeforeListingRepos() {
         expectToken(TOKEN_RESPONSE.replace("\"contents\":\"read\"", "\"contents\":\"write\""));
-        assertThrows(SourceUnavailableException.class, this::open);
+        assertThrows(SourceApiException.class, this::open);
         server.verify();
     }
 
@@ -159,7 +159,7 @@ class GitHubInstallationTokenProviderTests {
         expectRepositories(REPOSITORY_RESPONSE);
 
         open();
-        var failure = assertThrows(SourceUnavailableException.class, this::open);
+        var failure = assertThrows(SourceApiException.class, this::open);
         assertFalse(failure.getMessage().contains(TEST_TOKEN));
         assertNull(failure.getCause());
         open();
@@ -170,15 +170,15 @@ class GitHubInstallationTokenProviderTests {
     void rejectsRedirectAndDoesNotUseLocation() {
         server.expect(requestTo(TOKEN_URL))
                 .andRespond(withStatus(HttpStatus.FOUND).location(URI.create("https://example.com/")));
-        assertThrows(SourceUnavailableException.class, this::open);
+        assertThrows(SourceApiException.class, this::open);
         server.verify();
     }
 
     @Test
     void refusesAnUnconfiguredKeyAndAnInvalidReferenceBeforeSendingHttp() {
-        assertThrows(SourceUnavailableException.class,
+        assertThrows(SourceApiException.class,
                 () -> provider.openRepository(scope, "101", "202", "missing.pem", "v1:12:17"));
-        assertThrows(SourceUnavailableException.class,
+        assertThrows(SourceApiException.class,
                 () -> provider.openRepository(scope, "101", "202", "../fixture.pem", "v1:12:17"));
         server.verify();
     }

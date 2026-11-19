@@ -5,7 +5,8 @@ import com.livingdocs.client.GitHubInstallationTokenProvider.RepositoryAccess;
 import com.livingdocs.client.GitHubSourceClient;
 import com.livingdocs.client.GitHubSourceClient.CommitObservation;
 import com.livingdocs.entity.TrackedBranchEntity;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
+import com.livingdocs.exception.SourceApiException.UnavailableReason;
 import com.livingdocs.model.*;
 import com.livingdocs.service.GitHubSourceLookup;
 import com.livingdocs.service.GitHubSourceLookup.Outcome;
@@ -161,7 +162,7 @@ class JpaConnectionLookupTests {
         String revision = connection(fixture).configRevision();
         RepositoryAccess access = authorize(fixture, revision);
         when(github.readPullRequest(access, Integer.MAX_VALUE)).thenReturn(Optional.empty())
-                .thenThrow(new SourceUnavailableException("Chi tiết lỗi chỉ dành cho kiểm thử"));
+                .thenThrow(SourceApiException.unavailable(UnavailableReason.GITHUB_SOURCE_UNVERIFIED));
 
         var absent = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.PR,
                 Integer.toString(Integer.MAX_VALUE), revision);

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -20,7 +21,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.livingdocs.client.GitHubInstallationTokenProvider.RepositoryAccess;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
 import java.net.SocketTimeoutException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,46 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 class GitHubSourceClientTests {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void realHttpWaitIsLimitedByTheRemainingRequestBudget(boolean stallsBody) throws Exception {
+        var http = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var handlers = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+        http.setExecutor(handlers);
+        http.createContext("/graphql", exchange -> {
+            try {
+                if (!stallsBody) {
+                    Thread.sleep(1500);
+                }
+                exchange.sendResponseHeaders(200, 2);
+                exchange.getResponseBody().write('{');
+                exchange.getResponseBody().flush();
+                if (stallsBody) {
+                    Thread.sleep(1500);
+                }
+                exchange.getResponseBody().write('}');
+            } catch (Exception ignored) {
+            } finally {
+                exchange.close();
+            }
+        });
+        http.start();
+        RestClient.Builder realBuilder = GitHubHttp.clientBuilder()
+                .baseUrl("http://127.0.0.1:" + http.getAddress().getPort());
+        // Constructor của client cố định host GitHub. Dùng cùng transport qua RestClient để đo timeout thực.
+        RestClient real = realBuilder.build();
+        try (var deadline = new com.livingdocs.model.SourceRequestDeadline(
+                java.time.Duration.ofMillis(200), System::nanoTime)) {
+            deadline.bind();
+            assertTimeout(java.time.Duration.ofSeconds(1), () ->
+                    assertThrows(org.springframework.web.client.ResourceAccessException.class,
+                            () -> real.post().uri("/graphql").exchange((request, response) ->
+                                    GitHubHttp.readBody(response, JsonMapper.builder().build()))));
+        } finally {
+            http.stop(0);
+            handlers.shutdownNow();
+        }
+    }
     private static final long REPO = 9007199254740993L;
     private static final long FORK = 9007199254740995L;
     private static final String NODE_ID = "R_github_fixture";
@@ -107,7 +148,7 @@ class GitHubSourceClientTests {
         String body = "{\"errors\":[{\"type\":\"" + errorType + "\",\"path\":[\"node\",\"ref\"]}],"
                 + response("\"ref\":null").substring(1);
         graphql().andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
+        assertThrows(SourceApiException.class, () -> github.readBranch(access, REF));
         if ("RATE_LIMITED".equals(errorType)) {
             verifyNoInteractions(tokens);
         } else {
@@ -119,7 +160,7 @@ class GitHubSourceClientTests {
     @MethodSource("unverifiedBranches")
     void rejectsUnverifiedBranchResponses(String scenario, String body) {
         graphql().andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
+        assertThrows(SourceApiException.class, () -> github.readBranch(access, REF));
     }
 
     static Stream<Arguments> unverifiedBranches() {
@@ -143,7 +184,7 @@ class GitHubSourceClientTests {
     @MethodSource("unverifiedPullRequests")
     void rejectsUnverifiedPullRequests(String scenario, String pullRequest) {
         graphql().andRespond(withSuccess(response("\"pullRequest\":" + pullRequest), MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readPullRequest(access, 42));
+        assertThrows(SourceApiException.class, () -> github.readPullRequest(access, 42));
     }
 
     static Stream<Arguments> unverifiedPullRequests() {
@@ -159,7 +200,7 @@ class GitHubSourceClientTests {
     @ValueSource(ints = {302, 401, 403, 404, 429, 500})
     void httpErrorsFailClosedAndHideProviderDetails(int status) {
         graphql().andRespond(withStatus(HttpStatus.valueOf(status)).body(SECRET));
-        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
+        var failure = assertThrows(SourceApiException.class, () -> github.readBranch(access, REF));
         assertFalse(failure.getMessage().contains(SECRET));
         assertNull(failure.getCause());
         if (status == 401 || status == 403) {
@@ -170,7 +211,7 @@ class GitHubSourceClientTests {
     @Test
     void timeoutFailsClosedAndHidesProviderDetails() {
         graphql().andRespond(withException(new SocketTimeoutException(SECRET)));
-        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
+        var failure = assertThrows(SourceApiException.class, () -> github.readBranch(access, REF));
         assertFalse(failure.getMessage().contains(SECRET));
         assertNull(failure.getCause());
     }

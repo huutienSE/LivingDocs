@@ -42,7 +42,7 @@ public class SourceTargetKey implements Serializable {
         this.repositoryConnectionId = Objects.requireNonNull(repositoryConnectionId);
         this.targetKind = Objects.requireNonNull(targetKind);
         if (!targetKind.isValidRef(targetRef)) {
-            throw new IllegalArgumentException("Tham chiếu đích nguồn không hợp lệ.");
+            throw new IllegalArgumentException("Source target reference is invalid");
         }
         this.targetRef = targetRef;
     }

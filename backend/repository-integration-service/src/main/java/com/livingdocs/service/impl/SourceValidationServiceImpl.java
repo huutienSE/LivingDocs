@@ -1,10 +1,12 @@
 package com.livingdocs.service.impl;
 
 import com.livingdocs.config.SourceValidationProperties;
+import com.livingdocs.config.SourceRequestProperties;
+import com.livingdocs.model.SourceRequestDeadline;
 import com.livingdocs.entity.SourceTargetHeadEntity;
 import com.livingdocs.entity.SourceTargetHeadEntity.HeadState;
 import com.livingdocs.entity.SourceTargetKey;
-import com.livingdocs.exception.SourceUnavailableException;
+import com.livingdocs.exception.SourceApiException;
 import com.livingdocs.model.SourceConnection;
 import com.livingdocs.model.SourceScope;
 import com.livingdocs.model.SourceValidationRequest;
@@ -41,8 +43,14 @@ public class SourceValidationServiceImpl implements SourceValidationService {
     private final JpaSourceObservationStore observations;
     private final Clock clock;
     private final Duration validity;
+    private final SourceRequestExecutor requests;
 
     @Autowired
+    public SourceValidationServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations,
+                                       SourceValidationProperties properties, SourceRequestExecutor requests) {
+        this(github, observations, Clock.systemUTC(), properties.getValidity(), requests);
+    }
+
     public SourceValidationServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations,
                                        SourceValidationProperties properties) {
         this(github, observations, Clock.systemUTC(), properties.getValidity());
@@ -50,13 +58,20 @@ public class SourceValidationServiceImpl implements SourceValidationService {
 
     public SourceValidationServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations,
                                        Clock clock, Duration validity) {
+        this(github, observations, clock, validity,
+                new SourceRequestExecutor(new SourceRequestProperties(SourceRequestProperties.DEFAULT_TIMEOUT), 10));
+    }
+
+    public SourceValidationServiceImpl(GitHubSourceLookup github, JpaSourceObservationStore observations,
+                                       Clock clock, Duration validity, SourceRequestExecutor requests) {
         this.github = Objects.requireNonNull(github);
         this.observations = Objects.requireNonNull(observations);
         this.clock = Objects.requireNonNull(clock);
         if (validity == null || validity.isNegative() || validity.isZero()) {
-            throw new IllegalArgumentException("Thời hạn hiệu lực phải dương và được cấu hình rõ ràng");
+            throw new IllegalArgumentException("Source validation evidence lifetime must be configured and positive");
         }
         this.validity = validity;
+        this.requests = Objects.requireNonNull(requests);
     }
 
     @Override
@@ -71,8 +86,21 @@ public class SourceValidationServiceImpl implements SourceValidationService {
             return result(validationId, scope, request, ValidationReason.INVALID_REQUEST, null, checkedAt, expiresAt);
         }
         try {
+            return requests.execute(() -> validateWithinBudget(scope, request, validationId, checkedAt, expiresAt));
+        } catch (SourceApiException failure) {
+            if (!failure.isSourceUnavailable()) {
+                throw failure;
+            }
+            return result(validationId, scope, request, ValidationReason.SOURCE_UNAVAILABLE, null, checkedAt, expiresAt);
+        }
+    }
+
+    private SourceValidationResult validateWithinBudget(SourceScope scope, SourceValidationRequest request,
+                                                        UUID validationId, Instant checkedAt, Instant expiresAt) {
+        try {
             var read = github.readCurrent(scope, request.repositoryConnectionId(), request.targetKind(),
                     request.targetRef(), request.expectedConfigRevision());
+            SourceRequestDeadline.check();
             boolean absent = read.getOutcome() == GitHubSourceLookup.Outcome.REF_ABSENT;
             if (!absent && read.getOutcome() != GitHubSourceLookup.Outcome.OBSERVED) {
                 return result(validationId, scope, request, readFailure(read.getOutcome()), null, checkedAt, expiresAt);
@@ -103,8 +131,10 @@ public class SourceValidationServiceImpl implements SourceValidationService {
             var target = new SourceTargetKey(scope, request.repositoryConnectionId(), request.targetKind(), request.targetRef());
             Observation observation = absent ? Observation.absent()
                     : Observation.present(Long.toString(commit.getSourceRepositoryId()), commit.getSha());
+            SourceRequestDeadline.check();
             var written = observations.writeObservation(target, authorityId, request.expectedConfigRevision(),
                     read.getObservationVersion(), observation);
+            SourceRequestDeadline.check();
             if (written.getOutcome() != JpaSourceObservationStore.Outcome.ACCEPTED) {
                 return result(validationId, scope, request, writeFailure(written.getOutcome()), null, checkedAt, expiresAt);
             }
@@ -118,7 +148,10 @@ public class SourceValidationServiceImpl implements SourceValidationService {
             ValidationReason reason = request.expectedHeadSha().equalsIgnoreCase(head.getHeadSha())
                     ? ValidationReason.CURRENT : ValidationReason.STALE_SHA;
             return result(validationId, scope, request, reason, head, checkedAt, expiresAt);
-        } catch (SourceUnavailableException | DataAccessException | PersistenceException | TransactionException ignored) {
+        } catch (SourceApiException | DataAccessException | PersistenceException | TransactionException failure) {
+            if (failure instanceof SourceApiException sourceFailure && !sourceFailure.isSourceUnavailable()) {
+                throw sourceFailure;
+            }
             // Không chuyển lỗi cơ sở dữ liệu, thông tin xác thực hay lỗi GitHub ra bằng chứng.
             return result(validationId, scope, request, ValidationReason.SOURCE_UNAVAILABLE, null, checkedAt, expiresAt);
         }
@@ -132,7 +165,7 @@ public class SourceValidationServiceImpl implements SourceValidationService {
             case CONFIG_CHANGED -> ValidationReason.CONFIG_CHANGED;
             case UNKNOWN_REF -> ValidationReason.UNKNOWN_REF;
             case SOURCE_UNAVAILABLE -> ValidationReason.SOURCE_UNAVAILABLE;
-            case OBSERVED, REF_ABSENT -> throw new IllegalArgumentException("Quan sát đã xác minh cần được ghi.");
+            case OBSERVED, REF_ABSENT -> throw new IllegalArgumentException("Verified observation must be persisted before returning a result");
         };
     }
 
@@ -143,7 +176,7 @@ public class SourceValidationServiceImpl implements SourceValidationService {
             case CONFIG_CHANGED -> ValidationReason.CONFIG_CHANGED;
             case UNKNOWN_REF -> ValidationReason.UNKNOWN_REF;
             case OBSERVATION_CONFLICT -> ValidationReason.SOURCE_OBSERVATION_CONFLICT;
-            case ACCEPTED -> throw new IllegalArgumentException("Quan sát đã được ghi.");
+            case ACCEPTED -> throw new IllegalArgumentException("An accepted observation is not a write failure");
         };
     }
 
