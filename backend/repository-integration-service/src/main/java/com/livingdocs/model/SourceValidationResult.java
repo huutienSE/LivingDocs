@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
-/** Quan sát trong một lần xác minh; chưa phải biên nhận đã ký hoặc lưu bền vững. */
+/** Kết quả của một lần xác minh. sourceRevision lấy từ quan sát đã được PostgreSQL chấp nhận. */
 @Value
 @Accessors(fluent = true)
 public class SourceValidationResult {

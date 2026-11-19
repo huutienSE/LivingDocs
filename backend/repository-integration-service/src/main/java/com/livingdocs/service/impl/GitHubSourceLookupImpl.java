@@ -30,9 +30,8 @@ public class GitHubSourceLookupImpl implements GitHubSourceLookup {
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Result readCurrent(SourceScope scope, UUID connectionId, TargetKind kind, String ref,
-                              String expectedConfigRevision, boolean includeTree) {
+                              String expectedConfigRevision) {
         if (scope == null || connectionId == null || kind == null || !kind.isValidRef(ref)
-                || (expectedConfigRevision == null && !includeTree)
                 || (expectedConfigRevision != null && (expectedConfigRevision.isBlank() || expectedConfigRevision.length() > 255))) {
             return failure(Outcome.INVALID_REQUEST);
         }
@@ -58,17 +57,18 @@ public class GitHubSourceLookupImpl implements GitHubSourceLookup {
             var access = tokens.openRepository(scope, target.getInstallationRef(), target.getExternalRepoId(),
                     target.getCredentialRef(), connection.configRevision());
             Optional<CommitObservation> observation = switch (kind) {
-                case BRANCH -> github.readBranch(access, ref, includeTree);
-                case PR -> github.readPullRequest(access, Integer.parseInt(ref), includeTree);
+                case BRANCH -> github.readBranch(access, ref);
+                case PR -> github.readPullRequest(access, Integer.parseInt(ref));
             };
-            return observation.map(commit -> new Result(Outcome.OBSERVED, connection, commit))
-                    .orElseGet(() -> new Result(Outcome.REF_ABSENT, connection, null));
+            Outcome outcome = observation.isPresent() ? Outcome.OBSERVED : Outcome.REF_ABSENT;
+            return new Result(outcome, connection, observation.orElse(null),
+                    target.getExternalRepoId(), target.getObservationVersion());
         } catch (SourceUnavailableException | PersistenceException | DataAccessException | TransactionException failure) {
             return failure(Outcome.SOURCE_UNAVAILABLE);
         }
     }
 
     private static Result failure(Outcome outcome) {
-        return new Result(outcome, null, null);
+        return new Result(outcome, null, null, null, 0);
     }
 }

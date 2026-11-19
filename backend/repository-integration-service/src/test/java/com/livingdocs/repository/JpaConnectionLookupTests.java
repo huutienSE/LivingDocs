@@ -10,13 +10,10 @@ import com.livingdocs.model.*;
 import com.livingdocs.service.GitHubSourceLookup;
 import com.livingdocs.service.GitHubSourceLookup.Outcome;
 import com.livingdocs.service.SourceValidationService;
-import com.livingdocs.service.impl.SourceValidationServiceImpl;
 import com.livingdocs.entity.GithubConnectionEntity;
 import com.livingdocs.entity.RepositoryConnectionEntity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +47,7 @@ class JpaConnectionLookupTests {
     private static final String TRACKED_REF = "refs/heads/Release/v1";
     @Autowired private ConnectionLookup lookup;
     @Autowired private GitHubSourceLookup sourceLookup;
+    @Autowired private SourceValidationService validation;
     @Autowired private PlatformTransactionManager transactions;
     @PersistenceContext private EntityManager entityManager;
     @MockitoBean private GitHubInstallationTokenProvider tokens;
@@ -113,20 +111,20 @@ class JpaConnectionLookupTests {
 
         for (String ref : List.of("2147483648", "0", "042", "-1")) {
             assertEquals(Outcome.INVALID_REQUEST, sourceLookup.readCurrent(
-                    active.scope(), active.repositoryId(), TargetKind.PR, ref, revision, false).getOutcome());
+                    active.scope(), active.repositoryId(), TargetKind.PR, ref, revision).getOutcome());
         }
         assertEquals(Outcome.UNKNOWN_CONNECTION, sourceLookup.readCurrent(
                 new SourceScope(active.scope().tenantId(), UUID.randomUUID()), active.repositoryId(),
-                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+                TargetKind.BRANCH, TRACKED_REF, revision).getOutcome());
         assertEquals(Outcome.UNKNOWN_CONNECTION, sourceLookup.readCurrent(
                 new SourceScope(UUID.randomUUID(), active.scope().workspaceId()), active.repositoryId(),
-                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+                TargetKind.BRANCH, TRACKED_REF, revision).getOutcome());
         assertEquals(Outcome.CONNECTION_INACTIVE, sourceLookup.readCurrent(inactive.scope(), inactive.repositoryId(),
-                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+                TargetKind.BRANCH, TRACKED_REF, revision).getOutcome());
         assertEquals(Outcome.CONFIG_CHANGED, sourceLookup.readCurrent(active.scope(), active.repositoryId(),
-                TargetKind.BRANCH, TRACKED_REF, "old-config", false).getOutcome());
+                TargetKind.BRANCH, TRACKED_REF, "old-config").getOutcome());
         assertEquals(Outcome.UNKNOWN_REF, sourceLookup.readCurrent(active.scope(), active.repositoryId(),
-                TargetKind.BRANCH, TRACKED_REF, revision, false).getOutcome());
+                TargetKind.BRANCH, TRACKED_REF, revision).getOutcome());
         verifyNoInteractions(tokens, github);
     }
 
@@ -137,7 +135,7 @@ class JpaConnectionLookupTests {
         String revision = connection(fixture).configRevision();
         RepositoryAccess access = authorize(fixture, revision);
         CommitObservation commit = mock(CommitObservation.class);
-        when(github.readBranch(access, TRACKED_REF, false)).thenAnswer(invocation -> {
+        when(github.readBranch(access, TRACKED_REF)).thenAnswer(invocation -> {
             assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
             return Optional.of(commit);
         });
@@ -145,7 +143,7 @@ class JpaConnectionLookupTests {
         new TransactionTemplate(transactions).executeWithoutResult(transaction -> {
             tenant(fixture.scope().tenantId());
             var result = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.BRANCH,
-                    TRACKED_REF, revision, false);
+                    TRACKED_REF, revision);
             assertEquals(Outcome.OBSERVED, result.getOutcome());
             assertSame(commit, result.getCommit());
             assertEquals(revision, result.getConnection().configRevision());
@@ -154,7 +152,7 @@ class JpaConnectionLookupTests {
                     .createNativeQuery("select current_setting('app.tenant_id')").getSingleResult());
         });
         assertEquals(Outcome.UNKNOWN_REF, sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(),
-                TargetKind.BRANCH, "refs/heads/release/v1", revision, false).getOutcome());
+                TargetKind.BRANCH, "refs/heads/release/v1", revision).getOutcome());
     }
 
     @Test
@@ -162,15 +160,15 @@ class JpaConnectionLookupTests {
         Fixture fixture = fixture("ACTIVE", "READY_TEST");
         String revision = connection(fixture).configRevision();
         RepositoryAccess access = authorize(fixture, revision);
-        when(github.readPullRequest(access, Integer.MAX_VALUE, false)).thenReturn(Optional.empty())
+        when(github.readPullRequest(access, Integer.MAX_VALUE)).thenReturn(Optional.empty())
                 .thenThrow(new SourceUnavailableException("Chi tiết lỗi chỉ dành cho kiểm thử"));
 
         var absent = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.PR,
-                Integer.toString(Integer.MAX_VALUE), revision, false);
+                Integer.toString(Integer.MAX_VALUE), revision);
         assertEquals(Outcome.REF_ABSENT, absent.getOutcome());
         assertNull(absent.getCommit());
         var unavailable = sourceLookup.readCurrent(fixture.scope(), fixture.repositoryId(), TargetKind.PR,
-                Integer.toString(Integer.MAX_VALUE), revision, false);
+                Integer.toString(Integer.MAX_VALUE), revision);
         assertEquals(Outcome.SOURCE_UNAVAILABLE, unavailable.getOutcome());
         assertNull(unavailable.getCommit());
     }
@@ -241,10 +239,7 @@ class JpaConnectionLookupTests {
         String afterRepositoryChange = connection(fixture).configRevision();
         assertNotEquals(original, afterRepositoryChange);
 
-        SourceValidationService service = new SourceValidationServiceImpl(lookup,
-                (connection, kind, ref) -> fail("Không được gọi GitHub khi cấu hình đã thay đổi"),
-                Clock.systemUTC(), Duration.ofSeconds(30));
-        assertEquals(ValidationReason.CONFIG_CHANGED, service.validate(fixture.scope(),
+        assertEquals(ValidationReason.CONFIG_CHANGED, validation.validate(fixture.scope(),
                 new SourceValidationRequest(fixture.repositoryId(), TargetKind.BRANCH,
                         "refs/heads/main", "a".repeat(40), original)).reason());
 
@@ -256,23 +251,10 @@ class JpaConnectionLookupTests {
                     """).setParameter("id", fixture.githubId()).executeUpdate());
         });
         assertNotEquals(afterRepositoryChange, connection(fixture).configRevision());
-        assertEquals(ValidationReason.CONFIG_CHANGED, service.validate(fixture.scope(),
+        assertEquals(ValidationReason.CONFIG_CHANGED, validation.validate(fixture.scope(),
                 new SourceValidationRequest(fixture.repositoryId(), TargetKind.BRANCH,
                         "refs/heads/main", "a".repeat(40), afterRepositoryChange)).reason());
-    }
-
-    @Test
-    void validationCanUseARealDatabaseLookupAndAnExplicitTestHeadProvider() {
-        Fixture fixture = fixture("ACTIVE", "READY_TEST");
-        String revision = connection(fixture).configRevision();
-        SourceValidationService service = new SourceValidationServiceImpl(lookup,
-                (connection, kind, ref) -> Optional.of(new SourceHead(connection.scope(),
-                        connection.repositoryConnectionId(), kind, ref, "a".repeat(40), connection.configRevision(), "test-fence")),
-                Clock.systemUTC(), Duration.ofSeconds(30));
-        SourceValidationResult result = service.validate(fixture.scope(),
-                new SourceValidationRequest(fixture.repositoryId(), TargetKind.BRANCH, "refs/heads/main", "a".repeat(40), revision));
-        assertEquals(ValidationStatus.PASS, result.validationStatus());
-        assertEquals(ValidationReason.CURRENT, result.reason());
+        verifyNoInteractions(tokens, github);
     }
 
     @Test

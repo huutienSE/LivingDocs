@@ -5,6 +5,7 @@ import com.livingdocs.repository.ConnectionLookup;
 import com.livingdocs.repository.GithubConnectionRepository;
 import com.livingdocs.repository.JpaConnectionLookup;
 import com.livingdocs.repository.RepositoryConnectionRepository;
+import com.livingdocs.repository.SourceTargetHeadRepository;
 import com.livingdocs.repository.TrackedBranchRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -26,8 +27,9 @@ public class ConnectionLookupConfiguration {
     @ConditionalOnMissingBean(ConnectionLookup.class)
     JpaConnectionLookup connectionLookup(EntityManager entityManager, RepositoryConnectionRepository repositories,
                                          GithubConnectionRepository githubConnections, TrackedBranchRepository trackedBranches,
+                                         SourceTargetHeadRepository sourceHeads,
                                          ConfigurationRevisionLookup revisions, ConnectionLookupProperties properties) {
-        return new JpaConnectionLookup(entityManager, repositories, githubConnections, trackedBranches, revisions,
+        return new JpaConnectionLookup(entityManager, repositories, githubConnections, trackedBranches, sourceHeads, revisions,
                 properties.githubReadyStatuses());
     }
 }

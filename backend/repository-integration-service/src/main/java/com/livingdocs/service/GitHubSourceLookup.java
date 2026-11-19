@@ -10,9 +10,9 @@ import lombok.RequiredArgsConstructor;
 
 /** Kiểm tra phạm vi kết nối và đọc dữ liệu nguồn mới từ GitHub. */
 public interface GitHubSourceLookup {
-    /** expectedConfigRevision chỉ được bỏ trống khi đọc cho luồng ảnh chụp. */
+    /** Nếu bên gọi cung cấp expectedConfigRevision, cấu hình phải khớp trước khi đọc GitHub. */
     Result readCurrent(SourceScope scope, UUID connectionId, TargetKind kind, String ref,
-                       String expectedConfigRevision, boolean includeTree);
+                       String expectedConfigRevision);
 
     enum Outcome {
         OBSERVED, INVALID_REQUEST, UNKNOWN_CONNECTION, CONNECTION_INACTIVE, CONFIG_CHANGED,
@@ -26,5 +26,7 @@ public interface GitHubSourceLookup {
         private final Outcome outcome;
         private final SourceConnection connection;
         private final CommitObservation commit;
+        private final String authorityRepositoryId;
+        private final long observationVersion;
     }
 }

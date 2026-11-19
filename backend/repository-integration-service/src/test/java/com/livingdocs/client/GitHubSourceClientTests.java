@@ -46,7 +46,6 @@ class GitHubSourceClientTests {
     private static final String REF = "refs/heads/Release/v1";
     private static final String SHA = "a".repeat(40);
     private static final String MERGE_SHA = "b".repeat(40);
-    private static final String TREE = "c".repeat(40);
     private static final String SECRET = "test_installation_token";
 
     private final GitHubInstallationTokenProvider tokens = mock(GitHubInstallationTokenProvider.class);
@@ -73,53 +72,33 @@ class GitHubSourceClientTests {
     }
 
     @Test
-    void readsExactBranchAndNormalizesCommitAndTreeWithoutLosingRepositoryIdPrecision() {
+    void readsExactBranchAndNormalizesShaWithoutLosingRepositoryIdPrecision() {
         graphql().andExpect(jsonPath("$.variables.targetRef").value(REF))
-                .andExpect(jsonPath("$.variables.includeTree").value(true))
                 .andRespond(withSuccess(response("\"ref\":" + branch("Release/v1", REPO,
-                        commit("A".repeat(40), "C".repeat(40)))), MediaType.APPLICATION_JSON));
+                        commit("A".repeat(40)))), MediaType.APPLICATION_JSON));
 
-        var result = github.readBranch(access, REF, true).orElseThrow();
+        var result = github.readBranch(access, REF).orElseThrow();
         assertEquals(REPO, result.getQueriedRepositoryId());
         assertEquals(REPO, result.getSourceRepositoryId());
         assertEquals(SHA, result.getSha());
-        assertEquals(TREE, result.getTreeSha());
     }
 
     @Test
-    void readsForkHeadForTheExactPullRequestAndSkipsTreeForValidation() {
+    void readsForkHeadShaForTheExactPullRequest() {
         graphql().andExpect(jsonPath("$.variables.prNumber").value(42))
-                .andExpect(jsonPath("$.variables.includeTree").value(false))
                 .andRespond(withSuccess(response("\"pullRequest\":" + pullRequest(42, REPO, FORK, FORK, SHA,
-                        commit(SHA, null))), MediaType.APPLICATION_JSON));
+                        commit(SHA))), MediaType.APPLICATION_JSON));
 
-        var result = github.readPullRequest(access, 42, false).orElseThrow();
+        var result = github.readPullRequest(access, 42).orElseThrow();
         assertEquals(REPO, result.getQueriedRepositoryId());
         assertEquals(FORK, result.getSourceRepositoryId());
         assertEquals(SHA, result.getSha());
-        assertNull(result.getTreeSha());
-    }
-
-    @Test
-    void readsPinnedCommitUsingExactOidAndRequiresATree() {
-        graphql().andExpect(jsonPath("$.variables.explicitSha").value(SHA))
-                .andRespond(withSuccess(response("\"object\":" + commit(SHA, TREE)), MediaType.APPLICATION_JSON));
-
-        var result = github.readPinnedCommit(access, "A".repeat(40)).orElseThrow();
-        assertEquals(SHA, result.getSha());
-        assertEquals(TREE, result.getTreeSha());
-    }
-
-    @Test
-    void rejectsPinnedObjectWithDifferentOid() {
-        graphql().andRespond(withSuccess(response("\"object\":" + commit(MERGE_SHA, TREE)), MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readPinnedCommit(access, SHA));
     }
 
     @Test
     void returnsAbsenceForAnExplicitNullRefOnlyOnTheVerifiedRepository() {
         graphql().andRespond(withSuccess(response("\"ref\":null"), MediaType.APPLICATION_JSON));
-        assertTrue(github.readBranch(access, REF, false).isEmpty());
+        assertTrue(github.readBranch(access, REF).isEmpty());
     }
 
     @ParameterizedTest
@@ -128,7 +107,7 @@ class GitHubSourceClientTests {
         String body = "{\"errors\":[{\"type\":\"" + errorType + "\",\"path\":[\"node\",\"ref\"]}],"
                 + response("\"ref\":null").substring(1);
         graphql().andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF, false));
+        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
         if ("RATE_LIMITED".equals(errorType)) {
             verifyNoInteractions(tokens);
         } else {
@@ -140,22 +119,22 @@ class GitHubSourceClientTests {
     @MethodSource("unverifiedBranches")
     void rejectsUnverifiedBranchResponses(String scenario, String body) {
         graphql().andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF, true));
+        assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
     }
 
     static Stream<Arguments> unverifiedBranches() {
         return Stream.of(
-                Arguments.of("GitHub trả tên nhánh khớp một phần", response("\"ref\":" + branch("v1", REPO, commit(SHA, TREE)))),
-                Arguments.of("Nhánh khác hoa thường", response("\"ref\":" + branch("release/v1", REPO, commit(SHA, TREE)))),
-                Arguments.of("Nhánh thuộc kho khác", response("\"ref\":" + branch("Release/v1", FORK, commit(SHA, TREE)))),
+                Arguments.of("GitHub trả tên nhánh khớp một phần", response("\"ref\":" + branch("v1", REPO, commit(SHA)))),
+                Arguments.of("Nhánh khác hoa thường", response("\"ref\":" + branch("release/v1", REPO, commit(SHA)))),
+                Arguments.of("Nhánh thuộc kho khác", response("\"ref\":" + branch("Release/v1", FORK, commit(SHA)))),
                 Arguments.of("Kho ngoài phạm vi", response("\"ref\":null").replaceFirst(Long.toString(REPO), Long.toString(FORK))),
                 Arguments.of("Thiếu trường ref", response("\"unrelated\":null")),
                 Arguments.of("Không phải commit", response("\"ref\":" + branch("Release/v1", REPO,
-                        commit(SHA, TREE).replace("\"Commit\"", "\"Tag\"")))),
-                Arguments.of("SHA toàn số không", response("\"ref\":" + branch("Release/v1", REPO, commit("0".repeat(40), TREE)))),
+                        commit(SHA).replace("\"Commit\"", "\"Tag\"")))),
+                Arguments.of("SHA toàn số không", response("\"ref\":" + branch("Release/v1", REPO, commit("0".repeat(40))))),
                 Arguments.of("SHA kiểu số JSON", response("\"ref\":" + branch("Release/v1", REPO,
-                        commit("1".repeat(40), TREE).replace("\"" + "1".repeat(40) + "\"", "1".repeat(40))))),
-                Arguments.of("Thiếu cây Git", response("\"ref\":" + branch("Release/v1", REPO, commit(SHA, null)))),
+                        commit("1".repeat(40)).replace("\"" + "1".repeat(40) + "\"", "1".repeat(40))))),
+                Arguments.of("Thiếu SHA", response("\"ref\":" + branch("Release/v1", REPO, "{\"__typename\":\"Commit\"}"))),
                 Arguments.of("JSON hỏng", "{broken"),
                 Arguments.of("Phản hồi vượt giới hạn", " ".repeat(256 * 1024 + 1)));
     }
@@ -164,15 +143,15 @@ class GitHubSourceClientTests {
     @MethodSource("unverifiedPullRequests")
     void rejectsUnverifiedPullRequests(String scenario, String pullRequest) {
         graphql().andRespond(withSuccess(response("\"pullRequest\":" + pullRequest), MediaType.APPLICATION_JSON));
-        assertThrows(SourceUnavailableException.class, () -> github.readPullRequest(access, 42, false));
+        assertThrows(SourceUnavailableException.class, () -> github.readPullRequest(access, 42));
     }
 
     static Stream<Arguments> unverifiedPullRequests() {
         return Stream.of(
-                Arguments.of("Sai số PR", pullRequest(43, REPO, FORK, FORK, SHA, commit(SHA, null))),
-                Arguments.of("Sai kho gốc", pullRequest(42, FORK, FORK, FORK, SHA, commit(SHA, null))),
-                Arguments.of("Nhánh nguồn thuộc kho khác", pullRequest(42, REPO, FORK, REPO, SHA, commit(SHA, null))),
-                Arguments.of("Hai SHA đầu PR khác nhau", pullRequest(42, REPO, FORK, FORK, SHA, commit(MERGE_SHA, null))),
+                Arguments.of("Sai số PR", pullRequest(43, REPO, FORK, FORK, SHA, commit(SHA))),
+                Arguments.of("Sai kho gốc", pullRequest(42, FORK, FORK, FORK, SHA, commit(SHA))),
+                Arguments.of("Nhánh nguồn thuộc kho khác", pullRequest(42, REPO, FORK, REPO, SHA, commit(SHA))),
+                Arguments.of("Hai SHA đầu PR khác nhau", pullRequest(42, REPO, FORK, FORK, SHA, commit(MERGE_SHA))),
                 Arguments.of("Nhánh nguồn không đọc được", pullRequest(42, REPO, FORK, FORK, SHA, "null")));
     }
 
@@ -180,7 +159,7 @@ class GitHubSourceClientTests {
     @ValueSource(ints = {302, 401, 403, 404, 429, 500})
     void httpErrorsFailClosedAndHideProviderDetails(int status) {
         graphql().andRespond(withStatus(HttpStatus.valueOf(status)).body(SECRET));
-        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF, false));
+        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
         assertFalse(failure.getMessage().contains(SECRET));
         assertNull(failure.getCause());
         if (status == 401 || status == 403) {
@@ -191,7 +170,7 @@ class GitHubSourceClientTests {
     @Test
     void timeoutFailsClosedAndHidesProviderDetails() {
         graphql().andRespond(withException(new SocketTimeoutException(SECRET)));
-        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF, false));
+        var failure = assertThrows(SourceUnavailableException.class, () -> github.readBranch(access, REF));
         assertFalse(failure.getMessage().contains(SECRET));
         assertNull(failure.getCause());
     }
@@ -222,8 +201,7 @@ class GitHubSourceClientTests {
                 """.formatted(number, base, head, headSha, headRef, target, MERGE_SHA);
     }
 
-    private static String commit(String sha, String tree) {
-        return "{\"__typename\":\"Commit\",\"oid\":\"" + sha + "\""
-                + (tree == null ? "}" : ",\"tree\":{\"oid\":\"" + tree + "\"}}");
+    private static String commit(String sha) {
+        return "{\"__typename\":\"Commit\",\"oid\":\"" + sha + "\"}";
     }
 }

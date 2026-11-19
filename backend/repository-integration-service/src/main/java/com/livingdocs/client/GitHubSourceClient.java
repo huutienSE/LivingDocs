@@ -31,7 +31,7 @@ public final class GitHubSourceClient {
     private static final String ZERO_SHA = "0".repeat(40);
     private static final String BRANCH_PREFIX = "refs/heads/";
     private static final String TRACKED_BRANCH = """
-            query ReadTrackedBranch($repoNodeId: ID!, $targetRef: String!, $includeTree: Boolean!) {
+            query ReadTrackedBranch($repoNodeId: ID!, $targetRef: String!) {
               node(id: $repoNodeId) {
                 __typename
                 ... on Repository {
@@ -43,7 +43,6 @@ public final class GitHubSourceClient {
                     target {
                       __typename
                       oid
-                      ... on Commit { tree @include(if: $includeTree) { oid } }
                     }
                   }
                 }
@@ -51,7 +50,7 @@ public final class GitHubSourceClient {
             }
             """;
     private static final String PULL_REQUEST = """
-            query ReadPullRequestHead($repoNodeId: ID!, $prNumber: Int!, $includeTree: Boolean!) {
+            query ReadPullRequestHead($repoNodeId: ID!, $prNumber: Int!) {
               node(id: $repoNodeId) {
                 __typename
                 ... on Repository {
@@ -66,7 +65,6 @@ public final class GitHubSourceClient {
                       target {
                         __typename
                         oid
-                        ... on Commit { tree @include(if: $includeTree) { oid } }
                       }
                     }
                   }
@@ -74,22 +72,6 @@ public final class GitHubSourceClient {
               }
             }
             """;
-    private static final String PINNED_COMMIT = """
-            query ReadPinnedCommit($repoNodeId: ID!, $explicitSha: GitObjectID!) {
-              node(id: $repoNodeId) {
-                __typename
-                ... on Repository {
-                  fullDatabaseId
-                  object(oid: $explicitSha) {
-                    __typename
-                    oid
-                    ... on Commit { tree { oid } }
-                  }
-                }
-              }
-            }
-            """;
-
     private final GitHubInstallationTokenProvider tokens;
     private final ObjectMapper json;
     private final RestClient client;
@@ -108,12 +90,12 @@ public final class GitHubSourceClient {
                 .build();
     }
 
-    public Optional<CommitObservation> readBranch(RepositoryAccess access, String ref, boolean includeTree) {
+    public Optional<CommitObservation> readBranch(RepositoryAccess access, String ref) {
         if (!TargetKind.BRANCH.isValidRef(ref)) {
             throw unavailable();
         }
         JsonNode branch = readRepository(access, TRACKED_BRANCH, Map.of(
-                "repoNodeId", access.getNodeId(), "targetRef", ref, "includeTree", includeTree)).path("ref");
+                "repoNodeId", access.getNodeId(), "targetRef", ref)).path("ref");
         if (branch.isNull()) {
             return Optional.empty();
         }
@@ -122,15 +104,15 @@ public final class GitHubSourceClient {
                 || repositoryId(branch.path("repository")) != access.getRepositoryId()) {
             throw unavailable();
         }
-        return Optional.of(readCommit(branch.path("target"), access.getRepositoryId(), access.getRepositoryId(), includeTree));
+        return Optional.of(readCommit(branch.path("target"), access.getRepositoryId(), access.getRepositoryId()));
     }
 
-    public Optional<CommitObservation> readPullRequest(RepositoryAccess access, int number, boolean includeTree) {
+    public Optional<CommitObservation> readPullRequest(RepositoryAccess access, int number) {
         if (number <= 0) {
             throw unavailable();
         }
         JsonNode pullRequest = readRepository(access, PULL_REQUEST, Map.of(
-                "repoNodeId", access.getNodeId(), "prNumber", number, "includeTree", includeTree)).path("pullRequest");
+                "repoNodeId", access.getNodeId(), "prNumber", number)).path("pullRequest");
         if (pullRequest.isNull()) {
             return Optional.empty();
         }
@@ -144,23 +126,8 @@ public final class GitHubSourceClient {
         if (repositoryId(head.path("repository")) != sourceId) {
             throw unavailable();
         }
-        CommitObservation commit = readCommit(head.path("target"), access.getRepositoryId(), sourceId, includeTree);
+        CommitObservation commit = readCommit(head.path("target"), access.getRepositoryId(), sourceId);
         if (!commit.getSha().equals(normalizeSha(text(pullRequest.path("headRefOid"))))) {
-            throw unavailable();
-        }
-        return Optional.of(commit);
-    }
-
-    /** Chỉ đọc lịch sử bằng quyền truy cập đã xác minh cho chính kho chứa commit. */
-    public Optional<CommitObservation> readPinnedCommit(RepositoryAccess access, String sha) {
-        String requested = normalizeSha(sha);
-        JsonNode object = readRepository(access, PINNED_COMMIT, Map.of(
-                "repoNodeId", access.getNodeId(), "explicitSha", requested)).path("object");
-        if (object.isNull()) {
-            return Optional.empty();
-        }
-        CommitObservation commit = readCommit(object, access.getRepositoryId(), access.getRepositoryId(), true);
-        if (!requested.equals(commit.getSha())) {
             throw unavailable();
         }
         return Optional.of(commit);
@@ -248,14 +215,12 @@ public final class GitHubSourceClient {
         throw unavailable();
     }
 
-    private static CommitObservation readCommit(JsonNode object, long queriedRepositoryId, long sourceRepositoryId,
-                                                boolean includeTree) {
+    private static CommitObservation readCommit(JsonNode object, long queriedRepositoryId, long sourceRepositoryId) {
         if (!"Commit".equals(text(object.path("__typename")))) {
             throw unavailable();
         }
         String sha = normalizeSha(text(object.path("oid")));
-        String tree = includeTree ? normalizeSha(text(object.path("tree").path("oid"))) : null;
-        return new CommitObservation(queriedRepositoryId, sourceRepositoryId, sha, tree);
+        return new CommitObservation(queriedRepositoryId, sourceRepositoryId, sha);
     }
 
     private static String text(JsonNode node) {
@@ -280,6 +245,5 @@ public final class GitHubSourceClient {
         private final long queriedRepositoryId;
         private final long sourceRepositoryId;
         private final String sha;
-        private final String treeSha;
     }
 }
