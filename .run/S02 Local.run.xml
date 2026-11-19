@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="S02 Local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="repository-integration-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.livingdocs.RepositoryIntegrationServiceApplication" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend/repository-integration-service" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
