@@ -235,8 +235,21 @@ class LoginIntegrationTest {
     }
 
     @Test
-    void unimplementedCandidateRouteReturns404InsteadOfInternalError() throws Exception {
+    void unimplementedCandidateRouteRequiresJwtAndReturns404ForAuthenticatedIdentity() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+
+        String email = "candidate-me-" + UUID.randomUUID() + "@example.com";
+        registration.registerLocal(email, "A-secure-password-123");
+        String token = com.jayway.jsonpath.JsonPath.read(mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(email, "A-secure-password-123")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(), "$.data.accessToken");
+
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));

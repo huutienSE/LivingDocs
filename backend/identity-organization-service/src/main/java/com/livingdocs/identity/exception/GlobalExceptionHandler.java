@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
     private static final Pattern SAFE_CORRELATION_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
     private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
 
+    @ExceptionHandler(AuthorityException.class)
+    public ResponseEntity<ProblemDetail> authority(AuthorityException ex, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, ex.getCode(), "Forbidden",
+                "Current authority is unavailable for this identity", request);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ProblemDetail> invalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, InvalidCredentialsException.CODE,
