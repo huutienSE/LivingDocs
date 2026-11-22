@@ -51,6 +51,26 @@ services:
       redis:
         condition: service_healthy
 
+  # One-shot operator CLI. No HTTP port and no grant endpoint.
+  s01-provisioner:
+    profiles: ["operator"]
+    build:
+      context: ../../backend/identity-organization-service
+    environment:
+      SPRING_PROFILES_ACTIVE: db,provision
+      SPRING_MAIN_WEB_APPLICATION_TYPE: none
+      SPRING_FLYWAY_ENABLED: "false"
+      DB_URL: jdbc:postgresql://postgres:5432/livingdocs
+      DB_SCHEMA: identity
+      DB_USERNAME: ${S01_OPERATOR_DB_LOGIN:?S01_OPERATOR_DB_LOGIN is required}
+      DB_PASSWORD: ${S01_OPERATOR_DB_PASSWORD:?S01_OPERATOR_DB_PASSWORD is required}
+      LIVINGDOCS_PROVISIONING_MANIFEST: /run/provision/manifest.json
+    volumes:
+      - ${S01_PROVISION_MANIFEST_DIR:-./provisioning}:/run/provision:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # S02 — Repository Integration
   repository-integration-service:
     profiles: ["services"]

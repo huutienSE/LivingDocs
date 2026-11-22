@@ -29,8 +29,6 @@ jobs:
             db_schema: identity
             app_role: ld_s01_app
             migrator_role: ld_s01_migrator
-            expected_migrations: 2
-            expected_rls_tables: 2
 
           - name: S02 Repository
             path: backend/repository-integration-service
@@ -123,6 +121,9 @@ jobs:
         run: ./mvnw -B -ntp clean verify
 
       - name: Verify Flyway migrations and RLS
+        # S01 tests run Flyway against their own PostgreSQL Testcontainers.
+        # The S01/Gateway HTTP job checks the Compose database after starting S01.
+        if: matrix.db_schema != 'identity'
         env:
           PGPASSWORD: postgres
           DB_SCHEMA: ${{ matrix.db_schema }}
