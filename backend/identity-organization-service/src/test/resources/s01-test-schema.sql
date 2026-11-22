@@ -1,3 +1,11 @@
 CREATE ROLE ld_s01_app LOGIN PASSWORD 'test_app_password';
+CREATE ROLE ld_s01_provisioner NOLOGIN NOBYPASSRLS;
+CREATE ROLE ld_operator_test LOGIN NOBYPASSRLS PASSWORD 'test_operator_password';
+GRANT ld_s01_provisioner TO ld_operator_test WITH INHERIT TRUE, SET FALSE;
+CREATE ROLE ld_s01_bootstrap NOLOGIN NOBYPASSRLS;
+CREATE ROLE ld_bootstrap_test LOGIN NOBYPASSRLS PASSWORD 'test_bootstrap_password';
+GRANT ld_s01_bootstrap TO ld_bootstrap_test WITH INHERIT TRUE, SET FALSE;
 CREATE SCHEMA identity AUTHORIZATION postgres;
 GRANT USAGE ON SCHEMA identity TO ld_s01_app;
+GRANT USAGE ON SCHEMA identity TO ld_s01_provisioner;
+GRANT USAGE ON SCHEMA identity TO ld_s01_bootstrap;

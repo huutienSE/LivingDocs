@@ -26,6 +26,10 @@ Copy-Item .env.example .env
 
 Nếu `.env` đã tồn tại, **không ghi đè**. Chỉnh `POSTGRES_PASSWORD` và mật khẩu S01/S02/S04 theo các database roles thực tế; giữ mật khẩu hiện hành nếu đã có database/volume. Không commit `.env`.
 
+Fresh clone LIV-138 PR 1: xem [runbook S01](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md) để tạo JWT PEM/pepper ngoài Git, đăng ký Identity A/B/C, bootstrap một lần, tạo manifest CLI và chạy Postman/Newman trên database mới. File này chỉ giữ phần hạ tầng chung để không lặp lại toàn bộ fixture nghiệp vụ.
+
+**Compose parse:** `s01-provisioner` dùng `${S01_OPERATOR_DB_LOGIN:?...}` và `${S01_OPERATOR_DB_PASSWORD:?...}`; `docker compose config/up` cũng cần hai biến này khi profile `operator` chưa bật. Trong giai đoạn tạo DB roles, đặt giá trị `config_only` tại shell để parse (không chạy provisioner), sau khi DBA enroll operator thì thay bằng login/password thật. Không lưu credential operator trong `.env` được commit.
+
 > Tất cả `docker compose` bên dưới chạy **từ thư mục `infrastructure/docker`**. Dùng `docker compose ...` giống nhau trên macOS/Linux và Windows PowerShell.
 
 ## 2. Compose profiles — chạy đúng thành phần cần thiết
@@ -36,6 +40,7 @@ Nếu `.env` đã tồn tại, **không ghi đè**. Chỉnh `POSTGRES_PASSWORD` 
 | `platform` | `kafka`, `redis`, `ai-service` | Nền tảng Kafka KRaft, Redis, S05 FastAPI |
 | `services` | `identity-organization-service` (S01), `repository-integration-service` (S02), `source-intelligence-service` (S03), `document-governance-service` (S04) | Domain backend; S01/S02/S04 cần roles/Flyway |
 | `gateway` | `api-gateway` | Gateway ingress; yêu cầu cấu hình S01 JWT issuer/audience thật |
+| `operator` | `s01-provisioner` | CLI một lần, không có HTTP port; yêu cầu manifest và DB role riêng |
 
 Các profile có thể kết hợp; `postgres` không có profile và thường được Compose khởi động cùng tập services. Chạy `--profile services` **không tự kích hoạt** `gateway`. `api-gateway` cũng không khai báo `depends_on` tới S01–S04: khởi động Gateway không có nghĩa downstream đã chạy.
 
@@ -57,6 +62,8 @@ docker compose ps
 ```
 
 Mong đợi `postgres` healthy. PostgreSQL host port mặc định `127.0.0.1:5432`, có thể chỉnh qua `POSTGRES_HOST_PORT`.
+
+Cho LIV-138 PR 1, sau khi tạo S01 roles/schema (§3), chạy thêm `docker compose --profile platform up -d redis` trước S01. Chỉ bật `identity-organization-service` trong profile `services` để tránh kéo theo S02/S04 chưa cần cho Flow 1. Lần khởi động sau dùng `up -d` trên cùng named volume; không chạy `down -v` hoặc bootstrap lại.
 
 ### 2.3 Chạy Platform (không bao gồm Gateway)
 Từ thư mục `infrastructure/docker`.
@@ -192,12 +199,25 @@ Kết quả mong đợi: `identity` → `ld_s01_migrator`, `repository` → `ld_
 
 Không chạy SQL migration thủ công. S01/S02/S04 sử dụng `SPRING_PROFILES_ACTIVE=db` (đã khai báo trong `compose.yaml`) để chạy Flyway. Baseline `develop` tại thời điểm kiểm tra:
 
-- S01: V1, V2.
+- S01: V1, V2; LIV-138 PR 1 bổ sung V3 (`scoped_authorization`) và V4 (`platform_authority`).
 - S02: V1.
 - S04: V1.
 
 Migration trên feature branch của thành viên có thể bổ sung version mới. Không sửa migration đã áp dụng và không xóa volume để “sửa nhanh”. Xem [backend README](../../backend/README.md).
 
+### S01 Platform bootstrap và operator provisioning sau V4
+
+CLI chỉ dành cho operator, **không có endpoint HTTP cấp quyền**. Sau Flyway V4, DBA chạy `provisioner-role.sql` để tạo privilege group `ld_s01_provisioner` dạng `NOLOGIN` và bootstrap group `ld_s01_bootstrap`. Mỗi operator phải có DB login riêng, Identity ACTIVE và mapping chính xác. Không lưu password trong SQL, manifest, Git hoặc reports.
+
+1. Requester B và Platform Admin A tự Register để có Identity thật. DBA cấp một named bootstrap DB login quyền `ld_s01_bootstrap` trong cửa sổ vận hành có phê duyệt, rồi chạy `bootstrap-platform-admin.sql` với `-v initial_identity=<A_UUID> -v reason='<approved change reference>'`. Function kiểm chỉ chạy một lần, ghi platform audit và assignment cùng transaction. DBA thu hồi membership bootstrap và disable login ngay sau đó. Không chạy bootstrap bằng role ứng dụng hoặc từ service HTTP.
+2. DBA chạy `operator-enroll.sql` với `-v operator_login=ld_operator_<name> -v operator_identity_id=<A_UUID>` để tạo login cá nhân, ràng buộc với Identity và grant privilege group. Đặt password riêng bằng `\password ld_operator_<name>` trong `psql` hoặc secret store. Script validation/transaction từ chối Identity không ACTIVE hoặc mapping không khớp.
+3. Đặt `S01_OPERATOR_DB_LOGIN`, `S01_OPERATOR_DB_PASSWORD` từ secret store và `S01_PROVISION_MANIFEST_DIR` là thư mục riêng ngoài repository. Chạy `docker compose --profile operator run --rm --no-deps s01-provisioner` khi PostgreSQL đã healthy. Trên PowerShell dùng `$env:S01_OPERATOR_DB_LOGIN`, `$env:S01_OPERATOR_DB_PASSWORD`, `$env:S01_PROVISION_MANIFEST_DIR`. Lệnh `run` đọc duy nhất `/run/provision/manifest.json`; mỗi operation cần `operationId` mới, chạy lặp cùng bytes trả `ALREADY_APPLIED`.
+
+Lệnh psql macOS/Windows, thứ tự đặt password, manifest A/B/C và cách chạy từng CLI operation nằm trong [runbook fresh clone §C](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md#c-identity-abc-bootstrap-và-cli). Khi thu hồi operator, DBA chạy `operator-disable.sql` với `operator_login` và `reason`. Bootstrap script chỉ chạy một lần; nếu mất toàn bộ Platform Admin, cần incident/change control, không tự chạy lại để bypass one-shot guard.
+
+`CREATE_TENANT` dùng actor A từ DB login mapping và `identityId` trong manifest là requester B, có thể khác A. Trường `operatorIdentityId` legacy có thể bỏ; nếu được gửi phải khớp actor đã xác thực. `CREATE_TENANT` cần Platform permission; Tenant mutations cần Tenant Owner role riêng; `REQUEST_REPOSITORY_GRANT` chỉ cho TECHNICAL_LEAD active tự tạo PENDING cho chính membership. PENDING không có quyền Repository cho tới khi có verification từ S02 theo policy được duyệt. Mỗi operation idempotent theo `operationId` và SHA-256 nội dung, commit với audit/revision trong một transaction.
+
+**Ranh giới:** login DB cá nhân vẫn là credential vận hành mạnh; giới hạn network access, quản lý trong secret store, rotation/revoke kịp thời và đối chiếu DB audit. Platform Admin không tự thành Tenant Owner hay Document reviewer. Nếu V3 đã có Flyway checksum ở môi trường dùng chung, giữ V3 bất biến; V4 là migration tiếp theo. PR 1 không mở `VERIFIED`/attestation từ S02 và không mở CLI `REVOKE_REPOSITORY_GRANT`; các bước này là BLOCKED, không dùng SQL trực tiếp để tạo bằng chứng PASS.
 ## 5. Lệnh vận hành / troubleshooting
 
 ```bash

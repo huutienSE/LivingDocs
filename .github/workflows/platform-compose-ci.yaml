@@ -14,6 +14,10 @@ jobs:
     name: Platform Compose Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Compose interpolates the inactive operator profile too. No CLI is started here.
+    env:
+      S01_OPERATOR_DB_LOGIN: ci_config_only
+      S01_OPERATOR_DB_PASSWORD: ci_config_only
 
     defaults:
       run:

@@ -29,7 +29,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 | API-035 | S01 | `DELETE` | `/api/v1/workspaces/{workspaceId}/memberships/{membershipId}` | CANDIDATE | Allowlist (JWT) |
 | API-036 | S01 | `PUT` | `/api/v1/workspaces/{workspaceId}/memberships/{membershipId}/roles` | CANDIDATE | Allowlist (JWT) |
 | API-037 | S01 | `GET` | `/api/v1/workspaces/{workspaceId}/roles` | CANDIDATE | Allowlist (JWT) |
-| API-038 | S01 | `GET` | `/api/v1/users/me/access-context` | CANDIDATE | Allowlist (JWT) |
+| API-038 | S01 | `GET` | `/api/v1/users/me/access-context` | IN_PROGRESS | Allowlist (JWT); LIV-138 PR 1 |
 | API-046 | S02 | `GET` | `/api/v1/integrations/github/authorization` | CANDIDATE | Allowlist (JWT) |
 | API-047 | S02 | `POST` | `/api/v1/workspaces/{workspaceId}/repository-connections` | CANDIDATE | Allowlist (JWT) |
 | API-048 | S02 | `GET` | `/api/v1/workspaces/{workspaceId}/repository-connections` | CANDIDATE | Allowlist (JWT) |

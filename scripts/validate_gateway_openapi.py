@@ -111,6 +111,37 @@ def validate_login_contract(inventory):
     if {'refreshToken', 'refreshCookie', 'sessionCookie'} & set(schemas['AccessTokenView'].get('properties', {})):
         fail('API-002 không được mô tả refresh/session đã triển khai.')
 
+def validate_access_context_contract(inventory):
+    spec = read_yaml(SPECS / 's01-identity.yaml')
+    operation = spec['paths']['/api/v1/users/me/access-context']['get']
+    row = next(row for row in inventory if row['apiId'] == 'API-038')
+    if row['state'] != operation.get('x-contract-state') or row['state'] not in {'IN_PROGRESS', 'IMPLEMENTED'}:
+        fail('API-038 state không khớp inventory.')
+    if operation['responses']['200']['content']['application/json']['schema'] != {'$ref': '#/components/schemas/AccessContextApiResponse'}:
+        fail('API-038 200 phải dùng AccessContextApiResponse.')
+    if operation['responses']['200']['headers']['Cache-Control']['schema'].get('enum') != ['no-store']:
+        fail('API-038 thiếu Cache-Control no-store.')
+    if set(operation['responses']) != {'200', '401', '403', '500'}:
+        fail('API-038 status không khớp contract.')
+    schemas = spec['components']['schemas']
+    envelope = schemas['AccessContextApiResponse']['allOf']
+    if envelope[0] != {'$ref': '#/components/schemas/ApiResponseBase'} or envelope[1]['properties']['data'] != {'$ref': '#/components/schemas/AccessContextView'}:
+        fail('API-038 wrapper/data schema sai.')
+    data = schemas['AccessContextView']
+    required = {'identityId', 'tenantId', 'authzRevision', 'evaluatedAt',
+                'tenantRoles', 'tenantPermissions', 'workspaceGrants'}
+    if set(data.get('required', [])) != required or not data['properties']['tenantId'].get('nullable'):
+        fail('API-038 required/nullable sai.')
+    grants = schemas['WorkspaceAccessGrant']
+    if set(grants.get('required', [])) != {'workspaceId', 'roles', 'permissions', 'repositoryIds'}:
+        fail('API-038 workspace grant thiếu scope fields.')
+    if operation.get('security') != [{'bearerAuth': []}]:
+        fail('API-038 thiếu bearerAuth.')
+    for status in ('401', '403', '500'):
+        error = operation['responses'][status]
+        if error != {'$ref': '#/components/responses/Problem'}:
+            fail(f'API-038 {status} phải dùng Problem response.')
+
 def main():
     inventory = json.loads(INVENTORY.read_text(encoding='utf-8'))
     if len(inventory) < 60:
@@ -191,6 +222,7 @@ def main():
         fail('Thiếu operations trong spec: '+str(sorted(unrepresented)))
     validate_register_contract(inventory)
     validate_login_contract(inventory)
+    validate_access_context_contract(inventory)
     # Static contract checks; real domain E2E is tracked separately.
     cors_source = (ROOT / 'infrastructure/api-gateway/src/main/java/com/livingdocs/gateway/config/GatewayCorsConfig.java').read_text(encoding='utf-8')
     for required in ('"If-Match"', '"Idempotency-Key"', '"ETag"', 'cors.setAllowCredentials(false)'):

@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "LIV-138 API-038 Real S01 access context",
+    "description": "Run against local S01 and Gateway. Flow 1 creates a real identity and verifies no implicit authority. Provisioned and revoked flows require controlled CLI fixtures: Platform Admin A provisions requester B, Tenant Owner B administers the tenant, and a scoped Technical Lead self-requests any PENDING grant; they are skipped by default and must be reported NOT RUN, not PASS. No production grant endpoint or mock is used. Tokens stay in run-local variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key":"baseUrl","value":"http://127.0.0.1:8081"},
+    {"key":"gatewayUrl","value":"http://127.0.0.1:8080"},
+    {"key":"email","value":""},
+    {"key":"password","value":"A-secure-password-123"}
+  ],
+  "item": [
+    {
+      "name":"Self-contained real identity flow",
+      "item":[
+        {
+          "name":"01 Register identity without auto-provisioning",
+          "request":{"method":"POST","url":"{{baseUrl}}/api/v1/auth/register","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}","options":{"raw":{"language":"json"}}},"description":"Precondition: local S01 with PostgreSQL V3. Creates a fresh identity; no membership is assigned."},
+          "event":[
+            {"listen":"prerequest","script":{"exec":["pm.collectionVariables.set('email', 'liv138-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"]}},
+            {"listen":"test","script":{"exec":["pm.test('201 JSON identity only', () => { pm.response.to.have.status(201); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); const b=pm.response.json(); pm.expect(b.code).to.eql('IDENTITY_REGISTERED'); pm.expect(b.data.identityId).to.match(/^[0-9a-f-]{36}$/i); pm.expect(Object.keys(b.data)).to.eql(['identityId']); pm.variables.set('identityId', b.data.identityId); });"]}}
+          ]
+        },
+        {
+          "name":"02 Login yields real JWT",
+          "request":{"method":"POST","url":"{{baseUrl}}/api/v1/auth/login","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}","options":{"raw":{"language":"json"}}},"description":"Precondition: request 01 completed. JWT is saved only in run-local scope."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('200 access JWT no-store', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); const b=pm.response.json(); pm.expect(b.code).to.eql('LOGIN_SUCCEEDED'); pm.expect(b.data.tokenType).to.eql('Bearer'); pm.expect(b.data.accessToken.split('.')).to.have.length(3); pm.variables.set('accessToken', b.data.accessToken); });"]}}]
+        },
+        {
+          "name":"03 Access context has no implicit grants",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"description":"Precondition: logged in identity has never been provisioned."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('200 exact scoped wrapper', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); const b=pm.response.json(); pm.expect(Object.keys(b).sort()).to.eql(['code','data','message']); pm.expect(b.code).to.eql('ACCESS_CONTEXT_LOADED'); pm.expect(b.data.identityId).to.eql(pm.variables.get('identityId')); pm.expect(b.data.tenantId).to.eql(null); pm.expect(b.data.authzRevision).to.eql(0); pm.expect(b.data.evaluatedAt).to.be.a('string'); pm.expect(b.data.tenantRoles).to.eql([]); pm.expect(b.data.tenantPermissions).to.eql([]); pm.expect(b.data.workspaceGrants).to.eql([]); });"]}}]
+        },
+        {
+          "name":"04 Forged identity, tenant and role headers are ignored",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"X-Identity-ID","value":"00000000-0000-4000-8000-000000000001"},{"key":"X-Tenant-ID","value":"00000000-0000-4000-8000-000000000002"},{"key":"X-Roles","value":"TENANT_OWNER,MANAGER"}],"description":"Headers are untrusted. JWT sub remains the only principal."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('Forged headers cannot create authority', () => { pm.response.to.have.status(200); const b=pm.response.json(); pm.expect(b.data.identityId).to.eql(pm.variables.get('identityId')); pm.expect(b.data.tenantId).to.eql(null); pm.expect(b.data.workspaceGrants).to.eql([]); });"]}}]
+        },
+        {
+          "name":"05 Missing JWT is RFC 9457 401",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","description":"No bearer token."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('401 stable problem', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('Bearer'); const p=pm.response.json(); pm.expect(p.status).to.eql(401); pm.expect(p.code).to.eql('UNAUTHENTICATED'); ['type','title','detail','instance','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); });"]}}]
+        },
+        {
+          "name":"06 Invalid JWT is RFC 9457 401",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer invalid.jwt.signature"}],"description":"Signature/format is invalid."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('401 invalid bearer', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().code).to.eql('UNAUTHENTICATED'); });"]}}]
+        },
+        {
+          "name":"07 Static runtime OpenAPI exposes API-038",
+          "request":{"method":"GET","url":"{{baseUrl}}/v3/api-docs","description":"Springdoc runtime model must include actual controller, auth and schemas."},
+          "event":[{"listen":"test","script":{"exec":["pm.test('Runtime OpenAPI has API-038 200/401/403/500', () => { pm.response.to.have.status(200); const op=pm.response.json().paths['/api/v1/users/me/access-context'].get; pm.expect(op.security).to.deep.equal([{bearerAuth:[]}]); ['200','401','403','500'].forEach(s => pm.expect(op.responses).to.have.property(s)); pm.expect(op.responses['200'].content['application/json']).to.exist; });"]}}]
+        }
+      ]
+    },
+    {
+      "name":"Provisioned access (requires controlled CLI fixtures)",
+      "item":[
+        {
+          "name":"08 Login explicitly provisioned identity",
+          "request":{"method":"POST","url":"{{baseUrl}}/api/v1/auth/login","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"{{provisionedEmail}}\",\"password\":\"{{provisionedPassword}}\"}","options":{"raw":{"language":"json"}}},"description":"Precondition: Platform Admin A created the tenant for requester B; Tenant Owner B created two workspaces and multi-role assignments; a Technical Lead requested a PENDING repository grant for their own membership. Set runProvisioned=true and fixture variables in a private environment."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runProvisioned') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Provisioned login 200', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); pm.variables.set('provisionedToken', pm.response.json().data.accessToken); });"]}}]
+        },
+        {
+          "name":"09 Multi-role and workspace isolation",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{provisionedToken}}"}],"description":"Expected workspace IDs and pending repository ID are supplied from real CLI fixture; no fake authority."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runProvisioned') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Real scoped roles and pending grant', () => { pm.response.to.have.status(200); const d=pm.response.json().data; pm.expect(d.tenantId).to.eql(pm.environment.get('expectedTenantId')); pm.expect(d.authzRevision).to.be.above(0); const a=d.workspaceGrants.find(g => g.workspaceId === pm.environment.get('expectedReviewWorkspaceId')); const b=d.workspaceGrants.find(g => g.workspaceId === pm.environment.get('expectedOtherWorkspaceId')); pm.expect(a.roles).to.include.members(['STAFF','MANAGER']); pm.expect(a.permissions).to.include.members(['DOCUMENT_STAFF_REVIEW','DOCUMENT_FINAL_APPROVE']); pm.expect(b.permissions).not.to.include('DOCUMENT_FINAL_APPROVE'); pm.expect(a.repositoryIds).not.to.include(pm.environment.get('pendingRepositoryId')); });"]}}]
+        }
+      ]
+    },
+    {
+      "name":"Gateway routing (requires running Gateway)",
+      "item":[
+        {
+          "name":"10 Gateway forwards verified JWT and real S01 context",
+          "request":{"method":"GET","url":"{{gatewayUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{accessToken}}"}],"description":"Precondition: Gateway :8080 points to this S01. Set runGateway=true in private environment."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runGateway') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Gateway 200 real context', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); const d=pm.response.json().data; pm.expect(d.identityId).to.eql(pm.variables.get('identityId')); pm.expect(d.tenantId).to.eql(null); });"]}}]
+        },
+        {
+          "name":"11 Gateway rejects missing JWT",
+          "request":{"method":"GET","url":"{{gatewayUrl}}/api/v1/users/me/access-context","description":"Precondition: Gateway :8080 running. No bearer token."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runGateway') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Gateway 401 bearer challenge', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('Bearer'); pm.expect(pm.response.text()).to.eql(''); });"]}}]
+        }
+      ]
+    },
+    {
+      "name":"Revoked access (requires controlled CLI fixture)",
+      "item":[
+        {
+          "name":"12 Revoked tenant membership disappears with same JWT",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{provisionedToken}}"}],"description":"Precondition: after request 09, operator CLI revoked this identity's tenant membership; use same unexpired token and runRevoked=true."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runRevoked') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Fresh revocation', () => { pm.response.to.have.status(200); const d=pm.response.json().data; pm.expect(d.tenantId).to.eql(null); pm.expect(d.workspaceGrants).to.eql([]); });"]}}]
+        }
+      ]
+    },
+    {
+      "name":"Expired JWT (requires signed expired fixture)",
+      "item":[
+        {
+          "name":"13 Expired signed JWT is rejected",
+          "request":{"method":"GET","url":"{{baseUrl}}/api/v1/users/me/access-context","header":[{"key":"Authorization","value":"Bearer {{expiredToken}}"}],"description":"Precondition: a correctly signed S01 JWT whose exp is in the past is supplied privately. Set runExpired=true. Integration test covers this without a production token-minting shortcut."},
+          "event":[{"listen":"prerequest","script":{"exec":["if (pm.environment.get('runExpired') !== 'true') pm.execution.skipRequest();"]}},{"listen":"test","script":{"exec":["pm.test('Expired signed JWT 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); pm.expect(p.status).to.eql(401); pm.expect(p.code).to.eql('UNAUTHENTICATED'); });"]}}]
+        }
+      ]
+    }
+  ]
+}
