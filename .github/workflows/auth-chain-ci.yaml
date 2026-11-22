@@ -15,6 +15,10 @@ jobs:
     name: Real JWT through Gateway
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Compose interpolates the inactive operator profile too. These are not DB credentials.
+    env:
+      S01_OPERATOR_DB_LOGIN: ci_config_only
+      S01_OPERATOR_DB_PASSWORD: ci_config_only
 
     steps:
       # 1. Lấy đúng commit của PR và cài Node để chạy Newman.
@@ -73,12 +77,30 @@ jobs:
         run: |
           for attempt in $(seq 1 60); do
             if curl -fsS -o /dev/null http://127.0.0.1:8081/.well-known/jwks.json &&
-               [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/users/me)" = 401 ]; then
+               [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/users/me/access-context)" = 401 ]; then
               exit 0
             fi
             sleep 2
           done
           exit 1
+
+      - name: Verify S01 Flyway and RLS on the running database
+        working-directory: infrastructure/docker
+        run: |
+          set -euo pipefail
+          migrations="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c 'SELECT count(*) FROM identity.flyway_schema_history WHERE success')"
+          rls_tables="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='identity' AND c.relkind='r' AND c.relrowsecurity")"
+          app_bypassrls="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='ld_s01_app'")"
+          app_owns_tenants="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c "SELECT pg_get_userbyid(relowner)='ld_s01_app' FROM pg_class WHERE oid='identity.tenants'::regclass")"
+          echo "S01 migrations=$migrations RLS tables=$rls_tables app BYPASSRLS=$app_bypassrls app owns tenants=$app_owns_tenants"
+          test "$migrations" = 4
+          test "$rls_tables" = 11
+          test "$app_bypassrls" = f
+          test "$app_owns_tenants" = f
 
       # 7. Một lượt Newman kiểm tra Login, JWT/JWKS, Gateway và Redis rate limit.
       # Chỉ in báo cáo CLI; không lưu access token hoặc response thành artifact.
@@ -88,6 +110,31 @@ jobs:
             --env-var baseUrl=http://127.0.0.1:8081 \
             --env-var gatewayUrl=http://127.0.0.1:8080 \
             --reporters cli
+
+      - name: Run LIV-138 API-038 and Gateway HTTP collection
+        run: |
+          set -euo pipefail
+          report="$(mktemp "${RUNNER_TEMP}/liv138-newman.XXXXXX.json")"
+          trap 'rm -f "$report"' EXIT
+          npx --yes newman@6.2.3 run tests/postman/liv138-access-context.postman_collection.json \
+            --env-var baseUrl=http://127.0.0.1:8081 \
+            --env-var gatewayUrl=http://127.0.0.1:8080 \
+            --env-var runProvisioned=false \
+            --env-var runGateway=true \
+            --env-var runRevoked=false \
+            --env-var runExpired=false \
+            --reporters cli,json \
+            --reporter-json-export "$report"
+          node - "$report" <<'JS'
+          const fs = require('fs');
+          const { stats } = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).run;
+          if (stats.requests.total !== 9 || stats.requests.failed !== 0 ||
+              stats.assertions.total !== 9 || stats.assertions.failed !== 0) {
+            console.error('Expected 9 real HTTP requests and 9 passing assertions');
+            process.exit(1);
+          }
+          console.log('PASS: LIV-138 baseline + Gateway, 9 requests and 9 assertions');
+          JS
 
       # 8. In trạng thái container để hỗ trợ chẩn đoán, không in key/pepper.
       - name: Show container status
