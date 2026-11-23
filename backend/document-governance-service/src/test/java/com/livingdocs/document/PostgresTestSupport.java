@@ -54,6 +54,8 @@ public abstract class PostgresTestSupport {
                 Map.entry("livingdocs.security.issuer-uri", ISSUER),
                 Map.entry("livingdocs.security.jwk-set-uri", ISSUER + "/jwks"),
                 Map.entry("livingdocs.security.audience", "s04-test"),
+                Map.entry("livingdocs.review.access-context-uri", ReviewAuthorityTestServer.uri()),
+                Map.entry("livingdocs.review.allow-insecure-http", true),
                 Map.entry("spring.jackson.deserialization.fail-on-unknown-properties", true));
     }
 

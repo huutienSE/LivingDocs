@@ -89,30 +89,29 @@ toàn bộ và không tiêu thụ idempotency key. Không dùng callback sau com
 
 JWT RS256 được kiểm signature, issuer, audience và expiration. Thiếu trust configuration thì
 token bị từ chối. Cấu hình: `S01_ISSUER_URI`, `S01_JWK_SET_URI`, `S04_TOKEN_AUDIENCE`.
-Mapping claims dưới đây là implementation candidate, chưa kiểm chứng bằng token S01 thật:
+JWT thật của S01 xác thực Identity qua `sub`; S04 không lấy tenant/roles/grants từ JWT.
+Mỗi request API-120, kể cả exact replay, chuyển nguyên User JWT qua Bearer đến API-038
+`GET /api/v1/users/me/access-context`, trước khi mở write transaction ở S04. Không cache context.
+Adapter kiểm Identity khớp `sub`, tenant UUID, revision, thời điểm evaluation và workspace grants.
+Chỉ grant có đồng thời `STAFF` và `DOCUMENT_STAFF_REVIEW` mới được dùng tại workspace đó.
+Tenant Owner/Manager không tự có quyền Staff; role ở workspace khác không được gộp quyền.
+Repository-backed version cần repository ID trong grant của cùng workspace; version không gắn
+repository chỉ cần Staff scope. S04 đối chiếu scope dưới RLS trong schema của mình, không đọc DB S01.
 
-```json
-{
-  "sub": "<identity UUID>",
-  "iss": "<configured issuer>",
-  "aud": ["<configured S04 audience>"],
-  "exp": 0,
-  "tenant_id": "<tenant UUID>",
-  "tenant_active": true,
-  "workspace_grants": [{
-    "workspace_id": "<workspace UUID>",
-    "active": true,
-    "roles": ["STAFF"],
-    "repository_ids": ["<authorized repository UUID>"]
-  }]
-}
-```
+Cấu hình thêm: `S01_REVIEW_ACCESS_CONTEXT_URI` trỏ đúng API-038; mặc định yêu cầu HTTPS.
+HTTP local cần bật tường minh `S04_REVIEW_ALLOW_INSECURE_HTTP=true` (xem `.env.example`/Compose).
+Client không follow redirect, giới hạn response 256 KiB, connect timeout 2 giây và tổng deadline 3 giây.
+Thiếu endpoint, network/timeout, upstream lỗi hoặc context hỏng/sai Identity trả
+`503 AUTHORIZATION_UNAVAILABLE`, không ghi state/decision/audit và không fallback sang JWT claims.
+S01 401/403 trả S04 401/403; tenantId null hoặc thiếu quyền trả 403. Version tenant khác trả 404 dưới RLS.
+Replay vẫn phải có quyền tại lần lookup mới và S01 hoạt động.
 
-`exp: 0` chỉ minh họa field, không phải token dùng được. Actor cần active tenant/workspace và
-Staff role trong workspace sở hữu document. Document gắn repository cần thêm repository grant;
-document không gắn repository dùng Staff scope của workspace. Tenant Owner/Manager không tự có
-quyền Staff. S04 đối chiếu resource scope trong schema của mình, không đọc schema S01.
-JWT là snapshot quyền; chưa có bằng chứng kiểm quyền thu hồi tức thời qua S01.
+API-038 là snapshot quyền, **không phải API-039 fresh evaluation**. Thu hồi trước lần lookup kế tiếp
+được áp dụng với cùng JWT; không bảo đảm nguyên tử giữa thu hồi quyền và commit ở S04.
+Lựa chọn API-038 áp dụng cho LIV-118/API-120 theo xác nhận phạm vi đã ghi tại
+[báo cáo triển khai](../../docs/implementation/LIV-118-implementation-report.md); không thay đổi contract tương lai
+của Manager/Publish. [Runbook S01](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md)
+là căn cứ cho đăng nhập, authority và operator provisioning.
 
 Request PASS mới cho document gắn repository yêu cầu `SourceReviewValidator` đáng tin cậy.
 Kết quả phải khớp tenant/workspace/repository/version/revision/SHA và còn hiệu lực trước khi ghi.
@@ -126,6 +125,28 @@ comparisonSha, configRevision và capturedAt hiện null. Không suy diễn sour
 
 API đọc version/queue/context (API-106/115/116), UI, Final Approval, Publish và API S02 không được
 triển khai trong slice này. Các giới hạn tích hợp S01/S02 và SourceBinding được mô tả ở trên.
+
+## Kiểm thử tích hợp S01 thật
+
+Từ repository root, build hai service rồi chạy runner:
+
+```powershell
+mvn -B -ntp -f backend/identity-organization-service/pom.xml package
+mvn -B -ntp -f backend/document-governance-service/pom.xml clean verify
+python -X utf8 scripts/test_api120_s01_integration.py
+```
+
+Cần Java 21, Docker và Python 3.12. Runner tạo PostgreSQL 17/Redis tạm, sinh khóa chỉ cho S01,
+chạy hai JVM từ jar hiện tại, đăng ký/login qua HTTP thật và đọc quyền qua API-038 thật.
+Fixtures authority/document được tạo bằng SQL **chỉ trong DB test riêng**; không kiểm chứng operator CLI.
+Không đọc `.env`, không dùng DB Compose hiện có, không tạo VERIFIED repository grant để bỏ qua S02.
+Runner xóa đúng container tạm và dừng hai JVM khi kết thúc, ghi kết quả không chứa credential vào
+`target/api120-s01-integration.json` cùng service logs trong `target/` của S04.
+
+Positive PASS/RETURN dùng document không gắn repository. Negative tests kiểm unprovisioned Identity,
+cross-tenant/workspace, grant PENDING, revoked role/membership, retry và S01 unavailable.
+Bộ Maven dùng API-038 contract stub/test issuer cho component tests; đây là bằng chứng riêng với
+runner hai service thật. Không suy ra Gateway/S02/repository-backed Golden Flow đã PASS.
 
 ## Migration và chạy service
 
@@ -157,6 +178,7 @@ Restart test đóng/mở Spring context, HTTP server và pool trên cùng DB, kh
 
 Kết quả, source hashes, report/log references và CI gắn commit được lưu trong
 [LIV-118-test-evidence.json](../../docs/implementation/LIV-118-test-evidence.json).
+Kết quả tích hợp S01 và giới hạn nghiệm thu: [API-120/S01 evidence](../../docs/implementation/authorization/LIV-118-api120-s01-integration.md).
 Surefire reports ở `target/surefire-reports`; build outputs không được commit.
 Tests dùng authority giả lập không chứng minh tích hợp S01/S02/GitHub thật hoặc deployment TLS.
 Nguồn yêu cầu và giới hạn tin cậy nằm trong bảng tham chiếu bên dưới.

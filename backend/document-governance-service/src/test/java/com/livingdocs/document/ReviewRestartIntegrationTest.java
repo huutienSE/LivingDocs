@@ -31,10 +31,7 @@ class ReviewRestartIntegrationTest extends PostgresTestSupport {
         try (var first = start()) {
             f = ReviewApiIntegrationTest.fixture();
             var claims = new JWTClaimsSet.Builder().subject(f.actor().toString()).issuer(ISSUER).audience("s04-test")
-                    .expirationTime(Date.from(Instant.now().plusSeconds(300)))
-                    .claim("tenant_id", f.tenant().toString()).claim("tenant_active", true)
-                    .claim("workspace_grants", List.of(Map.of("workspace_id", f.workspace().toString(), "active", true,
-                            "roles", List.of("STAFF"), "repository_ids", List.of(f.repository().toString())))).build();
+                    .expirationTime(Date.from(Instant.now().plusSeconds(300))).build();
             var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY.getKeyID()).build(), claims);
             jwt.sign(new RSASSASigner(KEY));
             token = jwt.serialize();

@@ -30,6 +30,9 @@ springdoc:
   override-with-generic-response: false
 
 livingdocs:
+  review:
+    access-context-uri: ${S01_REVIEW_ACCESS_CONTEXT_URI:}
+    allow-insecure-http: ${S04_REVIEW_ALLOW_INSECURE_HTTP:false}
   security:
     issuer-uri: ${S01_ISSUER_URI:}
     jwk-set-uri: ${S01_JWK_SET_URI:}

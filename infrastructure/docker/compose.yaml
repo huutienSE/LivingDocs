@@ -115,6 +115,12 @@ services:
       DB_PASSWORD: ${S04_DB_PASSWORD:-}
       FLYWAY_USERNAME: ld_s04_migrator
       FLYWAY_PASSWORD: ${S04_FLYWAY_PASSWORD:-}
+      S01_ISSUER_URI: ${JWT_ISSUER_URI:-urn:livingdocs:s01}
+      S01_JWK_SET_URI: http://identity-organization-service:8081/.well-known/jwks.json
+      S04_TOKEN_AUDIENCE: ${JWT_AUDIENCE:-livingdocs-api}
+      S01_REVIEW_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
+      # Local Compose network only; deployed environments must use HTTPS.
+      S04_REVIEW_ALLOW_INSECURE_HTTP: "true"
     ports:
       - "127.0.0.1:8084:8084"
     depends_on:

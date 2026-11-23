@@ -69,6 +69,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         execute("INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,document_version_id,evidence_type,source_ref) VALUES (?,?,?,'SOURCE','test://source')",
                 f.evidence, f.tenant, f.version);
         ReviewSourceValidationTestConfiguration.HEADS.put(f.repository, "a".repeat(40));
+        ReviewAuthorityTestServer.allow(f);
         return f;
     }
 
@@ -94,10 +95,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     String token(Fixture f, Map<String, Object> overrides, com.nimbusds.jose.jwk.RSAKey key,
                  String issuer, String audience, Instant expires) throws Exception {
         var claims = new JWTClaimsSet.Builder().subject(f.actor.toString()).issuer(issuer).audience(audience)
-                .issueTime(Date.from(Instant.now())).expirationTime(Date.from(expires))
-                .claim("tenant_id", f.tenant.toString()).claim("tenant_active", true)
-                .claim("workspace_grants", List.of(Map.of("workspace_id", f.workspace.toString(), "active", true,
-                        "roles", List.of("STAFF"), "repository_ids", List.of(f.repository.toString()))));
+                .issueTime(Date.from(Instant.now())).expirationTime(Date.from(expires));
         overrides.forEach(claims::claim);
         var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY.getKeyID()).build(), claims.build());
         jwt.sign(new RSASSASigner(key));
@@ -503,17 +501,17 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         var f = fixture();
         String etag = VersionEtags.format(f.version, 0);
         var otherTenant = new Fixture(UUID.randomUUID(), f.workspace, f.repository, f.document, f.version, f.evidence, f.actor);
+        ReviewAuthorityTestServer.allow(otherTenant);
         problem(review(f, token(otherTenant), passBody(f), "tenant", etag), 404, "DOCUMENT_VERSION_NOT_FOUND");
-        for (String kind : List.of("workspace", "role", "repository", "inactive-workspace", "inactive-tenant")) {
-            var overrides = new HashMap<String, Object>();
-            overrides.put("tenant_active", !kind.equals("inactive-tenant"));
-            overrides.put("workspace_grants", List.of(Map.of(
-                    "workspace_id", (kind.equals("workspace") ? UUID.randomUUID() : f.workspace).toString(),
-                    "active", !kind.equals("inactive-workspace"),
-                    "roles", List.of(kind.equals("role") ? "TENANT_OWNER" : "STAFF"),
-                    "repository_ids", List.of((kind.equals("repository") ? UUID.randomUUID() : f.repository).toString()))));
-            String jwt = token(f, overrides, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300));
-            problem(review(f, jwt, passBody(f), kind, etag), 403, "REVIEW_FORBIDDEN");
+        for (String kind : List.of("workspace", "role", "permission", "repository", "inactive-workspace", "inactive-tenant")) {
+            var grant = ReviewAuthorityTestServer.grant(kind.equals("workspace") ? UUID.randomUUID() : f.workspace,
+                    List.of(kind.equals("role") ? "TENANT_OWNER" : "STAFF"),
+                    kind.equals("permission") ? List.of("WORKSPACE_VIEW") : List.of("DOCUMENT_STAFF_REVIEW"),
+                    List.of(kind.equals("repository") ? UUID.randomUUID() : f.repository));
+            ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor,
+                    kind.equals("inactive-tenant") ? null : f.tenant,
+                    kind.equals("inactive-workspace") ? List.of() : List.of(grant)));
+            problem(review(f, token(f), passBody(f), kind, etag), 403, "REVIEW_FORBIDDEN");
         }
         unchanged(f);
     }
@@ -528,6 +526,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         invalid.add(token(f, Map.of(), wrongKey, ISSUER, "s04-test", Instant.now().plusSeconds(300)));
         invalid.add(token(f, Map.of(), KEY, "https://wrong-issuer.invalid", "s04-test", Instant.now().plusSeconds(300)));
         invalid.add(token(f, Map.of(), KEY, ISSUER, "another-service", Instant.now().plusSeconds(300)));
+        invalid.add(token(f, Map.of("sub", "invalid-identity"), KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)));
         invalid.add(token(f, Map.of(), KEY, ISSUER, "s04-test", Instant.now().minusSeconds(300)));
         for (String jwt : invalid) problem(review(f, jwt, passBody(f), "auth", VersionEtags.format(f.version, 0)), 401, "UNAUTHENTICATED");
         unchanged(f);
@@ -619,11 +618,17 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     }
 
     @Test
-    void malformedClaimsAndStaffRoleFromAnotherWorkspace_shouldNotGrantAccess() throws Exception {
+    void jwtAuthorityClaimsCannotOverrideS01OrCombineRolesAcrossWorkspaces() throws Exception {
         var f = fixture();
+        ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor, f.tenant, List.of(
+                ReviewAuthorityTestServer.grant(f.workspace, List.of("MANAGER"), List.of("DOCUMENT_FINAL_APPROVE"), List.of(f.repository)),
+                ReviewAuthorityTestServer.grant(UUID.randomUUID(), List.of("STAFF"), List.of("DOCUMENT_STAFF_REVIEW"), List.of(f.repository)))));
         for (Map<String, Object> overrides : List.of(
                 Map.<String, Object>of("workspace_grants", "not-a-list"),
                 Map.<String, Object>of("tenant_id", "invalid-uuid"),
+                Map.<String, Object>of("tenant_id", f.tenant.toString(), "tenant_active", true,
+                        "workspace_grants", List.of(Map.of("workspace_id", f.workspace.toString(), "active", true,
+                                "roles", List.of("STAFF"), "repository_ids", List.of(f.repository.toString())))),
                 Map.<String, Object>of("workspace_grants", List.of(
                         Map.of("workspace_id", f.workspace.toString(), "active", true, "roles", List.of("MANAGER"),
                                 "repository_ids", List.of(f.repository.toString())),
@@ -641,22 +646,53 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         execute("UPDATE document.documents SET repository_connection_id=NULL WHERE document_id=?", f.document);
         String etag = VersionEtags.format(f.version, 0);
         for (String kind : List.of("workspace", "role", "inactive-workspace", "inactive-tenant")) {
-            var denied = Map.<String, Object>of("tenant_active", !kind.equals("inactive-tenant"), "workspace_grants", List.of(Map.of(
-                    "workspace_id", (kind.equals("workspace") ? UUID.randomUUID() : f.workspace).toString(),
-                    "active", !kind.equals("inactive-workspace"), "roles", List.of(kind.equals("role") ? "MANAGER" : "STAFF"),
-                    "document_ids", List.of(f.document.toString()))));
-            problem(review(f, token(f, denied, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)), passBody(f), kind, etag),
+            ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor,
+                    kind.equals("inactive-tenant") ? null : f.tenant, kind.equals("inactive-workspace") ? List.of() : List.of(
+                            ReviewAuthorityTestServer.grant(kind.equals("workspace") ? UUID.randomUUID() : f.workspace,
+                                    List.of(kind.equals("role") ? "MANAGER" : "STAFF"), List.of("DOCUMENT_STAFF_REVIEW"), List.of()))));
+            problem(review(f, token(f), passBody(f), kind, etag),
                     403, "REVIEW_FORBIDDEN");
             unchanged(f);
         }
         var foreignTenant = new Fixture(UUID.randomUUID(), f.workspace, f.repository, f.document, f.version, f.evidence, f.actor);
+        ReviewAuthorityTestServer.allow(foreignTenant);
         problem(review(f, token(foreignTenant), passBody(f), "foreign-tenant", etag), 404, "DOCUMENT_VERSION_NOT_FOUND");
-        var overrides = Map.<String, Object>of("workspace_grants", List.of(Map.of(
-                "workspace_id", f.workspace.toString(), "active", true, "roles", List.of("STAFF"))));
-        var result = review(f, token(f, overrides, KEY, ISSUER, "s04-test", Instant.now().plusSeconds(300)), passBody(f), "document", etag);
+        ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor, f.tenant, List.of(
+                ReviewAuthorityTestServer.grant(f.workspace, List.of("STAFF"), List.of("DOCUMENT_STAFF_REVIEW"), List.of()))));
+        var result = review(f, token(f), passBody(f), "document", etag);
         assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
         assertThat(sourceValidator.calls(f.version)).isZero();
         assertThat(data(result).path("sourceBinding").isNull()).isTrue();
+    }
+
+    @Test
+    void eachRequestIncludingReplayMustReloadAuthorityAndFailClosedWithoutWrites() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        for (int status : List.of(401, 403, 500, 503, 302)) {
+            ReviewAuthorityTestServer.STATUSES.put(f.actor, status);
+            problem(review(f, jwt, passBody(f), "authority", etag), status == 401 ? 401 : status == 403 ? 403 : 503,
+                    status == 401 ? "UNAUTHENTICATED" : status == 403 ? "REVIEW_FORBIDDEN" : "AUTHORIZATION_UNAVAILABLE");
+            unchanged(f);
+        }
+        ReviewAuthorityTestServer.STATUSES.remove(f.actor);
+        var data = ReviewAuthorityTestServer.context(UUID.randomUUID(), f.tenant, List.of());
+        ReviewAuthorityTestServer.CONTEXTS.put(f.actor, data);
+        problem(review(f, jwt, passBody(f), "authority", etag), 503, "AUTHORIZATION_UNAVAILABLE");
+        unchanged(f);
+        ReviewAuthorityTestServer.allow(f);
+        var first = review(f, jwt, passBody(f), "authority", etag);
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor, f.tenant, List.of()));
+        problem(review(f, jwt, passBody(f), "authority", etag), 403, "REVIEW_FORBIDDEN");
+        ReviewAuthorityTestServer.STATUSES.put(f.actor, 503);
+        problem(review(f, jwt, passBody(f), "authority", etag), 503, "AUTHORIZATION_UNAVAILABLE");
+        ReviewAuthorityTestServer.STATUSES.remove(f.actor);
+        ReviewAuthorityTestServer.allow(f);
+        assertThat(review(f, jwt, passBody(f), "authority", etag).body()).isEqualTo(first.body());
+        assertThat(ReviewAuthorityTestServer.CALLS.get(f.actor)).isEqualTo(10);
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(1L);
     }
 
     @Test

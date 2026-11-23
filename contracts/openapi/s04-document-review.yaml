@@ -5,7 +5,8 @@ info:
   description: >-
     LIV-118 implementation slice of LD-API-001 API-120.
     Contract candidate for staff decisions; read endpoints are outside this persistence slice.
-    S01 scoped JWT claims are an integration candidate, not an approved S01 wire contract.
+    S01 Identity JWT authenticates the actor; API-038 supplies scoped authority for each request.
+    API-038 is an authority snapshot, not API-039 fresh evaluation.
 security:
   - bearerAuth: []
 paths:
@@ -30,6 +31,15 @@ paths:
         RETURN_FOR_REVISION and exact replay do not require a new source check.
         Repository-free documents use active Staff membership in the owning workspace;
         no document_ids ACL claim is required. Repository-backed documents still require repository scope.
+        Each request, including an exact replay, forwards the verified User JWT to S01 API-038
+        before opening the S04 write transaction. Identity, tenant and workspace authority come
+        from that response, never scoped JWT claims or user-supplied headers. STAFF and
+        DOCUMENT_STAFF_REVIEW must occur in the same workspace grant. A missing membership
+        or permission returns 403; a different tenant cannot see the version (404 under RLS).
+        S01 401/403 map to 401/403. Missing configuration, timeout, upstream errors or malformed
+        context return 503 AUTHORIZATION_UNAVAILABLE without writing. No cached-authority fallback.
+        API-038 remains a snapshot: revocation before the next lookup is enforced, but revocation
+        between lookup and commit is not atomic with the S04 mutation.
       parameters:
         - name: If-Match
           in: header
@@ -225,7 +235,7 @@ components:
           enum: [METHOD_NOT_ALLOWED, NOT_ACCEPTABLE, UNSUPPORTED_MEDIA_TYPE, INVALID_REQUEST, INVALID_IF_MATCH, UNAUTHENTICATED, REVIEW_FORBIDDEN,
                  DOCUMENT_VERSION_NOT_FOUND, STATE_TRANSITION_FORBIDDEN, IDEMPOTENCY_CONFLICT,
                  CONCURRENT_REVIEW, REVISION_CONFLICT, RETURN_REASON_REQUIRED, REVIEW_EVIDENCE_REQUIRED,
-                 SOURCE_CHANGED_REVALIDATION_REQUIRED, SOURCE_VALIDATION_UNAVAILABLE,
+                 SOURCE_CHANGED_REVALIDATION_REQUIRED, SOURCE_VALIDATION_UNAVAILABLE, AUTHORIZATION_UNAVAILABLE,
                  REVIEW_EVIDENCE_INVALID, SOURCE_EVIDENCE_INSUFFICIENT, PRECONDITION_REQUIRED, PERSISTENCE_ERROR, EVIDENCE_LIMIT_EXCEEDED, DUPLICATE_EVIDENCE, REPLAY_SNAPSHOT_UNAVAILABLE]
         correlationId:
           type: string

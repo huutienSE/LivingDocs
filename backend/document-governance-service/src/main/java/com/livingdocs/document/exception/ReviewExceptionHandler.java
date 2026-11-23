@@ -25,6 +25,12 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class ReviewExceptionHandler {
     private final ApiProblems problems;
 
+    @ExceptionHandler(ReviewAuthenticationRequiredException.class)
+    public ResponseEntity<ProblemDetail> authentication(ReviewAuthenticationRequiredException e, HttpServletRequest request) {
+        return ResponseEntity.status(401).header("WWW-Authenticate", "Bearer")
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON).body(business(e, request));
+    }
+
     @ExceptionHandler(ReviewException.class)
     public ProblemDetail business(ReviewException e, HttpServletRequest request) {
         return problems.create(request, e.getErrorCode(), e.getMessage());

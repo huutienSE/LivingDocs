@@ -18,13 +18,19 @@ public class ReviewSecurityConfiguration {
     JwtDecoder jwtDecoder(@Value("${livingdocs.security.issuer-uri:}") String issuer,
                           @Value("${livingdocs.security.jwk-set-uri:}") String jwks,
                           @Value("${livingdocs.security.audience:}") String audience) {
-        // S01 is not implemented in this checkout. Missing trust configuration must never enable a bypass.
+        // Missing S01 trust configuration must never enable a bypass.
         if (issuer.isBlank() || jwks.isBlank() || audience.isBlank()) {
             return token -> { throw new BadJwtException("Access-token trust is not configured."); };
         }
         var decoder = NimbusJwtDecoder.withJwkSetUri(jwks).build();
         OAuth2TokenValidator<Jwt> requiredClaims = jwt -> {
-            if (jwt.getExpiresAt() == null || jwt.getSubject() == null || !jwt.getAudience().contains(audience)) {
+            boolean identitySubject = false;
+            try {
+                identitySubject = java.util.UUID.fromString(jwt.getSubject()).toString().equals(jwt.getSubject());
+            } catch (IllegalArgumentException | NullPointerException ignored) {
+                // S01 access tokens identify a canonical Identity UUID.
+            }
+            if (jwt.getExpiresAt() == null || !identitySubject || !jwt.getAudience().contains(audience)) {
                 return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token"));
             }
             return OAuth2TokenValidatorResult.success();

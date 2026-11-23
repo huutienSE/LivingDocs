@@ -63,7 +63,7 @@ public class DocumentReviewController {
             @ApiResponse(responseCode = "422", description = "Invalid review evidence or feedback", headers = @Header(name = "X-Correlation-ID", schema = @Schema(type = "string")), content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ReviewProblem.class))),
             @ApiResponse(responseCode = "428", description = "If-Match required", headers = @Header(name = "X-Correlation-ID", schema = @Schema(type = "string")), content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ReviewProblem.class))),
             @ApiResponse(responseCode = "500", description = "Persistence failure", headers = @Header(name = "X-Correlation-ID", schema = @Schema(type = "string")), content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ReviewProblem.class))),
-            @ApiResponse(responseCode = "503", description = "Source validation unavailable", headers = @Header(name = "X-Correlation-ID", schema = @Schema(type = "string")), content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ReviewProblem.class)))
+            @ApiResponse(responseCode = "503", description = "S01 authorization or source validation unavailable", headers = @Header(name = "X-Correlation-ID", schema = @Schema(type = "string")), content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ReviewProblem.class)))
     })
     public ResponseEntity<SuccessResponse<ReviewResponse>> review(@PathVariable UUID versionId,
             @Valid @RequestBody ReviewRequest body,
