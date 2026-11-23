@@ -18,9 +18,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Kiểm thử chủ động với GitHub và PostgreSQL thật, dùng kết nối thử đã chuẩn bị riêng. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("db")
 @EnabledIfSystemProperty(named = "livingdocs.github.live", matches = "true")
 class GitHubLiveIntegrationTests {
@@ -81,6 +82,27 @@ class GitHubLiveIntegrationTests {
 
         LOG.info("LIV-122 LIVE PASS ref={} sha={} sourceRevision={} current=PASS differentExpectedSha=STALE_SHA",
                 ref, expectedSha, resolved.sourceRevision());
+    }
+
+    @Test
+    void hidesTheRepositoryConnectionFromAnotherWorkspaceInTheSameTenant() {
+        String otherWorkspace = environment.getProperty("LIV122_TEST_OTHER_WORKSPACE_ID");
+        assumeTrue(otherWorkspace != null && !otherWorkspace.isBlank(),
+                "Điền LIV122_TEST_OTHER_WORKSPACE_ID để kiểm tra cách ly giữa hai workspace.");
+
+        UUID otherWorkspaceId = UUID.fromString(otherWorkspace.trim());
+        assertNotEquals(UUID.fromString(required("LIV122_TEST_WORKSPACE_ID")), otherWorkspaceId,
+                "Hai workspace thử phải có UUID khác nhau.");
+        var scope = new SourceScope(UUID.fromString(required("LIV122_TEST_TENANT_ID")), otherWorkspaceId);
+        UUID connectionId = UUID.fromString(required("LIV122_TEST_CONNECTION_ID"));
+        var request = new SourceResolveRequest(connectionId, TargetKind.BRANCH, required("LIV122_TEST_REF"), null);
+
+        var resolved = resolver.resolve(scope, request);
+
+        assertEquals(ValidationReason.UNKNOWN_CONNECTION, resolved.reason());
+        assertNull(resolved.resolvedSha());
+        LOG.info("LIV-122 WORKSPACE ISOLATION PASS reason={} shaReturned={}", resolved.reason(),
+                resolved.resolvedSha() != null);
     }
 
     private String required(String name) {
