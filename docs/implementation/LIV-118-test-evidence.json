@@ -7,7 +7,7 @@
     "fileSha256": {
       ".github/workflows/backend-ci.yaml": "c03a63830e0d6e375a14cbbc4385156b3af743cd98fb0cb73f5b458996884742",
       "backend/document-governance-service/.env.example": "191e19bfed1ddbfca6241e8bc0c66b9dfcfdbfad409c9cb51787b555e93e3755",
-      "backend/document-governance-service/README.md": "973561e88531a5e1e7eee24ce7ee01ced60e0ca774659d190702b2d65df7d673",
+      "backend/document-governance-service/README.md": "a59c1f256b2f09924a86b63b8a93bb412c7925ad9b10ab14c6b7d85ae18ca914",
       "backend/document-governance-service/pom.xml": "b6371d7224655d0b875965111f6c430354f91b0ded76bbacb931f8b32f033c76",
       "backend/document-governance-service/src/main/java/com/livingdocs/document/DocumentGovernanceServiceApplication.java": "8cb1cfcbb496525da4b06f593e7e4f1a91aee8798539a0d65397b7330b855d06",
       "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01ReviewAuthorizationClient.java": "baae81a8501205dd349e4aa9a3b48292cf5ae9a56c0226d7207845b0cfd7eb1b",
@@ -93,9 +93,9 @@
       "backend/document-governance-service/src/test/resources/db/bootstrap.sql": "52ad1c8655b95308df25218c674e19a9e701cce5f9499f2e97c9d4a56e3b13ba",
       "contracts/openapi/s04-document-review.yaml": "787c1a2961edcbed7c6e5ba009fb6158b52d71f5647b9927c974ee78f454eed7",
       "docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md": "52edf17f6f1204d82cb4a9b9659727d7a6eae3f717945b212fce835b4c9d547a",
-      "docs/implementation/LIV-118-implementation-report.md": "1ee6533c45a4a4233889c13685338e913677dae87ea15f8d1726783e6dc0e117",
+      "docs/implementation/LIV-118-implementation-report.md": "a46f1d4c1bd04af70ae299160c10aa7a4da1ee1b42510eaede24ccdd1c6c9cf0",
       "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md": "055a3e828d1d6c673b251eab7609d87ca0b4d0bd0f9a566b0efb0d7f732e7c59",
-      "docs/implementation/authorization/LIV-118-api120-s01-integration.md": "2ed8165b5daa08e03484884fe74a72db22a6791c3b1d2375bf97673c04db533f",
+      "docs/implementation/authorization/LIV-118-api120-s01-integration.md": "d8bf8b4a5884a0e6f803441301791d9026645fa799ca82b10e2b8c1ac3e5350d",
       "docs/implementation/authorization/LIV-138-s01-authority-and-testing.md": "9f2b43c4e88b307ad9da6b83148644be959a2812cd07b7ad42b3dc980f77e1e6",
       "infrastructure/docker/compose.yaml": "daf37ebef212a10b12932205f0f2ba3f0eb1fc928cf932c56a09a733abf5e113",
       "scripts/test_api120_s01_integration.py": "90b6b09332b143bd8cdcc4ea9b8477c66ce794df41e7c6a2b1276cf3099e6450"
@@ -111,7 +111,7 @@
     "preExistingWorktreeEdits": [
       "Partial API-038 client/resolver/config/errors existed and were completed in API-120 scope; unrelated root .gitignore, .codegraph and flow1 docs preserved."
     ],
-    "snapshotTiming": "uncommittedChanges records the state during local testing, before the authorized delivery commit; documentation refreshed before staging."
+    "snapshotTiming": "Implementation and test artifact hashes identify the earlier local run; documentation was corrected after delivery commit 72a8311 to record missing fresh authorization and remove unsupported user-approval claims."
   },
   "localVerification": {
     "command": "mvn -B -ntp clean verify",
@@ -490,6 +490,7 @@
     }
   },
   "limits": [
+    "API-120 fresh authorization is incomplete. Accessible S01 source, fresh-auth branch and runtime spec do not provide API-039 evaluator or service assertion support; no user-approved exemption exists.",
     "S01 API-038 remains a snapshot. Revocation before next lookup is enforced with the same JWT; revocation between lookup and S04 commit is not atomic.",
     "No production S02 adapter. Repository-backed PASS needs an effective repository grant and trusted source validation; positive source component tests use a test provider.",
     "Real S01/S04 positive HTTP evidence covers repository-free documents. SQL authority/document fixtures exist only in disposable DBs; this runner does not verify operator CLI provisioning.",
@@ -1081,5 +1082,74 @@
       "docs/implementation/flow1/"
     ],
     "remoteCi": "Not claimed by this local verification record."
+  },
+  "freshAuthorizationReadiness": {
+    "checkedAt": "2026-11-23T08:21:27.635489+00:00",
+    "checkedBy": "Codex",
+    "implementationCommit": "72a83117d2e90102bfdb8bc8b6eb286b1f380133",
+    "result": "NOT_READY_IN_ACCESSIBLE_S01_VERSIONS",
+    "api120AuthCompletion": "INCOMPLETE_WITHOUT_FRESH_EVALUATION",
+    "scopeCorrection": {
+      "requested": "Real auth integration per LIV-138 runbook, including fresh authorization for protected API-120 actions",
+      "withdrawnClaim": "The earlier claim that the user approved API-038 instead of fresh authorization was incorrect and has been removed.",
+      "currentBehavior": "S04 verifies User JWT, loads API-038 on every request and enforces resource scope locally; this is not API-039 integration."
+    },
+    "gitEvidence": {
+      "developRef": "origin/develop",
+      "developSha": "1e76bad12ceb96c79c4820dcbf310a74b0d93fd3",
+      "freshRef": "origin/feature/LIV-138-s01-service-jwt-fresh-authz",
+      "freshSha": "1e76bad12ceb96c79c4820dcbf310a74b0d93fd3",
+      "newCommits": 0,
+      "changedFilesVsDevelop": 0,
+      "pullRequestSearch": "GitHub connector exact head branch search returned no PRs",
+      "otherLocalWorktrees": "flow1-develop and liv118 have no uncommitted S01/OpenAPI changes"
+    },
+    "sourceEvidence": {
+      "controllers": [
+        "AuthController",
+        "AccessContextController",
+        "JwksController"
+      ],
+      "issuer": "JwtTokenIssuer.issue(UUID) issues User JWT only",
+      "security": "S01SecurityConfig exposes auth register/login, access context, JWKS and docs/health; remaining routes denyAll",
+      "contract": "Runbook PR2 describes a proposed evaluator/service assertion contract; no corresponding operation/DTO or issuer/validator implementation found in accessible S01 source"
+    },
+    "runtimeEvidence": {
+      "url": "http://127.0.0.1:8081/v3/api-docs",
+      "result": "HTTP 200",
+      "openapi": "3.1.0",
+      "paths": [
+        "/api/v1/auth/register",
+        "/api/v1/auth/login",
+        "/api/v1/users/me/access-context",
+        "/.well-known/jwks.json"
+      ],
+      "limitation": "Published runtime spec agrees with inspected source; this does not establish state of other deployments or unpublished code."
+    },
+    "jiraEvidence": {
+      "issue": "LIV-138",
+      "status": "In Progress",
+      "updated": "2026-11-15T16:53:52.434+0700",
+      "comments": 0,
+      "assignee": "TIEN HUYNH PHAM HUU",
+      "limitation": "Issue state does not independently prove whether unpublished implementation exists."
+    },
+    "missingDependencies": [
+      "S01 fresh evaluation endpoint and action/resource request-response contract",
+      "S01 mechanism for S04 to obtain a trusted service assertion and S01 validation of caller/actor, method/path, jti and TTL",
+      "Cross-service contract and real ALLOW/DENY/UNAVAILABLE verification"
+    ],
+    "nextS04Integration": [
+      "Resolve resource under RLS in read transaction and close before fresh HTTP call",
+      "Call S01 evaluator with authenticated actor/caller and resource scope",
+      "Open write transaction and recheck scope/state/ETag before mutation or replay",
+      "Deny and leave DB unchanged for rejection, unavailability or invalid assertions; retain S02 source guard"
+    ],
+    "atomicityLimit": "Fresh evaluation alone does not provide atomic revocation across S01 and S04 database commits.",
+    "changesThisCheck": "Documentation and manifest only. Runtime Java code and configuration unchanged; no test rerun or deployment.",
+    "existingTestEvidence": "59 Maven tests and 22 real S01/API-038 assertions remain evidence of the implemented path only, not API-039.",
+    "remainingUnknowns": [
+      "Unpublished code or deployments not accessible from this workspace"
+    ]
   }
 }

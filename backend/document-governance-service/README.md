@@ -108,10 +108,13 @@ Replay vẫn phải có quyền tại lần lookup mới và S01 hoạt động.
 
 API-038 là snapshot quyền, **không phải API-039 fresh evaluation**. Thu hồi trước lần lookup kế tiếp
 được áp dụng với cùng JWT; không bảo đảm nguyên tử giữa thu hồi quyền và commit ở S04.
-Lựa chọn API-038 áp dụng cho LIV-118/API-120 theo xác nhận phạm vi đã ghi tại
-[báo cáo triển khai](../../docs/implementation/LIV-118-implementation-report.md); không thay đổi contract tương lai
-của Manager/Publish. [Runbook S01](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md)
-là căn cứ cho đăng nhập, authority và operator provisioning.
+API-120 chưa tích hợp fresh evaluator API-039 theo yêu cầu của
+[runbook S01](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md).
+Không có quyết định của người dùng cho phép API-038 thay bước fresh. Kiểm tra ngày
+23/11/2026 chưa tìm thấy evaluator/service assertion trong source S01 hoặc runtime
+OpenAPI hiện truy cập được; nhánh S01 fresh auth chưa có commit khác `develop`.
+[Báo cáo triển khai](../../docs/implementation/LIV-118-implementation-report.md) ghi
+bằng chứng dependency và các bước còn thiếu; chưa nghiệm thu đầy đủ auth API-120.
 
 Request PASS mới cho document gắn repository yêu cầu `SourceReviewValidator` đáng tin cậy.
 Kết quả phải khớp tenant/workspace/repository/version/revision/SHA và còn hiệu lực trước khi ghi.

@@ -4,11 +4,16 @@
 **Người lập:** Codex. **Ngày báo cáo:** 23/11/2026, UTC+7.
 **Nơi lưu:** repository LivingDocs, nhánh `feature/LIV-118-s04-review-state-persistence`.
 
-API-120 đã có nghiệp vụ PASS/RETURN và tích hợp xác thực, phân quyền S01 thật bằng
-User JWT cùng API-038 Access Context. Kiểm thử local đã xác nhận Staff được cấp quyền
-có thể thao tác trên document không gắn repository; sai scope, quyền bị thu hồi hoặc
-S01 không hoạt động đều bị từ chối. Staff PASS trên repository thật chưa đủ điều kiện
-nghiệm thu vì còn phụ thuộc quyền repository đã xác minh và tích hợp source validation S02.
+**Trạng thái auth: chưa hoàn thành fresh authorization theo runbook LIV-138.** API-120
+hiện có xác thực User JWT và lookup quyền qua API-038; chưa gọi evaluator API-039 trước
+mutation. Người dùng yêu cầu tích hợp auth thật và không xác nhận dùng API-038 thay
+fresh authorization. Các nội dung trước đây gán quyết định đó cho người dùng là sai.
+
+Kiểm thử local đã xác nhận Staff được cấp quyền có thể PASS/RETURN document không gắn
+repository; sai scope, quyền bị thu hồi trước lookup hoặc S01 không hoạt động đều bị
+từ chối. Kết quả này chứng minh implementation JWT + API-038 hiện có, chưa chứng minh
+đã hoàn tất auth theo thiết kế. Staff PASS trên repository thật còn phụ thuộc quyền
+repository đã xác minh và tích hợp source validation S02.
 
 ## Phần đã triển khai
 
@@ -28,7 +33,26 @@ Endpoint: `POST /api/v1/document-versions/{versionId}/staff-decisions`.
 
 Tích hợp API-038 là phần bổ sung trong lượt triển khai này; các nghiệp vụ review,
 persistence, ETag, idempotency và source guard được giữ lại và chạy regression.
-API-039, Manager Approval và Publish không được triển khai thêm trong phạm vi này.
+Fresh authorization API-039 là phần còn thiếu để hoàn thiện auth của API-120 theo
+runbook; Manager Approval và Publish là các endpoint khác.
+
+## Kết quả kiểm tra khả năng tích hợp fresh authorization
+
+Kiểm tra lại ngày **23/11/2026** trên source đã fetch, nhánh phụ thuộc, Jira và OpenAPI
+S01 local. **Chưa thể tích hợp và kiểm chứng API-039 thật với phiên bản S01 hiện truy cập được.**
+
+| Dependency | Bằng chứng hiện tại | Tác động tới API-120 |
+| --- | --- | --- |
+| API-039 evaluator và contract | Source S01 chỉ có `AuthController`, `AccessContextController`, `JwksController`; OpenAPI S01 chưa có operation/request/response fresh evaluation. Runtime `http://127.0.0.1:8081/v3/api-docs` chỉ công bố register, login, API-038 và JWKS. | Chưa có endpoint/DTO thực tế để S04 gửi action/scope và nhận quyết định fresh từ S01. |
+| Service JWT/assertion và caller trust | `JwtTokenIssuer.issue(UUID)` hiện phát User JWT. Source chưa có issuer/validator cho service assertion; runbook mục PR2 mới ghi contract dự kiến với `X-LD-Service-Assertion`, caller/actor, method/path, `jti` và TTL. | Chưa có cơ chế được triển khai để S04 lấy assertion và S01 xác minh caller theo contract PR2. Không tự dùng User JWT như service credential. |
+| Nhánh S01 fresh auth | `origin/feature/LIV-138-s01-service-jwt-fresh-authz` và `origin/develop` cùng SHA `1e76bad12ceb96c79c4820dcbf310a74b0d93fd3`; không có commit hoặc file khác biệt. Tìm PR theo đúng head branch không có kết quả. | Tên nhánh đã tồn tại nhưng chưa có implementation mới để tích hợp. |
+| Bàn giao dependency | Jira LIV-138 vẫn `In Progress`, không có comment bổ sung contract; các worktree local `flow1-develop` và `liv118` không có thay đổi S01/OpenAPI chưa commit. | Chưa tìm thấy bản bàn giao khác trong các nguồn đã kiểm tra. Kết luận không bao phủ source chưa push hoặc môi trường không truy cập được. |
+
+Khi S01 bàn giao evaluator và service assertion, S04 cần resolve resource dưới RLS
+trong read transaction, kết thúc transaction trước HTTP fresh evaluation, rồi mở write
+transaction kiểm lại resource scope/state/ETag trước mutation. Phải áp dụng cho cả
+PASS/RETURN và kiểm quyền trước replay theo contract; DENY/UNAVAILABLE không được ghi DB.
+Một response ALLOW không tự bảo đảm thu hồi quyền nguyên tử với commit xuyên hai DB.
 
 ## Kết quả kiểm chứng
 
@@ -52,6 +76,7 @@ với hash đã ghi. Lượt lập báo cáo không chạy lại test.
 
 | Giới hạn hoặc phụ thuộc | Tác động thực tế |
 | --- | --- |
+| **Thiếu fresh authorization trước mutation** | JWT + API-038 mỗi request chưa đáp ứng bước S01 quyết định fresh action/scope theo runbook. API-120 chưa thể được nghiệm thu đầy đủ auth; thiếu endpoint/contract API-039 và service assertion như bảng kiểm tra ở trên. |
 | **Chưa có adapter production S02 trong S04** | Repository-backed PASS chưa được nghiệm thu. Sau khi đủ quyền repository, nếu thiếu kết quả source validation đáng tin cậy thì source guard trả `503 SOURCE_VALIDATION_UNAVAILABLE`; guard vẫn được giữ. |
 | **Chưa chứng minh quy trình cấp Repository Grant đã xác minh** | Runner chỉ kiểm grant `PENDING` bị loại khỏi quyền hiệu lực; không tự tạo grant `VERIFIED`. Role Staff trong workspace không đủ để review document gắn repository. |
 | **API-038 là snapshot quyền** | Revoke trước lần lookup tiếp theo được áp dụng với cùng JWT. Chưa có bảo đảm nguyên tử nếu quyền bị thu hồi giữa lookup và commit S04. Không coi API-038 là API-039 fresh evaluation. |
@@ -63,9 +88,10 @@ với hash đã ghi. Lượt lập báo cáo không chạy lại test.
 
 ## Điều kiện để nghiệm thu Staff Review trên repository thật
 
-1. Thống nhất contract source validation S02, cơ chế xác thực service-to-service và triển khai adapter S04 tương ứng.
-2. Có repository connection hợp lệ và quy trình cấp/xác minh Repository Grant cho Staff đúng tenant/workspace.
-3. Xác nhận schema DB đích tương thích, triển khai bản mới và chạy cả happy path lẫn deny/failure cases qua Gateway trên repository thật.
+1. S01 bàn giao API-039 và service assertion với contract/test evidence; tích hợp vào API-120 và kiểm ALLOW/DENY/UNAVAILABLE, revoke, caller sai, assertion hết hạn/replay, scope thay đổi và DB không mutate khi bị từ chối.
+2. Thống nhất contract source validation S02, cơ chế xác thực service-to-service và triển khai adapter S04 tương ứng.
+3. Có repository connection hợp lệ và quy trình cấp/xác minh Repository Grant cho Staff đúng tenant/workspace.
+4. Xác nhận schema DB đích tương thích, triển khai bản mới và chạy cả happy path lẫn deny/failure cases qua Gateway trên repository thật.
 
 ## Nguồn và độ tin cậy
 
@@ -74,7 +100,9 @@ với hash đã ghi. Lượt lập báo cáo không chạy lại test.
 | [Manifest kiểm chứng LIV-118](LIV-118-test-evidence.json) | Codex tổng hợp từ lượt chạy local ngày 23/11/2026; lưu trong repo. | Nguồn trực tiếp cho test totals, timestamps và SHA256. Đã đối chiếu artifact khi lập báo cáo; chưa phải QA độc lập hoặc remote CI. |
 | [Chi tiết tích hợp API-120 và S01](authorization/LIV-118-api120-s01-integration.md) | Codex, 23/11/2026; lưu trong repo. | Ghi hành vi, lệnh tái lập, môi trường và giới hạn của các lượt chạy đã thực hiện. |
 | [Runbook S01 LIV-138](authorization/LIV-138-s01-authority-and-testing.md) | Commit `e0d7fc1` của `huutienSE`, 22/11/2026 10:21:52 UTC+7; repository LivingDocs. | Nguồn dự án về API-038/authority; contract đã được đối chiếu với source và HTTP thật trong phiên triển khai. Git commit author không tự xác nhận tác giả mọi đoạn nội dung. |
-| Xác nhận phạm vi API-120 trong phiên triển khai | Người dùng xác nhận ngày 23/11/2026; được ghi nhận trong tài liệu tích hợp và manifest của repo. | Áp dụng API-038 cho Staff Decision; không suy ra quyết định bỏ API-039 cho Manager/Publish hoặc bỏ source guard S02. |
+| Yêu cầu tích hợp auth trong phiên triển khai | Người dùng yêu cầu “tích hợp thật auth”, dẫn runbook LIV-138 và đính chính ngày 23/11/2026. | Không có xác nhận cho phép API-038 thay fresh authorization. Đây là căn cứ sửa kết luận auth chưa hoàn thành. |
+| Nhánh S01 và runtime OpenAPI | GitHub `huutienSE/LivingDocs`, nhánh `feature/LIV-138-s01-service-jwt-fresh-authz`; runtime S01 local cổng 8081, đọc 23/11/2026. | Git/source và runtime spec là bằng chứng trực tiếp cho phiên bản đã kiểm tra; runtime spec không chứng minh mọi môi trường đều cùng phiên bản. |
+| [Jira LIV-138](https://huutiense25.atlassian.net/browse/LIV-138) | LivingDocs Jira; assignee TIỀN HUỲNH PHẠM HỮU; issue cập nhật 15/11/2026; đọc live 23/11/2026. Tác giả description chưa xác định. | Nguồn quản lý dependency; trạng thái `In Progress` và không có comment không tự chứng minh code ở nơi khác chưa tồn tại. Kết luận readiness dựa thêm source và runtime ở bảng trên. |
 
 Artifact trong `target/` có thể bị ghi đè hoặc xóa bởi clean build. Kết luận kiểm chứng
 áp dụng cho đúng nguồn và artifact đã ghi trong manifest, không thay thế nghiệm thu môi trường đích.

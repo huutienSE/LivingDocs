@@ -6,9 +6,10 @@
 
 ## Quyết định và hành vi
 
-API-120 sử dụng User JWT do S01 cấp và API-038 theo xác nhận phạm vi ghi tại
-[báo cáo triển khai](../LIV-118-implementation-report.md). Runbook LIV-138 mô tả API-039 cho PR2;
-lựa chọn API-038 ở đây chỉ áp dụng Staff Decision, không đổi yêu cầu của Manager/Publish.
+API-120 hiện sử dụng User JWT do S01 cấp và API-038. Đây là implementation đã có,
+chưa đáp ứng bước fresh authorization của runbook LIV-138; người dùng không xác nhận
+dùng API-038 thay bước đó. [Báo cáo triển khai](../LIV-118-implementation-report.md)
+đã đính chính nhận định trước đây và ghi dependency API-039 còn thiếu.
 
 ```mermaid
 sequenceDiagram
@@ -79,6 +80,12 @@ Manifest [LIV-118-test-evidence.json](../LIV-118-test-evidence.json) lưu source
 suite totals và kết quả runner. Các artifact local bị Git bỏ qua, có thể bị ghi đè bởi lần build sau.
 
 ## Giới hạn nghiệm thu
+
+**Auth API-120 chưa hoàn thành theo runbook LIV-138:** S04 chưa gọi evaluator API-039
+trước protected action. Kiểm tra source/runtime ngày 23/11/2026 chưa tìm thấy evaluator
+hoặc cơ chế cấp/xác minh service assertion trong S01 hiện truy cập được; nhánh fresh auth
+vẫn cùng SHA `1e76bad12ceb96c79c4820dcbf310a74b0d93fd3` với `develop`.
+Các kết quả 59 tests và 22 assertions ở trên không là bằng chứng API-039 đã tích hợp.
 
 Positive PASS/RETURN ở runner dùng document **không gắn repository**. Không tự tạo VERIFIED grant,
 không bỏ source guard S02. Repository-backed PASS vẫn cần quyền repository hiệu lực và adapter source
