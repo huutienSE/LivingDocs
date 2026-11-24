@@ -91,6 +91,62 @@ foreach ($service in 's02','s03','s04') { Test-Path (Join-Path $HOME ".livingdoc
 
 **Điểm dừng:** mọi file cần tồn tại; secret gốc không nằm trong `s01_workloads.json`, registry phải chứa BCrypt hash và policy tenant/audience/operation thật. Không tạo registry giả chỉ để test PASS. Nếu Compose mount secrets ở đường khác, kiểm `S01_JWT_SECRETS_DIR` trong `.env`. Không in secret hoặc đưa environment JSON vào Git.
 
+### Nếu database khác chưa đủ fixture PR2
+
+**Sau Bước 2, trước khi chạy 27 requests.** Fixture B cần Identity, Tenant, Tenant Membership, Review/Other Workspace đều `ACTIVE`; B là `TENANT_OWNER ACTIVE`, có Workspace Membership `ACTIVE` và role `TECHNICAL_LEAD ACTIVE` ở Review, nhưng không có Workspace Membership `ACTIVE` ở Other. Repository UUID dùng trong collection phải là grant `PENDING` của một member khác; B không có effective grant cho UUID đó. Registry S01 phải allowlist đúng Tenant UUID. Dùng các UUID/email thật từ PR1, không lấy từ Swagger example. Có thể mở psql read-only từ `infrastructure/docker` trên cả macOS và Windows:
+
+```bash
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Khi thấy prompt `livingdocs=#`, thay email và UUID trong dấu `<...>` bằng fixture thật rồi chạy các câu `SELECT`; gõ `\q` để trở về Terminal/PowerShell:
+
+```sql
+SELECT i.identity_id, i.email, i.status AS identity_status,
+       tm.tenant_id, tm.status AS tenant_member_status
+FROM identity.identities i
+LEFT JOIN identity.tenant_memberships tm ON tm.identity_id = i.identity_id
+WHERE lower(i.email) = lower('<B_EMAIL>');
+
+SELECT w.workspace_id, w.name, w.status AS workspace_status,
+       wm.workspace_membership_id, wm.status AS workspace_member_status,
+       r.role_code, r.status AS role_status
+FROM identity.workspaces w
+LEFT JOIN identity.workspace_memberships wm
+  ON wm.workspace_id = w.workspace_id AND wm.identity_id = '<B_ID>'::uuid
+LEFT JOIN identity.workspace_role_assignments r
+  ON r.workspace_membership_id = wm.workspace_membership_id
+WHERE w.tenant_id = '<TENANT_ID>'::uuid
+ORDER BY w.name, r.role_code;
+
+SELECT tenant_id, status, authz_revision
+FROM identity.tenants WHERE tenant_id = '<TENANT_ID>'::uuid;
+SELECT tm.identity_id, tr.role_code, tr.status AS role_status
+FROM identity.tenant_role_assignments tr
+JOIN identity.tenant_memberships tm
+  ON tm.membership_id = tr.tenant_membership_id
+WHERE tr.tenant_id = '<TENANT_ID>'::uuid
+  AND tm.identity_id = '<B_ID>'::uuid;
+SELECT g.repository_connection_id, wm.identity_id AS grantee_identity_id,
+       g.status, g.verification_status
+FROM identity.repository_grants g
+JOIN identity.workspace_memberships wm
+  ON wm.workspace_membership_id = g.workspace_membership_id
+WHERE g.tenant_id = '<TENANT_ID>'::uuid
+  AND g.workspace_id = '<REVIEW_WORKSPACE_ID>'::uuid;
+```
+
+| Thiếu điều kiện | Bổ sung bằng đường có audit trong [PR1 runbook](LIV-138-s01-authority-and-testing.md) |
+| --- | --- |
+| Chưa có Tenant hoặc Review/Other Workspace | Hoàn thành PR1 bootstrap: Platform Admin tạo Tenant bằng `CREATE_TENANT`; Tenant Owner tạo từng Workspace bằng `CREATE_WORKSPACE`. Không tạo lại dữ liệu đã có |
+| B chưa có `TENANT_OWNER ACTIVE` trong Tenant hiện có | Tenant Owner hợp lệ khác dùng `ASSIGN_TENANT_ROLE` cho B theo PR1; không chạy `CREATE_TENANT` trên Tenant đã tồn tại |
+| B chưa có Review Workspace Membership | Tenant Owner chạy `ADD_WORKSPACE_MEMBER` cho B; ghi lại `workspaceMembershipId` từ output `Provisioning APPLIED` |
+| B chưa có `TECHNICAL_LEAD` trong Review | Tenant Owner chạy `ASSIGN_WORKSPACE_ROLE` với `workspaceMembershipId` thật của B và `roleCode=TECHNICAL_LEAD` |
+| Thiếu logical repository reference `PENDING` cho case Document DENY | Một member khác B có `TECHNICAL_LEAD ACTIVE` tự chạy `REQUEST_REPOSITORY_GRANT` theo PR1; không tự ghi `VERIFIED` và không coi UUID đó là S02 Connection thật |
+| Registry/secret S02–S04 thiếu Tenant hoặc operation | Operator quản lý secret cập nhật BCrypt registry ngoài Git và secret mount của caller theo policy đã duyệt; không nới policy chỉ để test xanh |
+
+Mỗi `ADD_WORKSPACE_MEMBER`, `ASSIGN_WORKSPACE_ROLE` hoặc `REQUEST_REPOSITORY_GRANT` là **một named CLI operation riêng** với actor, `operationId`, audit và revision thật. Không chạy `INSERT/UPDATE` bằng runtime SQL; không chạy lại manifest cũ để tạo operation mới. Sau khi bổ sung, chạy lại `SELECT` và chỉ sang Bước 1 khi fixture đúng scope.
+
 ## Bước 1 — Java/Testcontainers trước HTTP (macOS)
 
 Từ repository root, kiểm Java/Testcontainers trước:
