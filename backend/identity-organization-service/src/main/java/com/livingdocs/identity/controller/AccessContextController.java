@@ -30,7 +30,8 @@ public class AccessContextController {
     private final AccessContextService service;
 
     @GetMapping(value = "/access-context", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Current scoped access context", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(operationId = "api038_get", summary = "Current scoped access context",
+            security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Current effective scope snapshot",
                     useReturnTypeSchema = true,
