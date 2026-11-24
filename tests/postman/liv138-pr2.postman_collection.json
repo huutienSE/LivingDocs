@@ -1,0 +1,1039 @@
+{
+  "info": {
+    "name": "LIV-138 PR2 S01 internal authorization",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run folders in order against local S01 and Gateway after V5 and named-operator B fixture. The imported private environment supplies B credentials, workload Basic values and scope UUIDs. Request 01 logs B in; User and Service JWTs stay in run-local variables. S01 PENDING-grant repository UUID is used only as a token scope reference; no S02 binding or source API is called. S02/S04 runtime E2E and controlled revoke/expiry are separate evidence, never counted as this collection's PASS."
+  },
+  "item": [
+    {
+      "name": "API-039 real B authority",
+      "item": [
+        {
+          "name": "01 Login provisioned B",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "B is an ACTIVE Tenant Owner with an explicit TECHNICAL_LEAD assignment in the Review Workspace. This request does not mutate authority.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{bEmail}}\",\"password\":\"{{bPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('B login 200 with real User JWT', () => { pm.response.to.have.status(200); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); const b = pm.response.json(); pm.expect(b.code).to.eql('LOGIN_SUCCEEDED'); pm.expect(b.data.accessToken.split('.')).to.have.length(3); pm.variables.set('userJwt', b.data.accessToken); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Issue S02 assertion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('actorTokenSha256', CryptoJS.SHA256(pm.variables.get('userJwt')).toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('issued scoped service JWT', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.expiresIn).to.eql(60); });",
+                  "pm.variables.set('serviceJwt', pm.response.json().data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Evaluate authorized connect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{serviceJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('current scoped decision', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.decision).to.eql('ALLOW'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Missing assertion denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('missing service assertion 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Scope substitution denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{serviceJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{otherWorkspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('assertion scope mismatch 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Issue S02 assertion for Other Workspace",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "The workload may request a scoped assertion; S01 still evaluates B's current role in that Workspace.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{otherWorkspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('S02 assertion for Other Workspace issued', () => { pm.response.to.have.status(200); pm.variables.set('otherWorkspaceServiceJwt', pm.response.json().data.accessToken); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Other Workspace authority DENY despite forged role header",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{otherWorkspaceServiceJwt}}"
+              },
+              {
+                "key": "X-Roles",
+                "value": "DEVELOPER,TECHNICAL_LEAD"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "B has no ACTIVE Workspace Membership in Other Workspace. Client role header cannot add authority.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{otherWorkspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Other Workspace DENY', () => { pm.response.to.have.status(200); const b = pm.response.json(); pm.expect(b.code).to.eql('AUTHORIZATION_EVALUATED'); pm.expect(b.data.decision).to.eql('DENY'); pm.expect(b.data.authzRevision).to.be.a('number'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Issue S02 assertion bound to a different actor token",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Issuance validates claim shape; API-039 must reject binding to the actual User JWT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('S02 assertion with a different syntactically valid actor hash issued', () => { pm.response.to.have.status(200); pm.variables.set('wrongActorServiceJwt', pm.response.json().data.accessToken); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 API-039 rejects wrong actor-token binding",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{wrongActorServiceJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Same human and resource, but assertion hash does not match Authorization User JWT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong actor binding 401', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Missing human token denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{serviceJwt}}"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Missing human token denied', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Service token cannot act as human",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{serviceJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{serviceJwt}}"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"REPOSITORY_CONNECT\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Service token cannot act as human', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Service JWT issuance policy and S04 denial",
+      "item": [
+        {
+          "name": "12 Invalid workload secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{invalidWorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('invalid credential 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Wrong audience issuance denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong audience issuance denied', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Wrong operation issuance denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"source:resolve\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong operation issuance denied', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Service token for unallowlisted Tenant denied",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s02WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Workload credential registry is limited to the provisioned Tenant.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"00000000-0000-4000-8000-000000000001\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"REPOSITORY_CONNECT\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unallowlisted tenant 403', () => { pm.response.to.have.status(403); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Document assertion needs repository",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Basic {{s04WorkloadBasic}}"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"DOCUMENT_AUTHOR\",\"actorTokenSha256\":\"{{actorTokenSha256}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Document assertion needs repository', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Issue S04 Document assertion with repository scope",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s04WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Only checks Service JWT issuance policy. The repository UUID is an S01 PENDING-grant reference, not S02 binding evidence.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s01-internal\",\"operation\":\"authorization:evaluate\",\"method\":\"POST\",\"path\":\"/internal/v1/authorization/evaluate\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"action\":\"DOCUMENT_AUTHOR\",\"actorTokenSha256\":\"{{actorTokenSha256}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('S04 Document assertion issued', () => { pm.response.to.have.status(200); pm.variables.set('documentServiceJwt', pm.response.json().data.accessToken); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 API-039 Document authority DENY without effective grant",
+          "request": {
+            "method": "POST",
+            "url": "{{s01Base}}/internal/v1/authorization/evaluate",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "X-LD-Service-Assertion",
+                "value": "Bearer {{documentServiceJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "B has no effective grant for this repository reference. A PENDING grant for another membership cannot authorize B.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\":\"DOCUMENT_AUTHOR\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Document without effective grant DENY', () => { pm.response.to.have.status(200); const b = pm.response.json(); pm.expect(b.code).to.eql('AUTHORIZATION_EVALUATED'); pm.expect(b.data.decision).to.eql('DENY'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Issue S03 source resolve JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s03WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:resolve\",\"path\":\"/internal/v1/source/resolve\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Issue S03 source resolve JWT', () => { pm.response.to.have.status(200); const data = pm.response.json().data; pm.expect(data.tokenType).to.eql('Bearer'); pm.expect(data.expiresIn).to.eql(60); pm.expect(data.accessToken.split('.')).to.have.length(3); const jwtPayload = JSON.parse(CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(data.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))); pm.expect(jwtPayload.sub).to.eql('workload:s03'); pm.expect(jwtPayload.token_use).to.eql('service'); pm.expect(jwtPayload.operation).to.eql('source:resolve'); pm.expect(jwtPayload.aud).to.include('livingdocs-s02-internal'); pm.expect(jwtPayload.repository_connection_id).to.eql(pm.environment.get('repositoryConnectionId')); pm.expect(jwtPayload.actor_token_sha256).to.be.undefined; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Issue S04 source validate JWT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s04WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:validate\",\"path\":\"/internal/v1/source/validate\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Issue S04 source validate JWT', () => { pm.response.to.have.status(200); const data = pm.response.json().data; pm.expect(data.tokenType).to.eql('Bearer'); pm.expect(data.expiresIn).to.eql(60); pm.expect(data.accessToken.split('.')).to.have.length(3); const jwtPayload = JSON.parse(CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(data.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))); pm.expect(jwtPayload.sub).to.eql('workload:s04'); pm.expect(jwtPayload.token_use).to.eql('service'); pm.expect(jwtPayload.operation).to.eql('source:validate'); pm.expect(jwtPayload.aud).to.include('livingdocs-s02-internal'); pm.expect(jwtPayload.repository_connection_id).to.eql(pm.environment.get('repositoryConnectionId')); pm.expect(jwtPayload.actor_token_sha256).to.be.undefined; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 S03 cannot request source validate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s03WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:validate\",\"path\":\"/internal/v1/source/validate\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('S03 cannot request source validate', () => { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 S04 cannot request source resolve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s04WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:resolve\",\"path\":\"/internal/v1/source/resolve\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('S04 cannot request source resolve', () => { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Source assertion needs repository scope",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s03WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":null,\"operation\":\"source:resolve\",\"path\":\"/internal/v1/source/resolve\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Source assertion needs repository scope', () => { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Source assertion wrong method denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s03WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"GET\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:resolve\",\"path\":\"/internal/v1/source/resolve\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Source assertion wrong method denied', () => { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 Source assertion wrong path denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic {{s03WorkloadBasic}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{s01Base}}/internal/v1/auth/service-tokens",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"audience\":\"livingdocs-s02-internal\",\"method\":\"POST\",\"tenantId\":\"{{tenantId}}\",\"workspaceId\":\"{{workspaceId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"operation\":\"source:resolve\",\"path\":\"/internal/v1/source/validate\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Source assertion wrong path denied', () => { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Gateway internal route rejection",
+      "item": [
+        {
+          "name": "26 Gateway blocks Service Token route",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/internal/v1/auth/service-tokens",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Valid B User JWT proves path denyAll rather than an unauthenticated challenge.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway service-token route 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 Gateway blocks API-039 route",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/internal/v1/authorization/evaluate",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userJwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Internal authorization stays outside Gateway routes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway API-039 route 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

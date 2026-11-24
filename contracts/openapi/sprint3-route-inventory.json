@@ -216,6 +216,24 @@
     "gatewayEnabled": true
   },
   {
+    "apiId": "API-039",
+    "service": "S01",
+    "method": "POST",
+    "path": "/internal/v1/authorization/evaluate",
+    "business": "Fresh scoped human authorization",
+    "state": "IN_PROGRESS",
+    "gatewayEnabled": false
+  },
+  {
+    "apiId": "S01-SERVICE-TOKEN",
+    "service": "S01",
+    "method": "POST",
+    "path": "/internal/v1/auth/service-tokens",
+    "business": "Issue scoped workload JWT",
+    "state": "IN_PROGRESS",
+    "gatewayEnabled": false
+  },
+  {
     "apiId": "API-046",
     "service": "S02",
     "method": "GET",

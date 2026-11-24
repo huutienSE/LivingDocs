@@ -1,12 +1,16 @@
 package com.livingdocs.identity.exception;
 
 import com.livingdocs.identity.security.RedisLoginRateLimiter.LoginSecurityUnavailableException;
+import com.livingdocs.identity.security.WorkloadCredentialRegistry.InvalidWorkloadException;
+import com.livingdocs.identity.security.WorkloadCredentialRegistry.RegistryUnavailableException;
+import com.livingdocs.identity.service.impl.ServiceTokenServiceImpl.WorkloadScopeException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -24,6 +28,38 @@ public class GlobalExceptionHandler {
 
     private static final Pattern SAFE_CORRELATION_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
     private static final MediaType PROBLEM_JSON = MediaType.parseMediaType("application/problem+json");
+
+    @ExceptionHandler(InvalidWorkloadException.class)
+    public ResponseEntity<ProblemDetail> invalidWorkload(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, "INVALID_WORKLOAD_CREDENTIAL", "Unauthenticated",
+                "Invalid workload credential", request);
+    }
+
+    @ExceptionHandler(org.springframework.security.oauth2.jwt.BadJwtException.class)
+    public ResponseEntity<ProblemDetail> invalidAssertion(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, "INVALID_SERVICE_ASSERTION", "Unauthenticated",
+                "Invalid service assertion", request);
+    }
+
+    @ExceptionHandler(WorkloadScopeException.class)
+    public ResponseEntity<ProblemDetail> workloadScope(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, "WORKLOAD_SCOPE_DENIED", "Forbidden",
+                "Workload scope is not authorized", request);
+    }
+
+    @ExceptionHandler({RegistryUnavailableException.class, DataAccessException.class})
+    public ResponseEntity<ProblemDetail> authorityUnavailable(Exception ex, HttpServletRequest request) {
+        if (ex instanceof DataAccessException && !request.getRequestURI().startsWith("/internal/v1/")) {
+            return internalError(request);
+        }
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "AUTHORITY_UNAVAILABLE", "Service unavailable",
+                "Authority is temporarily unavailable", request);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> badScope(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Invalid request", "Invalid action or scope", request);
+    }
 
     @ExceptionHandler(AuthorityException.class)
     public ResponseEntity<ProblemDetail> authority(AuthorityException ex, HttpServletRequest request) {
@@ -65,7 +101,8 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class})
     public ResponseEntity<ProblemDetail> invalidRequest(Exception ex, HttpServletRequest request) {
         String detail = "/api/v1/auth/login".equals(request.getRequestURI())
-                ? "Login request is invalid" : "Registration request is invalid";
+                ? "Login request is invalid" : request.getRequestURI().startsWith("/internal/v1/")
+                ? "Internal request is invalid" : "Registration request is invalid";
         return problem(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Invalid request", detail, request);
     }
 
@@ -112,7 +149,8 @@ public class GlobalExceptionHandler {
 
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(status).contentType(PROBLEM_JSON)
                 .header("X-Correlation-ID", correlationId);
-        if ("/api/v1/auth/login".equals(request.getRequestURI())) {
+        if ("/api/v1/auth/login".equals(request.getRequestURI())
+                || request.getRequestURI().startsWith("/internal/v1/")) {
             builder.header("Cache-Control", "no-store");
         }
         return builder.body(body);
