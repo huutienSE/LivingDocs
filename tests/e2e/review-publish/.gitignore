@@ -1,0 +1,7 @@
+node_modules/
+test-results/
+playwright-report/
+results/
+# real environment with secrets — only the *.example.json is committed
+LIV-119-local.postman_environment.json
+*.postman_environment.local.json

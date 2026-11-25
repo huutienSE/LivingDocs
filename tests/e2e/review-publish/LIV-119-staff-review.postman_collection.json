@@ -1,0 +1,2075 @@
+{
+  "info": {
+    "name": "LIV-119 · S3-US01-T02 · Staff Review over Gateway",
+    "description": "API acceptance for Staff Review (API-115/116/120) via the API Gateway. Covers happy path, authentication, cross-tenant denial with readback (no state mutation), role, If-Match/412/428, validation/BVA and Idempotency-Key. Requires seeded data — see tests/e2e/review-publish/README.md. Run: newman run LIV-119-staff-review.postman_collection.json -e <env>.json",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Setup — login actors",
+      "item": [
+        {
+          "name": "S3-REV-00a · Login Staff tenant A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffAEmail}}\",\n  \"password\": \"{{staffAPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Access token returned in JSON, refresh token NOT in JSON', () => {",
+                  "  pm.expect(b.accessToken).to.be.a('string');",
+                  "  pm.expect(b).to.not.have.property('refreshToken');",
+                  "});",
+                  "pm.collectionVariables.set('accessTokenA', b.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-00b · Login Staff tenant B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffBEmail}}\",\n  \"password\": \"{{staffBPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Access token returned in JSON, refresh token NOT in JSON', () => {",
+                  "  pm.expect(b.accessToken).to.be.a('string');",
+                  "  pm.expect(b).to.not.have.property('refreshToken');",
+                  "});",
+                  "pm.collectionVariables.set('accessTokenB', b.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-00c · Login Developer tenant A (non-Staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{developerAEmail}}\",\n  \"password\": \"{{developerAPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Access token returned in JSON, refresh token NOT in JSON', () => {",
+                  "  pm.expect(b.accessToken).to.be.a('string');",
+                  "  pm.expect(b).to.not.have.property('refreshToken');",
+                  "});",
+                  "pm.collectionVariables.set('accessTokenDevA', b.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Happy path — queue/detail (API-115/116)",
+      "item": [
+        {
+          "name": "S3-REV-01 · Staff A sees own-tenant version in queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/review-queue?page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "review-queue"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const q = pm.response.json();",
+                  "pm.test('Queue contains seeded version A', () => pm.expect(q.items.map(i => i.versionId)).to.include(pm.variables.get('versionIdAPass')));",
+                  "pm.test('Queue contains only STAFF_REVIEW items', () => q.items.forEach(i => { pm.expect(i.state).to.eql('IN_REVIEW'); pm.expect(i.reviewStage).to.eql('STAFF_REVIEW'); }));",
+                  "pm.test('Queue does NOT contain tenant B version', () => pm.expect(q.items.map(i => i.versionId)).to.not.include(pm.variables.get('versionIdB')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-02 · Staff A reads review context + strong ETag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const etag = pm.response.headers.get('ETag');",
+                  "pm.test('Strong ETag present', () => { pm.expect(etag).to.be.a('string'); pm.expect(etag.startsWith('W/')).to.be.false; });",
+                  "pm.test('Version in STAFF_REVIEW', () => { const v = pm.response.json().version; pm.expect(v.state).to.eql('IN_REVIEW'); pm.expect(v.reviewStage).to.eql('STAFF_REVIEW'); });",
+                  "pm.collectionVariables.set('etagAPass', etag);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-02b · Staff B reads own version (baseline for cross-tenant readback)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdB}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdB}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('etagB', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Negative — authentication",
+      "item": [
+        {
+          "name": "S3-REV-10 · Queue without token → 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "review-queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-11 · Queue with malformed token → 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "review-queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-12 · Decision without token → 401, no mutation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-12r · Readback A unchanged",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagAPass')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-13 · Spoofed role/tenant headers are ignored (Developer token) → 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenDevA}}"
+              },
+              {
+                "key": "X-User-Role",
+                "value": "STAFF"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantIdA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/review-queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "review-queue"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Negative — cross-tenant (AC: denied with no state mutation)",
+      "item": [
+        {
+          "name": "S3-REV-20 · Staff B reads tenant A context → 403/404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [403, 404]', () => pm.expect([403, 404]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});",
+                  "pm.test('No ETag leaked', () => pm.expect(pm.response.headers.get('ETag')).to.be.oneOf([null, undefined]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-21 · Staff B PASS on tenant A version (with A's valid ETag) → 403/404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenB}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [403, 404]', () => pm.expect([403, 404]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-21r · Readback A: still STAFF_REVIEW, same ETag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagAPass')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-22 · Staff B RETURN on tenant A version → 403/404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenB}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RETURN_FOR_REVISION\",\n  \"feedback\": \"Thiếu ví dụ request/response cho endpoint thanh toán.\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [403, 404]', () => pm.expect([403, 404]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-22r · Readback A: still STAFF_REVIEW, same ETag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagAPass')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-23 · Staff A PASS on tenant B version → 403/404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagB}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdB}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdB}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [403, 404]', () => pm.expect([403, 404]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-23r · Readback B: still STAFF_REVIEW, same ETag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdB}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdB}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagB')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Negative — role, preconditions, validation",
+      "item": [
+        {
+          "name": "S3-REV-30 · Developer (non-Staff) PASS in own tenant → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenDevA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-30r · Readback A unchanged",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagAPass')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-31 · Missing If-Match → 428 PRECONDITION_REQUIRED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 428', () => pm.response.to.have.status(428));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-32 · Stale If-Match → 412 REVISION_CONFLICT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"stale-revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 412', () => pm.response.to.have.status(412));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});",
+                  "pm.test('code REVISION_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('REVISION_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-33 · RETURN without feedback → 400/422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RETURN_FOR_REVISION\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [400, 422]', () => pm.expect([400, 422]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-34 · RETURN with whitespace-only feedback → 400/422 (BVA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RETURN_FOR_REVISION\",\n  \"feedback\": \"   \",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [400, 422]', () => pm.expect([400, 422]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-35 · Staff cannot REJECT (not a Staff outcome) → 400/422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"REJECT\",\n  \"feedback\": \"x\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP one of [400, 422]', () => pm.expect([400, 422]).to.include(pm.response.code));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-35r · Readback A unchanged after all rejected requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / STAFF_REVIEW', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"STAFF_REVIEW\");",
+                  "});",
+                  "pm.test('ETag unchanged (no hidden mutation)', () => pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('etagAPass')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Happy path — decisions (API-120) + idempotency",
+      "item": [
+        {
+          "name": "S3-REV-40 · Staff A PASS → MANAGER_APPROVAL + new ETag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{passKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('passKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json();",
+                  "pm.test('Now IN_REVIEW / MANAGER_APPROVAL', () => { pm.expect(v.state).to.eql('IN_REVIEW'); pm.expect(v.reviewStage).to.eql('MANAGER_APPROVAL'); pm.expect(v.versionId).to.eql(pm.variables.get('versionIdAPass')); });",
+                  "pm.test('New ETag differs from old', () => pm.expect(pm.response.headers.get('ETag')).to.not.eql(pm.variables.get('etagAPass')));",
+                  "pm.collectionVariables.set('passResponse', JSON.stringify(v));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-41 · Replay same Idempotency-Key + same payload → same outcome, no double decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{passKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Same stored outcome', () => { const v = pm.response.json(); const prev = JSON.parse(pm.variables.get('passResponse')); pm.expect(v.state).to.eql(prev.state); pm.expect(v.reviewStage).to.eql(prev.reviewStage); pm.expect(String(v.revision)).to.eql(String(prev.revision)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-42 · Same Idempotency-Key + different payload → 409 IDEMPOTENCY_CONFLICT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{passKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RETURN_FOR_REVISION\",\n  \"feedback\": \"Thiếu ví dụ request/response cho endpoint thanh toán.\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});",
+                  "pm.test('code IDEMPOTENCY_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-43r · Readback A: MANAGER_APPROVAL persisted",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json().version;",
+                  "pm.test('State unchanged: IN_REVIEW / MANAGER_APPROVAL', () => {",
+                  "  pm.expect(v.state).to.eql('IN_REVIEW');",
+                  "  pm.expect(v.reviewStage).to.eql(\"MANAGER_APPROVAL\");",
+                  "});",
+                  "pm.collectionVariables.set('etagAPass', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-44 · PASS again after leaving STAFF_REVIEW → 409 STATE_TRANSITION_FORBIDDEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAPass}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAPass}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAPass}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"PASS\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error is problem+json with typed code', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(pm.response.code);",
+                  "  pm.expect(p.code).to.be.a('string');",
+                  "  pm.expect(JSON.stringify(p)).to.not.include(pm.variables.get('accessTokenA') || '__none__');",
+                  "});",
+                  "pm.test('code STATE_TRANSITION_FORBIDDEN', () => pm.expect(pm.response.json().code).to.eql('STATE_TRANSITION_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-45 · Queue no longer lists the passed version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/review-queue?page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "review-queue"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Passed version left the Staff queue', () => pm.expect(pm.response.json().items.map(i => i.versionId)).to.not.include(pm.variables.get('versionIdAPass')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-46a · Read RETURN target context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAReturn}}/review-context",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAReturn}}",
+                "review-context"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('etagAReturn', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "S3-REV-46 · Staff A RETURN_FOR_REVISION with feedback → DRAFT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, application/problem+json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessTokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etagAReturn}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/document-versions/{{versionIdAReturn}}/staff-decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "document-versions",
+                "{{versionIdAReturn}}",
+                "staff-decisions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"RETURN_FOR_REVISION\",\n  \"feedback\": \"Thiếu ví dụ request/response cho endpoint thanh toán.\",\n  \"evidenceRefs\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('idemKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Back to DRAFT, no review stage', () => { const v = pm.response.json(); pm.expect(v.state).to.eql('DRAFT'); pm.expect(v.reviewStage == null).to.be.true; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "accessTokenA",
+      "value": ""
+    },
+    {
+      "key": "accessTokenB",
+      "value": ""
+    },
+    {
+      "key": "accessTokenDevA",
+      "value": ""
+    },
+    {
+      "key": "etagAPass",
+      "value": ""
+    },
+    {
+      "key": "etagB",
+      "value": ""
+    },
+    {
+      "key": "etagAReturn",
+      "value": ""
+    },
+    {
+      "key": "idemKey",
+      "value": ""
+    },
+    {
+      "key": "passKey",
+      "value": ""
+    },
+    {
+      "key": "passResponse",
+      "value": ""
+    },
+    {
+      "key": "invalidToken",
+      "value": "not-a-jwt"
+    }
+  ]
+}
