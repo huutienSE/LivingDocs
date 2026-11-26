@@ -1,7 +1,25 @@
-# LIV-118 — S04 Staff Review
+# S04 — Staff Review và Submit Draft
 
 Spring Boot 4.1.1 / Java 21 / PostgreSQL 17. Phạm vi: Staff PASS/RETURN,
 DocumentVersion, ReviewDecision, DocumentAudit và Flyway persistence.
+
+LIV-143 bổ sung `POST /api/v1/document-versions/{versionId}/submit` (API-113):
+Developer có `DOCUMENT_AUTHOR` + `WORKSPACE_VIEW` và repository grant khi áp dụng,
+submit/resubmit `DRAFT → IN_REVIEW / STAFF_REVIEW`. Body nhận `note` nullable tối đa
+2000 ký tự; yêu cầu strong `If-Match` và `Idempotency-Key`. Evidence và source binding
+lấy từ canonical S04 DB, không nhận actor/scope/target state từ client.
+Submit đọc evidence bằng JPA/JPQL có tenant/version scope và provenance qua field
+read-only của Entity; không còn native SQL trong `DocumentSubmitRepository`.
+State, submit receipt và audit commit cùng transaction; exact replay kiểm quyền lại
+qua API-038 và trả response/ETag gốc. Chi tiết, kiểm chứng và giới hạn:
+[LIV-143 report](../../docs/implementation/LIV-143-submit-implementation.md).
+Collection [LIV-143 Newman](../../tests/postman/liv143-submit.postman_collection.json)
+kiểm Submit/replay/Return/resubmit/revoke/outage qua Gateway thật bằng runner local.
+Lệnh chạy, cách tạo fixture DB tạm và các blocker Gateway/fresh nằm trong report.
+
+Cấu hình thêm `S01_SUBMIT_ACCESS_CONTEXT_URI` và `S04_SUBMIT_ALLOW_INSECURE_HTTP`
+(HTTP chỉ cho local). API-038 là snapshot, chưa thay cho evaluator API-039;
+Submit chưa gọi current-SHA API-070. Không suy ra fresh/source guards chỉ cần trước Publish.
 
 ## API và transaction
 
@@ -154,6 +172,7 @@ runner hai service thật. Không suy ra Gateway/S02/repository-backed Golden Fl
 ## Migration và chạy service
 
 - V1 tạo schema; V2 thêm aggregate revision/idempotency và siết review stage; V3 thêm response snapshot.
+- V4 thêm source provenance nullable và submit receipt append-only có tenant RLS.
 - Khi nâng cấp từ V1, kiểm tra `IN_REVIEW` có review_stage null. V2 từ chối dữ liệu đó;
   stage phải được xác định từ dữ liệu nghiệp vụ trước migration, không tự gán mặc định.
 - Test PostgreSQL kiểm chứng V2 lỗi được rollback cả schema/history; sau khi sửa fixture hợp lệ,
@@ -172,7 +191,7 @@ mvn -B -ntp clean verify
 ```
 
 Cần Java 21, Maven và Docker. Mặc định Testcontainers tạo PostgreSQL 17 riêng, bootstrap roles,
-chạy V1/V2/V3 và dùng JWT ký bằng RSA test key. `S04_USE_CI_DATABASE=true` chỉ dùng với DB test
+chạy V1–V4 và dùng JWT ký bằng RSA test key. `S04_USE_CI_DATABASE=true` chỉ dùng với DB test
 tách biệt do CI cung cấp (`DB_URL`, `DB_PASSWORD`, `FLYWAY_PASSWORD`, `S04_TEST_ADMIN_PASSWORD`).
 
 Tests gồm PASS/RETURN/history, token/scope denials, revision/idempotency/concurrency,
@@ -200,7 +219,7 @@ Repository-free document trả `sourceBinding = null`; các thuộc tính source
 Response class vẫn đọc được JSON snapshot V3 trước đây; legacy replay giữ version data/ETag và
 thêm envelope mới. Snapshot được ghi từ rollout này giữ nguyên toàn bộ body khi exact replay.
 
-Springdoc chỉ sinh runtime spec cho API-120. Mặc định `S04_OPENAPI_ENABLED=false`; bật biến này
+Springdoc sinh runtime spec cho API-120 và API-113. Mặc định `S04_OPENAPI_ENABLED=false`; bật biến này
 trong môi trường dev/test cần đối chiếu rồi khởi động lại S04. `GET /v3/api-docs` (JSON) và
 `GET /v3/api-docs.yaml` yêu cầu `Authorization: Bearer <verified JWT>` theo trust config S01.
 Không mở anonymous docs, Swagger UI S04 hoặc route docs qua Gateway. Docker Swagger tĩnh hiện tại

@@ -191,7 +191,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 Files.readString(Path.of("../../contracts/openapi/s04-document-review.yaml")))));
         String path = "/api/v1/document-versions/{versionId}/staff-decisions";
         assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
-        assertThat(runtime.path("paths").propertyNames()).containsExactly(path);
+        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit");
         var actual = runtime.path("paths").path(path).path("post");
         var expected = reviewed.path("paths").path(path).path("post");
         assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());
@@ -775,7 +775,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 connection.rollback();
             }
         }
-        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(3L);
-        assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(12L);
+        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(4L);
+        assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(13L);
     }
 }

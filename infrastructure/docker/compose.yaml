@@ -121,6 +121,8 @@ services:
       S01_REVIEW_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
       # Local Compose network only; deployed environments must use HTTPS.
       S04_REVIEW_ALLOW_INSECURE_HTTP: "true"
+      S01_SUBMIT_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
+      S04_SUBMIT_ALLOW_INSECURE_HTTP: "true" # Local Compose transport exception.
     ports:
       - "127.0.0.1:8084:8084"
     depends_on:

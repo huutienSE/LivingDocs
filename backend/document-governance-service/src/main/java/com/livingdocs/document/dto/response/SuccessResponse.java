@@ -38,4 +38,9 @@ public final class SuccessResponse<T> {
     public static <T> SuccessResponse<T> of(SuccessCode code, T data) {
         return new SuccessResponse<>(code.getWireCode(), code.getDefaultMessage(), data);
     }
+
+    /** Retains the outcome stored in a durable receipt when an operation is replayed. */
+    public static <T> SuccessResponse<T> of(String code, String message, T data) {
+        return new SuccessResponse<>(code, message, data);
+    }
 }

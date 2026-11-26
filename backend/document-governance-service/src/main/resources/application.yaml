@@ -26,13 +26,16 @@ springdoc:
     enabled: ${S04_OPENAPI_ENABLED:false}
     version: OPENAPI_3_0
   packages-to-scan: com.livingdocs.document.controller
-  paths-to-match: /api/v1/document-versions/*/staff-decisions
+  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit
   override-with-generic-response: false
 
 livingdocs:
   review:
     access-context-uri: ${S01_REVIEW_ACCESS_CONTEXT_URI:}
     allow-insecure-http: ${S04_REVIEW_ALLOW_INSECURE_HTTP:false}
+  submit:
+    access-context-uri: ${S01_SUBMIT_ACCESS_CONTEXT_URI:}
+    allow-insecure-http: ${S04_SUBMIT_ALLOW_INSECURE_HTTP:false}
   security:
     issuer-uri: ${S01_ISSUER_URI:}
     jwk-set-uri: ${S01_JWK_SET_URI:}

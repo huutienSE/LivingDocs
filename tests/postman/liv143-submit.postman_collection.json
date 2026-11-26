@@ -1,0 +1,1058 @@
+{
+  "info": {
+    "name": "LIV-143 API-113 real Gateway S01 S04",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run each folder through scripts/test_api113_s01_integration.py --gateway-newman. Fixtures and phase changes belong to the disposable DB harness. No skipped flows. Environment contains ephemeral credentials/token and must not be committed/exported. Anonymous Gateway test checks denial only; LD-D11 RFC 9457 error body remains an external dependency, not a passing conformance claim. The Return/resubmit folder consumes existing API-120 only to prepare a real returned Draft; it does not implement or certify API-120 fresh authorization."
+  },
+  "item": [
+    {
+      "name": "01 Scoped submit",
+      "item": [
+        {
+          "name": "01 Login Developer through Gateway",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"{{email}}\", \"password\": \"{{password}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Real S01 login yields JWT', () => { pm.response.to.have.status(200); const b=pm.response.json(); pm.expect(b.code).to.eql('LOGIN_SUCCEEDED'); pm.expect(typeof b.data.accessToken).to.eql('string'); pm.variables.set('accessToken', b.data.accessToken); });",
+                  "pm.test('Login is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 S01 effective Developer context through Gateway",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me/access-context",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Scope comes from S01 authority', () => { pm.response.to.have.status(200); const d=pm.response.json().data; pm.expect(d.identityId).to.eql(pm.environment.get('actorId')); pm.expect(d.workspaceGrants.some(g => g.permissions.includes('DOCUMENT_AUTHOR'))).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Submit Draft through Gateway",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Atomic submit result and typed success data', () => { pm.response.to.have.status(200); const b=pm.response.json(); pm.expect(b.code).to.eql('DOCUMENT_SUBMITTED'); pm.expect(Object.keys(b).sort()).to.eql(['code','data','message']); pm.expect(b.data.versionId).to.eql(pm.environment.get('newmanVersionId')); pm.expect(b.data.state).to.eql('IN_REVIEW'); pm.expect(b.data.reviewStage).to.eql('STAFF_REVIEW'); pm.expect(b.data.revision).to.eql(1); pm.expect(b.data.sourceBinding).to.eql(null); pm.variables.set('originalSubmitBody', pm.response.text()); pm.variables.set('originalSubmitEtag', pm.response.headers.get('ETag')); });",
+                  "pm.test('ETag no-store and correlation survive Gateway', () => { pm.expect(pm.response.headers.get('ETag')).to.eql(String.fromCharCode(34)+pm.environment.get('newmanVersionId')+':revision-1'+String.fromCharCode(34)); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv143-newman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Exact replay retains original receipt",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Replay returns exact body and ETag', () => { pm.response.to.have.status(200); pm.expect(pm.response.text()).to.eql(pm.variables.get('originalSubmitBody')); pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('originalSubmitEtag')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Changed payload conflicts",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\": \"changed\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 409 and stable IDEMPOTENCY_CONFLICT', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().code).to.eql('IDEMPOTENCY_CONFLICT'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Stale ETag denied",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 412 and stable REVISION_CONFLICT', () => { pm.response.to.have.status(412); pm.expect(pm.response.json().code).to.eql('REVISION_CONFLICT'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Cannot submit IN_REVIEW again",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-1\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 409 and stable STATE_TRANSITION_FORBIDDEN', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().code).to.eql('STATE_TRANSITION_FORBIDDEN'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 If-Match required",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 428 and stable PRECONDITION_REQUIRED', () => { pm.response.to.have.status(428); pm.expect(pm.response.json().code).to.eql('PRECONDITION_REQUIRED'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Idempotency-Key required",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{draftVersionId}}:revision-0\""
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 and stable INVALID_REQUEST', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Unknown body field denied",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{draftVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"state\": \"APPROVED\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 400 and stable INVALID_REQUEST', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Persisted evidence required",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{noEvidenceVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{noEvidenceVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 422 and stable SUBMIT_EVIDENCE_REQUIRED', () => { pm.response.to.have.status(422); pm.expect(pm.response.json().code).to.eql('SUBMIT_EVIDENCE_REQUIRED'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Cross tenant hidden",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{foreignVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{foreignVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 404 and stable DOCUMENT_VERSION_NOT_FOUND', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().code).to.eql('DOCUMENT_VERSION_NOT_FOUND'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Cross workspace denied",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{wrongWorkspaceVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{wrongWorkspaceVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 403 and stable FORBIDDEN_SCOPE', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().code).to.eql('FORBIDDEN_SCOPE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 PENDING repository grant denied",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{pendingVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{pendingVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 403 and stable FORBIDDEN_SCOPE', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().code).to.eql('FORBIDDEN_SCOPE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Gateway denies anonymous Submit; RFC body is external dependency",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{draftVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-anonymous"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gateway requires authenticated identity', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('Bearer'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv143-newman'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Return and resubmit",
+      "item": [
+        {
+          "name": "16 Existing Staff Return prepares resubmission",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/staff-decisions",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-1\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-return"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\": \"RETURN_FOR_REVISION\", \"feedback\": \"Revise before resubmitting\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Existing API-120 returns same version to Draft', () => { pm.response.to.have.status(200); const b=pm.response.json(); pm.expect(b.code).to.eql('STAFF_REVIEW_RECORDED'); pm.expect(b.data.versionId).to.eql(pm.environment.get('newmanVersionId')); pm.expect(b.data.state).to.eql('DRAFT'); pm.expect(b.data.reviewStage).to.eql(null); pm.expect(b.data.revision).to.eql(2); });",
+                  "pm.test('Return is not cached', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Resubmit starts Staff Review again",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-2\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-resubmit"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Resubmit keeps same version and restarts Staff Review', () => { pm.response.to.have.status(200); const b=pm.response.json(); pm.expect(b.code).to.eql('DOCUMENT_SUBMITTED'); pm.expect(b.data.versionId).to.eql(pm.environment.get('newmanVersionId')); pm.expect(b.data.state).to.eql('IN_REVIEW'); pm.expect(b.data.reviewStage).to.eql('STAFF_REVIEW'); pm.expect(b.data.revision).to.eql(3); pm.variables.set('resubmittedBody',pm.response.text()); pm.variables.set('resubmittedEtag',pm.response.headers.get('ETag')); });",
+                  "pm.test('Resubmit returns ETag and no-store', () => { pm.expect(pm.response.headers.get('ETag')).to.eql(String.fromCharCode(34)+pm.environment.get('newmanVersionId')+':revision-3'+String.fromCharCode(34)); pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Resubmit replay preserves receipt",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-2\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-resubmit"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Resubmit replay preserves body and ETag', () => { pm.response.to.have.status(200); pm.expect(pm.response.text()).to.eql(pm.variables.get('resubmittedBody')); pm.expect(pm.response.headers.get('ETag')).to.eql(pm.variables.get('resubmittedEtag')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Revoked role",
+      "item": [
+        {
+          "name": "16 Revoked Developer cannot mutate",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{draftVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 403 and stable FORBIDDEN_SCOPE', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().code).to.eql('FORBIDDEN_SCOPE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Revoked Developer cannot replay",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 403 and stable FORBIDDEN_SCOPE', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().code).to.eql('FORBIDDEN_SCOPE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 S01 unavailable",
+      "item": [
+        {
+          "name": "18 S01 outage denies mutation",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{draftVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{draftVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-check"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 503 and stable AUTHORIZATION_UNAVAILABLE', () => { pm.response.to.have.status(503); pm.expect(pm.response.json().code).to.eql('AUTHORIZATION_UNAVAILABLE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 S01 outage denies replay",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('HTTP 503 and stable AUTHORIZATION_UNAVAILABLE', () => { pm.response.to.have.status(503); pm.expect(pm.response.json().code).to.eql('AUTHORIZATION_UNAVAILABLE'); });",
+                  "pm.test('RFC 9457 with correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); const p=pm.response.json(); ['type','title','detail','instance','code','correlationId'].forEach(k => pm.expect(p[k]).to.be.a('string').and.not.empty); pm.expect(p.correlationId).to.eql('liv143-newman'); pm.expect(p.status).to.eql(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,752 @@
+{
+  "preparedBy": "Codex",
+  "recordedAt": "2026-11-23T13:50:40.156139+00:00",
+  "branch": "feature/LIV-143-s04-submit-draft-for-staff-review",
+  "baseCommit": "c87b06857529c8e82f80c9a35091114f61c7c890",
+  "worktreeChanges": "Uncommitted API-113 implementation; no remote CI claim",
+  "verification": {
+    "maven": {
+      "command": ".\\mvnw.cmd -B -ntp verify",
+      "workingDirectory": "backend/document-governance-service",
+      "result": "PASS",
+      "finishedAt": "2026-11-23T20:42:55+07:00",
+      "totals": {
+        "tests": 82,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.livingdocs.document.client.S01ReviewAuthorizationClientTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.ReviewApiIntegrationTest",
+          "tests": "27",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.ReviewMigrationIntegrationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.ReviewRestartIntegrationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.ReviewTransitionPolicyTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.S01SubmitAuthorizationClientTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.SourceReviewGuardTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.SubmitApiIntegrationTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.document.SubmitRestartIntegrationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "log": "%TEMP%/liv143-jpa-verify.log"
+    },
+    "openapi": {
+      "result": "PASS",
+      "specs": 6,
+      "validator": "openapi-spec-validator==0.7.2; PyYAML==6.0.3"
+    },
+    "gatewayStatic": {
+      "result": "PASS",
+      "cataloguedApis": 112,
+      "exactMethodPathEntries": 91,
+      "routeGroups": 19,
+      "runtimeE2E": "PASS for scoped API-113 Gateway flow; global Gateway LD-D11 error-body conformance BLOCKED"
+    },
+    "composeConfig": {
+      "result": "PASS",
+      "runtimeDeployment": "NOT RUN"
+    },
+    "s01S04Integration": {
+      "preparedBy": "Codex",
+      "startedAt": "2026-11-23T13:47:56.286440+00:00",
+      "scope": "Real Gateway/S01/S04 + API-113 Newman; disposable PostgreSQL/Redis authority/Draft fixtures; no S02.",
+      "artifactsSha256": {
+        "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "8c4bd0d3bb0699eb85fd1ed181cbed8f6c22a564e7270b8263b9c543433a15a5",
+        "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "3023faabaee25145a8b83014ac400742239d32f60fc7742aefff0044533fcfd3",
+        "infrastructure\\api-gateway\\target\\api-gateway-0.0.1-SNAPSHOT.jar": "63918780847b3fdb94cc506df4a50ca198a6faa73ed7befcbe6cb22c685db9e2",
+        "scripts\\test_api113_s01_integration.py": "da986a673d0dc4dd6f92a29163bc1a973082c9f62d445c3fb1d726d47dd92b84",
+        "tests\\postman\\liv143-submit.postman_collection.json": "bee001ddca41a254c2ad60ccb67aa2dfeea437f56d6211c49e8961927e65136c"
+      },
+      "checks": [
+        {
+          "name": "S01 real HTTP registration",
+          "result": "PASS"
+        },
+        {
+          "name": "S01 real HTTP login with Redis limiter",
+          "result": "PASS"
+        },
+        {
+          "name": "S01 JWT carries Identity, no tenant/workspace authority",
+          "result": "PASS"
+        },
+        {
+          "name": "Unprovisioned Identity denied (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "API-038 returns real DB Developer permission, excludes PENDING repository",
+          "result": "PASS"
+        },
+        {
+          "name": "API-113 Submit with real S01 JWT/context (HTTP 200, DOCUMENT_SUBMITTED)",
+          "result": "PASS"
+        },
+        {
+          "name": "Submit advances Staff Review with ETag",
+          "result": "PASS"
+        },
+        {
+          "name": "Exact replay preserves response",
+          "result": "PASS"
+        },
+        {
+          "name": "Cross-tenant version hidden by RLS (HTTP 404, DOCUMENT_VERSION_NOT_FOUND)",
+          "result": "PASS"
+        },
+        {
+          "name": "Cross-workspace denied (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "PENDING repository grant cannot authorize Submit (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "Invalid bearer denied locally (HTTP 401, UNAUTHENTICATED)",
+          "result": "PASS"
+        },
+        {
+          "name": "Newman Gateway positive/replay/negative phase",
+          "result": "PASS"
+        },
+        {
+          "name": "Gateway Submit persists exactly one receipt and audit",
+          "result": "PASS"
+        },
+        {
+          "name": "Gateway denied Draft remains unchanged",
+          "result": "PASS"
+        },
+        {
+          "name": "Newman Gateway Return/resubmit preserves workflow and receipts",
+          "result": "PASS"
+        },
+        {
+          "name": "Same JWT denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "Exact replay denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "Newman Gateway revoked role denies mutation and replay",
+          "result": "PASS"
+        },
+        {
+          "name": "Same JWT denied after tenant membership revoke (HTTP 403, FORBIDDEN_SCOPE)",
+          "result": "PASS"
+        },
+        {
+          "name": "S01 down fails closed (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+          "result": "PASS"
+        },
+        {
+          "name": "S01 down also denies replay (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+          "result": "PASS"
+        },
+        {
+          "name": "Newman Gateway S01 outage denies mutation and replay",
+          "result": "PASS"
+        },
+        {
+          "name": "Gateway replay never creates extra receipt/audit",
+          "result": "PASS"
+        },
+        {
+          "name": "Denied requests leave version/submission/audit unchanged",
+          "result": "PASS"
+        },
+        {
+          "name": "Replay writes exactly one submission and audit",
+          "result": "PASS"
+        },
+        {
+          "name": "Submission and audit record actual S01 Identity",
+          "result": "PASS"
+        }
+      ],
+      "newman": [
+        {
+          "folder": "01 Scoped submit",
+          "requests": 15,
+          "assertions": 27,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "02 Return and resubmit",
+          "requests": 3,
+          "assertions": 5,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "03 Revoked role",
+          "requests": 2,
+          "assertions": 4,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "04 S01 unavailable",
+          "requests": 2,
+          "assertions": 4,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "Gateway LD-D11",
+          "status": "BLOCKED",
+          "scope": "Global Gateway security error body; anonymous collection check verifies 401/challenge only, not RFC 9457 conformance"
+        },
+        {
+          "id": "S01 API-039",
+          "status": "BLOCKED",
+          "scope": "Evaluator/service assertion unavailable; mandatory API-039 for Submit remains a policy proposal"
+        }
+      ],
+      "result": "PASS",
+      "finishedAt": "2026-11-23T13:48:59.811277+00:00"
+    },
+    "gatewayMaven": {
+      "result": "PASS",
+      "command": ".\\mvnw.cmd -B -ntp verify",
+      "workingDirectory": "infrastructure/api-gateway",
+      "finishedAt": "2026-11-23T20:44:22+07:00",
+      "totals": {
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.livingdocs.gateway.config.GatewayJwtTrustTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.gateway.filter.TrustedIdentityHeaderFilterTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.gateway.GatewayDownstreamFailureIntegrationTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.gateway.GatewayFoundationTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "com.livingdocs.gateway.GatewayRoutingIntegrationTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "sourceChanges": "None; built current Gateway as test dependency"
+    },
+    "newman": {
+      "result": "PASS",
+      "version": "6.2.3",
+      "requests": 22,
+      "assertions": 40,
+      "failedAssertions": 0,
+      "skippedAssertions": 0,
+      "folders": [
+        {
+          "folder": "01 Scoped submit",
+          "requests": 15,
+          "assertions": 27,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "02 Return and resubmit",
+          "requests": 3,
+          "assertions": 5,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "03 Revoked role",
+          "requests": 2,
+          "assertions": 4,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        },
+        {
+          "folder": "04 S01 unavailable",
+          "requests": 2,
+          "assertions": 4,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "result": "PASS"
+        }
+      ]
+    }
+  },
+  "sourceSha256": {
+    ".github/workflows/backend-ci.yaml": "8f9b4bc90b3bad737b3bd4cac52430ff969dbd30e3bb37d061a24e2ed93bad61",
+    "backend/document-governance-service/.env.example": "9c1e8c84dd31546722a01d9fd9612eed97655feb064de17e39438be1c9e31aea",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01SubmitAuthorizationClient.java": "253adef181466ea29851efe8a10aaa6b49b7f3ee1d021c89f76dc9123eadbd6b",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentSubmitController.java": "be3bbba98b4a64b7c4d1f51302703a9ebc95f7ccf7d618b2f29ec1137a563d4b",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/SubmitReviewRequest.java": "2b9949e08c413361e5799cf35e7fce5f39b65c1ab7b5cbc1ea2731628d95024f",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SubmitProblem.java": "61d7975787722ab41eca79d0593c3715656303bfc059ce8e975414af98a4c80f",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SuccessResponse.java": "9a5753128e2ece2b280a3a5e6dfbf350ed115cb72ea1efb063eecef345f93a8f",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentEvidenceEntity.java": "f731a367ebf126dec61877859bd443f9b3d020929e68f2704e6cf12d67fe8835",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentVersionEntity.java": "c4197795181175d383a66bd148995b47b775b1fd250f7c34a13be021a2aa2b24",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitException.java": "e8f0264cec1bb76c5af371fc380070df12c2cb1ad44c99db3ff83611a609e339",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitExceptionHandler.java": "1d0eaa3c1468d5b8a616126f3dfeba44cbdf4fa71b87364b18a0bcf8a95313e2",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonSubmitSnapshotCodec.java": "f361b0e429dece61aa65f7f6e52bc96e26091a0719037571d9a60084c0ea9857",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/SubmitMapper.java": "cbbf997720e5c9f3d363680f632cab48056988227e8c9f3e03ebf9aa3c7f8f5f",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitActorContext.java": "87b8472807ec8ce9f2bf7e6cc2aed15f7b60a2573defa00b8a653125b4a8d002",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitCommand.java": "a05938e9cebc1a103323e0cf2930073a105e823db6f60d4becdd09037bc85243",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitResult.java": "57fd12b3fdd973d2afa3a241246dc7cf701ae7c57bd552568da81d5c3df992f4",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SuccessCode.java": "23a3aa08571ef5ae9621e3c85a8beb7e99c4a44e0ac7dbd195e9e29fd70509b8",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentEvidenceJpaRepository.java": "bab0c0a028f173cd6cb38b4fa73cba1b6125096cd2c6c5f68f1e59c9989a35e5",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentSubmitRepository.java": "72b6af48f44333746dc3bc8d6381b58638343dc75b683a804d83530a8b853b8f",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentSubmitService.java": "d4e0f1df052dfb92310adc078f28220b0e3d6fb274c18adf61fa22101f47812e",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SubmitSnapshotCodec.java": "31d4f065e29f3ed90dd4bf525a5257f44a91dc7deab77b6f72601359cabe416c",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "bf8215940ddd6b22330ce9f2af716f52ca765952e424346e8f56a6b0d9cf1f8b",
+    "backend/document-governance-service/src/main/resources/application.yaml": "8767b2e6d1806b43bbdb4a3c6ca6ee168c0db96b44fa706b816a7921103114c3",
+    "backend/document-governance-service/src/main/resources/db/migration/V4__document_submit.sql": "14ea3ce9e41328ceab125e6a5452944c74dbccd693637abed0e2e73f8290646b",
+    "backend/document-governance-service/src/test/java/com/livingdocs/document/S01SubmitAuthorizationClientTest.java": "317cc089eeb1b216dd46a6a138aff7bad92ee754f2e1451e72b7ea666e9a763c",
+    "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitApiIntegrationTest.java": "b2fb60878c6678318c52d9966741f4303d04b44dd861ca7c3f5464dcdfcfb162",
+    "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitRestartIntegrationTest.java": "0ab063315293c53cdc92b55fe92d4f676230a03570025e2ab94a6151b278da58",
+    "contracts/openapi/s04-document.yaml": "dbb2110d2b2856d76c0d4f41f1e7df569020f3c63293b57d77259c009d7859bc",
+    "contracts/openapi/sprint3-inventory.md": "da0c275a0c8dcfb6c087657daca9960ccca5d756e1319df12a456648b0d30891",
+    "contracts/openapi/sprint3-route-inventory.json": "c1950e4b6907c6eaf4892e9c8ee7a01d23328ea73336b04bb817db236ad8418d",
+    "infrastructure/docker/compose.yaml": "49b31ffbb148a929dccd367d59baa9799ae18b93238f5cbec3b139dbcc55dcc0",
+    "scripts/test_api113_s01_integration.py": "da986a673d0dc4dd6f92a29163bc1a973082c9f62d445c3fb1d726d47dd92b84",
+    "tests/postman/liv143-submit.postman_collection.json": "bee001ddca41a254c2ad60ccb67aa2dfeea437f56d6211c49e8961927e65136c"
+  },
+  "preservedLocalFilesSha256": {
+    ".gitignore": "E6AF5E938F0F355A80DCED1758F950E62D3BE624C6E441661FF4AD0AE1D3C4B3",
+    ".codegraph/.gitignore": "8D1BBF531ADFF2B4872546096B029005A98B99AD2A97182BEAD369FB18185523",
+    "docs/implementation/flow1/README.md": "66964722114631D69B720584AE230A4990BEA50AC5CFCB3E79286C7D1C7B8012",
+    "docs/implementation/flow1/xay_dung_cac_api_de_hoan_thanh_flow1.md": "2F3225588B89CABB4C6AF93D85CF047923E4A8A6BA4F3C91B87C894FF8B4F7E8"
+  },
+  "limits": [
+    "API-038 snapshot; API-039 evaluator not integrated; mandatory fresh for Submit remains proposed policy",
+    "Global Gateway security error body remains a separate LD-D11 blocker; anonymous Newman check verifies denial/challenge only",
+    "No live API-070 current-SHA validation in API-113",
+    "Authority/Draft SQL fixtures in disposable DB; not provisioning UI or verified repository grant lifecycle",
+    "No deployment to main DB, remote CI or independent QA confirmed"
+  ],
+  "previousVerification": {
+    "sourceSha256": {
+      ".github/workflows/backend-ci.yaml": "8f9b4bc90b3bad737b3bd4cac52430ff969dbd30e3bb37d061a24e2ed93bad61",
+      "backend/document-governance-service/.env.example": "9c1e8c84dd31546722a01d9fd9612eed97655feb064de17e39438be1c9e31aea",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01SubmitAuthorizationClient.java": "253adef181466ea29851efe8a10aaa6b49b7f3ee1d021c89f76dc9123eadbd6b",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentSubmitController.java": "2c094f487cfc4b1113e3784f7715f5d8b744814b1f83df088c3b8a42e6664458",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/SubmitReviewRequest.java": "2b9949e08c413361e5799cf35e7fce5f39b65c1ab7b5cbc1ea2731628d95024f",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SuccessResponse.java": "9a5753128e2ece2b280a3a5e6dfbf350ed115cb72ea1efb063eecef345f93a8f",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitException.java": "e8f0264cec1bb76c5af371fc380070df12c2cb1ad44c99db3ff83611a609e339",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitExceptionHandler.java": "02e24b0a5af67033009333976bad31f42e8250ccf2dad01fd656056056e8756c",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonSubmitSnapshotCodec.java": "f361b0e429dece61aa65f7f6e52bc96e26091a0719037571d9a60084c0ea9857",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/SubmitMapper.java": "cbbf997720e5c9f3d363680f632cab48056988227e8c9f3e03ebf9aa3c7f8f5f",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitActorContext.java": "87b8472807ec8ce9f2bf7e6cc2aed15f7b60a2573defa00b8a653125b4a8d002",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitCommand.java": "a05938e9cebc1a103323e0cf2930073a105e823db6f60d4becdd09037bc85243",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitResult.java": "57fd12b3fdd973d2afa3a241246dc7cf701ae7c57bd552568da81d5c3df992f4",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SuccessCode.java": "23a3aa08571ef5ae9621e3c85a8beb7e99c4a44e0ac7dbd195e9e29fd70509b8",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentSubmitRepository.java": "6ec79b1d114b261884f4a46573e75fc5f5ea9e04b53d04d81a7fc173b7843768",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentSubmitService.java": "d4e0f1df052dfb92310adc078f28220b0e3d6fb274c18adf61fa22101f47812e",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "bf8215940ddd6b22330ce9f2af716f52ca765952e424346e8f56a6b0d9cf1f8b",
+      "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SubmitSnapshotCodec.java": "31d4f065e29f3ed90dd4bf525a5257f44a91dc7deab77b6f72601359cabe416c",
+      "backend/document-governance-service/src/main/resources/application.yaml": "8767b2e6d1806b43bbdb4a3c6ca6ee168c0db96b44fa706b816a7921103114c3",
+      "backend/document-governance-service/src/main/resources/db/migration/V4__document_submit.sql": "14ea3ce9e41328ceab125e6a5452944c74dbccd693637abed0e2e73f8290646b",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/S01SubmitAuthorizationClientTest.java": "317cc089eeb1b216dd46a6a138aff7bad92ee754f2e1451e72b7ea666e9a763c",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitApiIntegrationTest.java": "963346fbed31bbc3bad88daee82a645ef15f31b80c758f7f66b1807e707dc83d",
+      "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitRestartIntegrationTest.java": "0ab063315293c53cdc92b55fe92d4f676230a03570025e2ab94a6151b278da58",
+      "contracts/openapi/s04-document.yaml": "1a405b7c2b6befe9654715a6cf1a2250a458fe890def8bc3dba1cae6c34f513f",
+      "contracts/openapi/sprint3-inventory.md": "da0c275a0c8dcfb6c087657daca9960ccca5d756e1319df12a456648b0d30891",
+      "contracts/openapi/sprint3-route-inventory.json": "c1950e4b6907c6eaf4892e9c8ee7a01d23328ea73336b04bb817db236ad8418d",
+      "infrastructure/docker/compose.yaml": "49b31ffbb148a929dccd367d59baa9799ae18b93238f5cbec3b139dbcc55dcc0",
+      "scripts/test_api113_s01_integration.py": "d8a18c69305ab284539088bb4fa54719c039c010bdcbf521ec45309aac56b644"
+    },
+    "recordedAt": "2026-11-23T09:34:23.638098+00:00",
+    "summary": {
+      "maven": {
+        "tests": 79,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "finishedAt": "2026-11-23T16:32:32+07:00"
+      },
+      "s01S04Integration": {
+        "result": "PASS",
+        "assertions": 20,
+        "finishedAt": "2026-11-23T16:33:39.771866+07:00"
+      },
+      "note": "Historical summary and source hashes; full runtime artifact evidence below belongs to the current reviewed version."
+    }
+  },
+  "reviewFindingsFixed": [
+    "Submit optimistic/pessimistic lock errors mapped to 412/409 instead of 500; HTTP regression uses injected errors",
+    "Upstream S01 401 includes WWW-Authenticate Bearer; runtime and static docs updated",
+    "SubmitProblem includes actual submit-specific error codes; API-120 schema preserved",
+    "Vietnamese report rewritten directly as UTF-8; readable content and zero unexpected question marks verified",
+    "Submit evidence reads use read-only Entity and scoped JPQL via JpaRepository; provenance reads Entity getters, no native SQL in DocumentSubmitRepository",
+    "Added API-113 collection with 22 requests and 40 assertions across 4 mandatory phases through real Gateway/S01/S04, including Return/resubmit"
+  ],
+  "reportUtf8Verified": true,
+  "verificationHistory": [
+    {
+      "recordedAt": "2026-11-23T10:12:59.630187+00:00",
+      "verification": {
+        "maven": {
+          "command": ".\\mvnw.cmd -B -ntp verify",
+          "workingDirectory": "backend/document-governance-service",
+          "result": "PASS",
+          "finishedAt": "2026-11-23T17:11:03+07:00",
+          "totals": {
+            "tests": 81,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "suites": [
+            {
+              "name": "com.livingdocs.document.client.S01ReviewAuthorizationClientTest",
+              "tests": "7",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
+              "tests": "2",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.ReviewApiIntegrationTest",
+              "tests": "27",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.ReviewMigrationIntegrationTest",
+              "tests": "1",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.ReviewRestartIntegrationTest",
+              "tests": "1",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.ReviewTransitionPolicyTest",
+              "tests": "15",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.S01SubmitAuthorizationClientTest",
+              "tests": "7",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
+              "tests": "1",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.SourceReviewGuardTest",
+              "tests": "5",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.SubmitApiIntegrationTest",
+              "tests": "14",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            },
+            {
+              "name": "com.livingdocs.document.SubmitRestartIntegrationTest",
+              "tests": "1",
+              "failures": "0",
+              "errors": "0",
+              "skipped": "0"
+            }
+          ],
+          "log": "%TEMP%/liv143-review-verify.log"
+        },
+        "openapi": {
+          "result": "PASS",
+          "specs": 6,
+          "validator": "openapi-spec-validator==0.7.2; PyYAML==6.0.3"
+        },
+        "gatewayStatic": {
+          "result": "PASS",
+          "cataloguedApis": 112,
+          "exactMethodPathEntries": 91,
+          "routeGroups": 19,
+          "runtimeE2E": "NOT RUN"
+        },
+        "composeConfig": {
+          "result": "PASS",
+          "runtimeDeployment": "NOT RUN"
+        },
+        "s01S04Integration": {
+          "preparedBy": "Codex",
+          "startedAt": "2026-11-23T10:11:54.709322+00:00",
+          "scope": "Real S01 Identity JWT + API-038; S04 API-113. Disposable authority fixtures; no S02/Gateway.",
+          "artifactsSha256": {
+            "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "8c4bd0d3bb0699eb85fd1ed181cbed8f6c22a564e7270b8263b9c543433a15a5",
+            "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "248739d38b6db9b54608564e2126619270b48c8acdcdc59c4df94a891f548407",
+            "scripts\\test_api113_s01_integration.py": "d8a18c69305ab284539088bb4fa54719c039c010bdcbf521ec45309aac56b644"
+          },
+          "checks": [
+            {
+              "name": "S01 real HTTP registration",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 real HTTP login with Redis limiter",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 JWT carries Identity, no tenant/workspace authority",
+              "result": "PASS"
+            },
+            {
+              "name": "Unprovisioned Identity denied (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "API-038 returns real DB Developer permission, excludes PENDING repository",
+              "result": "PASS"
+            },
+            {
+              "name": "API-113 Submit with real S01 JWT/context (HTTP 200, DOCUMENT_SUBMITTED)",
+              "result": "PASS"
+            },
+            {
+              "name": "Submit advances Staff Review with ETag",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay preserves response",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-tenant version hidden by RLS (HTTP 404, DOCUMENT_VERSION_NOT_FOUND)",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-workspace denied (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "PENDING repository grant cannot authorize Submit (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Invalid bearer denied locally (HTTP 401, UNAUTHENTICATED)",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after tenant membership revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down fails closed (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down also denies replay (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Denied requests leave version/submission/audit unchanged",
+              "result": "PASS"
+            },
+            {
+              "name": "Replay writes exactly one submission and audit",
+              "result": "PASS"
+            },
+            {
+              "name": "Submission and audit record actual S01 Identity",
+              "result": "PASS"
+            }
+          ],
+          "result": "PASS",
+          "finishedAt": "2026-11-23T10:12:28.555039+00:00"
+        }
+      },
+      "sourceSha256": {
+        ".github/workflows/backend-ci.yaml": "8f9b4bc90b3bad737b3bd4cac52430ff969dbd30e3bb37d061a24e2ed93bad61",
+        "backend/document-governance-service/.env.example": "9c1e8c84dd31546722a01d9fd9612eed97655feb064de17e39438be1c9e31aea",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01SubmitAuthorizationClient.java": "253adef181466ea29851efe8a10aaa6b49b7f3ee1d021c89f76dc9123eadbd6b",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentSubmitController.java": "be3bbba98b4a64b7c4d1f51302703a9ebc95f7ccf7d618b2f29ec1137a563d4b",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/SubmitReviewRequest.java": "2b9949e08c413361e5799cf35e7fce5f39b65c1ab7b5cbc1ea2731628d95024f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SubmitProblem.java": "61d7975787722ab41eca79d0593c3715656303bfc059ce8e975414af98a4c80f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SuccessResponse.java": "9a5753128e2ece2b280a3a5e6dfbf350ed115cb72ea1efb063eecef345f93a8f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitException.java": "e8f0264cec1bb76c5af371fc380070df12c2cb1ad44c99db3ff83611a609e339",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitExceptionHandler.java": "1d0eaa3c1468d5b8a616126f3dfeba44cbdf4fa71b87364b18a0bcf8a95313e2",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonSubmitSnapshotCodec.java": "f361b0e429dece61aa65f7f6e52bc96e26091a0719037571d9a60084c0ea9857",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/SubmitMapper.java": "cbbf997720e5c9f3d363680f632cab48056988227e8c9f3e03ebf9aa3c7f8f5f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitActorContext.java": "87b8472807ec8ce9f2bf7e6cc2aed15f7b60a2573defa00b8a653125b4a8d002",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitCommand.java": "a05938e9cebc1a103323e0cf2930073a105e823db6f60d4becdd09037bc85243",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitResult.java": "57fd12b3fdd973d2afa3a241246dc7cf701ae7c57bd552568da81d5c3df992f4",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SuccessCode.java": "23a3aa08571ef5ae9621e3c85a8beb7e99c4a44e0ac7dbd195e9e29fd70509b8",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentSubmitRepository.java": "6ec79b1d114b261884f4a46573e75fc5f5ea9e04b53d04d81a7fc173b7843768",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentSubmitService.java": "d4e0f1df052dfb92310adc078f28220b0e3d6fb274c18adf61fa22101f47812e",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SubmitSnapshotCodec.java": "31d4f065e29f3ed90dd4bf525a5257f44a91dc7deab77b6f72601359cabe416c",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "bf8215940ddd6b22330ce9f2af716f52ca765952e424346e8f56a6b0d9cf1f8b",
+        "backend/document-governance-service/src/main/resources/application.yaml": "8767b2e6d1806b43bbdb4a3c6ca6ee168c0db96b44fa706b816a7921103114c3",
+        "backend/document-governance-service/src/main/resources/db/migration/V4__document_submit.sql": "14ea3ce9e41328ceab125e6a5452944c74dbccd693637abed0e2e73f8290646b",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/S01SubmitAuthorizationClientTest.java": "317cc089eeb1b216dd46a6a138aff7bad92ee754f2e1451e72b7ea666e9a763c",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitApiIntegrationTest.java": "6f4ad3702145347334935754513db06fbd8dda16e5ae1413933dd8fe5c3b435b",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitRestartIntegrationTest.java": "0ab063315293c53cdc92b55fe92d4f676230a03570025e2ab94a6151b278da58",
+        "contracts/openapi/s04-document.yaml": "dbb2110d2b2856d76c0d4f41f1e7df569020f3c63293b57d77259c009d7859bc",
+        "contracts/openapi/sprint3-inventory.md": "da0c275a0c8dcfb6c087657daca9960ccca5d756e1319df12a456648b0d30891",
+        "contracts/openapi/sprint3-route-inventory.json": "c1950e4b6907c6eaf4892e9c8ee7a01d23328ea73336b04bb817db236ad8418d",
+        "infrastructure/docker/compose.yaml": "49b31ffbb148a929dccd367d59baa9799ae18b93238f5cbec3b139dbcc55dcc0",
+        "scripts/test_api113_s01_integration.py": "d8a18c69305ab284539088bb4fa54719c039c010bdcbf521ec45309aac56b644"
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "Gateway LD-D11",
+      "status": "BLOCKED",
+      "scope": "Global Gateway security error body; anonymous collection check verifies 401/challenge only, not RFC 9457 conformance"
+    },
+    {
+      "id": "S01 API-039",
+      "status": "BLOCKED",
+      "scope": "Evaluator/service assertion unavailable; mandatory API-039 for Submit remains a policy proposal"
+    },
+    {
+      "id": "Mandatory API-039 policy for API-113",
+      "status": "NEEDS DECISION",
+      "owner": "PO / authorization contract owner"
+    },
+    {
+      "id": "Verified repository grant positive lifecycle",
+      "status": "NOT VERIFIED",
+      "owner": "S01/S02",
+      "scope": "Positive Gateway test is repository-free; PENDING denial is tested"
+    },
+    {
+      "id": "Remote CI and independent QA",
+      "status": "NOT RUN / PENDING",
+      "scope": "Local verification only; remote CI and independent QA not confirmed"
+    }
+  ]
+}
