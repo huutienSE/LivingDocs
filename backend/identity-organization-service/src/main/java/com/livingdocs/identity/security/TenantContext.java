@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.TransactionDefinition;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class TenantContext {
     public UUID currentTenant(UUID verifiedIdentityId) {
         TransactionTemplate tx = new TransactionTemplate(transactions);
         tx.setReadOnly(true);
+        tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
         return tx.execute(status -> {
             jdbc.queryForObject("SELECT set_config('app.identity_id', ?, true)", String.class,
                     verifiedIdentityId.toString());
@@ -44,6 +46,7 @@ public class TenantContext {
     public <T> T readInTenant(UUID tenantId, Supplier<T> work) {
         TransactionTemplate tx = new TransactionTemplate(transactions);
         tx.setReadOnly(true);
+        tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
         return tx.execute(status -> {
             jdbc.queryForObject("SELECT set_config('app.tenant_id', ?, true)", String.class,
                     tenantId.toString());

@@ -10,6 +10,7 @@ import com.livingdocs.identity.model.SuccessCode;
 import com.livingdocs.identity.service.RegistrationService;
 import com.livingdocs.identity.service.LoginService;
 import com.livingdocs.identity.security.JwtTokenIssuer;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -38,6 +39,7 @@ public class AuthController {
 
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(operationId = "api002_post", summary = "Log in with local credential and issue User JWT")
     // khai báo api documentation với swagger
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Access token issued", useReturnTypeSchema = true,
@@ -75,6 +77,7 @@ public class AuthController {
 
     @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(operationId = "api001_post", summary = "Register a local Identity without tenant or role")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Identity created. data.identityId is the new identity UUID.",
                     useReturnTypeSchema = true),
