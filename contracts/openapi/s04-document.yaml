@@ -556,64 +556,101 @@ paths:
   /api/v1/document-versions/{versionId}/submit:
     post:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api113_post
       summary: Submit Staff Review
-      description: 'LD-API-001 API-113. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      description: 'LIV-143 API-113: Developer submit with authoritative API-038 scope,
+        persisted evidence/binding, strong ETag, atomic audit and durable idempotency.
+        Submit validates persisted Draft evidence and source binding without live source validation.
+        API-038 is an authority snapshot, not API-039 fresh evaluation; mandatory API-039
+        for Submit remains a proposed policy pending the S01 evaluator contract.'
       x-api-id: API-113
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Persisted submission or original replay receipt
+          headers:
+            ETag:
+              schema:
+                type: string
+            X-Correlation-ID:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentVersionView'
+                $ref: '#/components/schemas/SubmitApiResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          description: Invalid token or upstream S01 authentication failure
           headers:
-            ETag:
-              description: Strong ETag phiên bản mới.
+            WWW-Authenticate:
               schema:
                 type: string
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '412': *id001
-        '422': *id001
-        '428': *id001
+                enum: [Bearer]
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '405':
+          $ref: '#/components/responses/Problem'
+        '406':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: versionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
-        - name: If-Match
-          in: header
-          required: true
-          schema:
-            type: string
-          description: 'Strong ETag của chính document version. Missing: 428; stale: 412.'
-        - name: Idempotency-Key
-          in: header
-          required: true
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 128
-          description: Đổi payload với cùng key trả 409. Scope của key phải do owner xác nhận.
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+        description: 'Strong ETag của chính document version. Missing: 428; stale: 412.'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9._:-]{1,128}$
+        description: Tenant/version/actor/submit scope; changed note or original If-Match
+          with the same key returns 409.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SubmitReviewRequest'
+
   /api/v1/document-versions/{versionId}/revalidations:
     post:
       tags:
@@ -2114,11 +2151,13 @@ components:
             $ref: '#/components/schemas/EvidenceView'
     SubmitReviewRequest:
       type: object
-      description: 'CANDIDATE S04: action transition is server-determined, client cannot choose target state.'
+      description: 'LIV-143: action transition is server-determined; client cannot choose target state.'
       additionalProperties: false
       properties:
         note:
           type: string
+          maxLength: 2000
+          nullable: true
     ReviewHistoryView:
       type: object
       description: 'CANDIDATE S04: decisions + audit visibility limited by scope.'
@@ -2130,3 +2169,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CandidateObject'
+
+    SubmitApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data]
+      properties:
+        code:
+          type: string
+          enum: [DOCUMENT_SUBMITTED]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/DocumentVersionView"

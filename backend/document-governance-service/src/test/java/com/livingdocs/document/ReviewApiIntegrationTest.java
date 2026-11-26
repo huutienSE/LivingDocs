@@ -44,6 +44,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     @Autowired ReviewSourceValidationTestConfiguration.TestValidator sourceValidator;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired com.livingdocs.document.repository.DocumentVersionRepository versions;
+    @MockitoSpyBean com.livingdocs.document.client.S01FreshReviewAuthorizationClient freshAuthorization;
     @Autowired jakarta.persistence.EntityManager entities;
     final HttpClient http = HttpClient.newHttpClient();
 
@@ -191,7 +192,8 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 Files.readString(Path.of("../../contracts/openapi/s04-document-review.yaml")))));
         String path = "/api/v1/document-versions/{versionId}/staff-decisions";
         assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
-        assertThat(runtime.path("paths").propertyNames()).containsExactly(path);
+        assertThat(runtime.path("info").path("version").asString()).isEqualTo(reviewed.path("info").path("version").asString());
+        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit");
         var actual = runtime.path("paths").path(path).path("post");
         var expected = reviewed.path("paths").path(path).path("post");
         assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());
@@ -585,7 +587,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 futures.add(executor.submit(() -> {
                     ready.countDown();
                     if (!go.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("start barrier timed out");
-                    try { service.review(f.version, request, 0, key, f.context(), "race"); return 200; }
+                    try { service.review(f.version, request, 0, key, f.context(), token(f), "race"); return 200; }
                     catch (ReviewException e) { return e.status(); }
                 }));
             }
@@ -607,7 +609,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         try (var executor = Executors.newFixedThreadPool(2)) {
             Callable<StaffReviewResult> call = () -> {
                 barrier.await(10, TimeUnit.SECONDS);
-                return service.review(f.version, request, 0, "same-key", f.context(), "retry-race");
+                return service.review(f.version, request, 0, "same-key", f.context(), token(f), "retry-race");
             };
             var first = executor.submit(call);
             var second = executor.submit(call);
@@ -641,7 +643,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     }
 
     @Test
-    void repositoryFreeDocument_usesWorkspaceStaffScopeWithoutDocumentAcl() throws Exception {
+    void repositoryFreeDocument_failsClosedUntilS01SupportsFreshEvaluationWithoutRepository() throws Exception {
         var f = fixture();
         execute("UPDATE document.documents SET repository_connection_id=NULL WHERE document_id=?", f.document);
         String etag = VersionEtags.format(f.version, 0);
@@ -660,9 +662,80 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         ReviewAuthorityTestServer.CONTEXTS.put(f.actor, ReviewAuthorityTestServer.context(f.actor, f.tenant, List.of(
                 ReviewAuthorityTestServer.grant(f.workspace, List.of("STAFF"), List.of("DOCUMENT_STAFF_REVIEW"), List.of()))));
         var result = review(f, token(f), passBody(f), "document", etag);
-        assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
+        problem(result, 503, "AUTHORIZATION_UNAVAILABLE");
+        unchanged(f);
         assertThat(sourceValidator.calls(f.version)).isZero();
-        assertThat(data(result).path("sourceBinding").isNull()).isTrue();
+        problem(review(f, token(f), json.writeValueAsString(Map.of("decision", "RETURN_FOR_REVISION", "feedback", "revise")),
+                "return-free", etag), 503, "AUTHORIZATION_UNAVAILABLE");
+        unchanged(f);
+    }
+
+    @Test
+    void freshDenialOrUnavailableBlocksBothDecisionsWithoutMutation() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        for (String payload : List.of(passBody(f), json.writeValueAsString(Map.of("decision", "RETURN_FOR_REVISION", "feedback", "revise")))) {
+            ReviewAuthorityTestServer.FRESH_DECISIONS.put(f.actor, "DENY");
+            problem(review(f, jwt, payload, "fresh-deny", etag), 403, "REVIEW_FORBIDDEN");
+            unchanged(f);
+            ReviewAuthorityTestServer.FRESH_DECISIONS.remove(f.actor);
+            ReviewAuthorityTestServer.FRESH_STATUSES.put(f.actor, 503);
+            problem(review(f, jwt, payload, "fresh-unavailable", etag), 503, "AUTHORIZATION_UNAVAILABLE");
+            unchanged(f);
+            ReviewAuthorityTestServer.FRESH_STATUSES.remove(f.actor);
+        }
+    }
+
+    @Test
+    void freshAuthorizationRunsOutsideTransactionsAndIsRecordedInAudit() throws Exception {
+        var f = fixture();
+        var checked = new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            checked.set(true);
+            return invocation.callRealMethod();
+        }).when(freshAuthorization).requireAllowed(any(), anyString(), anyString());
+        var result = review(f, token(f), passBody(f), "fresh-audit", VersionEtags.format(f.version, 0));
+        assertThat(result.statusCode()).as(result.body()).isEqualTo(200);
+        assertThat(checked).isTrue();
+        assertThat(scalar("SELECT metadata->'authorization'->>'action' FROM document.document_audits WHERE document_version_id=?", f.version))
+                .isEqualTo("DOCUMENT_STAFF_REVIEW");
+        assertThat(scalar("SELECT metadata->'authorization'->>'authzRevision' FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo("2");
+        assertThat(scalar("SELECT metadata->'authorization'->>'decisionId' FROM document.document_audits WHERE document_version_id=?", f.version)).isNotNull();
+    }
+
+    @Test
+    void replayRequiresNewFreshAllowEvenWhenApi038StillAllows() throws Exception {
+        var f = fixture();
+        String jwt = token(f), etag = VersionEtags.format(f.version, 0);
+        var original = review(f, jwt, passBody(f), "fresh-replay", etag);
+        assertThat(original.statusCode()).as(original.body()).isEqualTo(200);
+        ReviewAuthorityTestServer.FRESH_DECISIONS.put(f.actor, "DENY");
+        problem(review(f, jwt, passBody(f), "fresh-replay", etag), 403, "REVIEW_FORBIDDEN");
+        ReviewAuthorityTestServer.FRESH_DECISIONS.remove(f.actor);
+        ReviewAuthorityTestServer.FRESH_STATUSES.put(f.actor, 503);
+        problem(review(f, jwt, passBody(f), "fresh-replay", etag), 503, "AUTHORIZATION_UNAVAILABLE");
+        ReviewAuthorityTestServer.FRESH_STATUSES.remove(f.actor);
+        assertThat(review(f, jwt, passBody(f), "fresh-replay", etag).body()).isEqualTo(original.body());
+        assertThat(ReviewAuthorityTestServer.FRESH_CALLS.get(f.actor)).isEqualTo(4);
+        assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(1L);
+    }
+
+    @Test
+    void resourceScopeAndRevisionAreRecheckedAfterFreshAllow() throws Exception {
+        for (boolean changeScope : List.of(false, true)) {
+            var f = fixture();
+            ReviewAuthorityTestServer.AFTER_EVALUATION.put(f.actor, () -> {
+                try {
+                    if (changeScope) execute("UPDATE document.document_collections SET workspace_id=? WHERE collection_id=(SELECT collection_id FROM document.documents WHERE document_id=?)", UUID.randomUUID(), f.document);
+                    else execute("UPDATE document.document_versions SET revision=1 WHERE document_version_id=?", f.version);
+                } catch (Exception ex) { throw new IllegalStateException(ex); }
+            });
+            problem(review(f, token(f), passBody(f), "changed-after-allow", VersionEtags.format(f.version, 0)), 412, "REVISION_CONFLICT");
+            assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?", f.version)).isEqualTo(0L);
+            assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version)).isEqualTo(0L);
+        }
     }
 
     @Test
@@ -775,7 +848,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 connection.rollback();
             }
         }
-        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(3L);
-        assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(12L);
+        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(4L);
+        assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(13L);
     }
 }

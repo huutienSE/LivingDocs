@@ -27,6 +27,7 @@ public class DocumentAuditRepository {
         metadata.put("evidenceRefs", a.decision().evidenceRefs());
         metadata.put("correlationId", a.correlationId());
         if (a.sourceValidation() != null) metadata.put("sourceValidation", a.sourceValidation());
+        metadata.put("authorization", a.authorization());
         audits.saveAndFlush(mapper.toEntity(a, json.writeValueAsString(metadata)));
     }
 }

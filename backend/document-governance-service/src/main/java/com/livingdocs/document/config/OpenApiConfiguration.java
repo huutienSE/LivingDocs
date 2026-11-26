@@ -38,7 +38,7 @@ public class OpenApiConfiguration {
     @Bean
     OpenAPI reviewOpenApi() {
         return new OpenAPI().openapi("3.0.3")
-                .info(new Info().title("LivingDocs S04 Staff Review").version("0.2.0"))
+                .info(new Info().title("LivingDocs S04 Staff Review").version("0.3.0"))
                 .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));

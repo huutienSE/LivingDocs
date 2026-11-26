@@ -1,7 +1,25 @@
-# LIV-118 — S04 Staff Review
+# S04 — Staff Review và Submit Draft
 
 Spring Boot 4.1.1 / Java 21 / PostgreSQL 17. Phạm vi: Staff PASS/RETURN,
 DocumentVersion, ReviewDecision, DocumentAudit và Flyway persistence.
+
+LIV-143 bổ sung `POST /api/v1/document-versions/{versionId}/submit` (API-113):
+Developer có `DOCUMENT_AUTHOR` + `WORKSPACE_VIEW` và repository grant khi áp dụng,
+submit/resubmit `DRAFT → IN_REVIEW / STAFF_REVIEW`. Body nhận `note` nullable tối đa
+2000 ký tự; yêu cầu strong `If-Match` và `Idempotency-Key`. Evidence và source binding
+lấy từ canonical S04 DB, không nhận actor/scope/target state từ client.
+Submit đọc evidence bằng JPA/JPQL có tenant/version scope và provenance qua field
+read-only của Entity; không còn native SQL trong `DocumentSubmitRepository`.
+State, submit receipt và audit commit cùng transaction; exact replay kiểm quyền lại
+qua API-038 và trả response/ETag gốc. Chi tiết, kiểm chứng và giới hạn:
+[LIV-143 report](../../docs/implementation/LIV-143-submit-implementation.md).
+Collection [LIV-143 Newman](../../tests/postman/liv143-submit.postman_collection.json)
+kiểm Submit/replay/Return/resubmit/revoke/outage qua Gateway thật bằng runner local.
+Lệnh chạy, cách tạo fixture DB tạm và các blocker Gateway/fresh nằm trong report.
+
+Cấu hình thêm `S01_SUBMIT_ACCESS_CONTEXT_URI` và `S04_SUBMIT_ALLOW_INSECURE_HTTP`
+(HTTP chỉ cho local). API-038 là snapshot, chưa thay cho evaluator API-039;
+Submit chưa gọi current-SHA API-070. Không suy ra fresh/source guards chỉ cần trước Publish.
 
 ## API và transaction
 
@@ -41,7 +59,8 @@ Response HTTP 200 có dạng:
 ```
 
 Contract `0.2.0` thay response phẳng bằng `{code, message, data}`; consumer đọc các field version
-qua `data`. HTTP status, strong ETag và lỗi RFC 9457 giữ nguyên. `model.SuccessCode` cung cấp
+qua `data`. Contract `0.3.0` bổ sung mandatory fresh authorization và giới hạn repository-free được mô tả bên dưới.
+HTTP status, strong ETag và lỗi RFC 9457 giữ nguyên. `model.SuccessCode` cung cấp
 wire code/message; không có `success/status` trong envelope và không bọc Problem Details.
 
 Spring Data JPA/Hibernate repositories dùng cùng transaction với `set_config('app.tenant_id', ..., true)` cho RLS.
@@ -87,51 +106,50 @@ toàn bộ và không tiêu thụ idempotency key. Không dùng callback sau com
 
 ## Quyền và xác minh source
 
-JWT RS256 được kiểm signature, issuer, audience và expiration. Thiếu trust configuration thì
-token bị từ chối. Cấu hình: `S01_ISSUER_URI`, `S01_JWK_SET_URI`, `S04_TOKEN_AUDIENCE`.
-JWT thật của S01 xác thực Identity qua `sub`; S04 không lấy tenant/roles/grants từ JWT.
-Mỗi request API-120, kể cả exact replay, chuyển nguyên User JWT qua Bearer đến API-038
-`GET /api/v1/users/me/access-context`, trước khi mở write transaction ở S04. Không cache context.
-Adapter kiểm Identity khớp `sub`, tenant UUID, revision, thời điểm evaluation và workspace grants.
-Chỉ grant có đồng thời `STAFF` và `DOCUMENT_STAFF_REVIEW` mới được dùng tại workspace đó.
-Tenant Owner/Manager không tự có quyền Staff; role ở workspace khác không được gộp quyền.
-Repository-backed version cần repository ID trong grant của cùng workspace; version không gắn
-repository chỉ cần Staff scope. S04 đối chiếu scope dưới RLS trong schema của mình, không đọc DB S01.
+JWT RS256 được kiểm signature, issuer, audience và expiration qua JWKS S01.
+API-038 được gọi với nguyên User JWT mỗi request để lấy Identity và context đúng tenant/workspace.
+S04 không lấy grants từ JWT claims hoặc header tự khai. Staff cần đồng thời role STAFF và
+permission DOCUMENT_STAFF_REVIEW trong cùng workspace grant; repository ID phải thuộc grant đó.
 
-Cấu hình thêm: `S01_REVIEW_ACCESS_CONTEXT_URI` trỏ đúng API-038; mặc định yêu cầu HTTPS.
-HTTP local cần bật tường minh `S04_REVIEW_ALLOW_INSECURE_HTTP=true` (xem `.env.example`/Compose).
-Client không follow redirect, giới hạn response 256 KiB, connect timeout 2 giây và tổng deadline 3 giây.
-Thiếu endpoint, network/timeout, upstream lỗi hoặc context hỏng/sai Identity trả
-`503 AUTHORIZATION_UNAVAILABLE`, không ghi state/decision/audit và không fallback sang JWT claims.
-S01 401/403 trả S04 401/403; tenantId null hoặc thiếu quyền trả 403. Version tenant khác trả 404 dưới RLS.
-Replay vẫn phải có quyền tại lần lookup mới và S01 hoạt động.
+**API-120 contract 0.3.0 bắt buộc fresh authorization cho cả PASS và RETURN, kể cả exact replay.**
+API-038 không thay API-039. S04 đọc resource/scope dưới RLS trong read transaction, đóng transaction,
+xin Service JWT từ S01 rồi gọi API-039 với User JWT và X-LD-Service-Assertion.
+Service assertion gắn với SHA-256 raw User JWT, action DOCUMENT_STAFF_REVIEW và đúng scope.
+Không giữ DB transaction khi gọi S01, không cache ALLOW hoặc fallback sang context cũ.
 
-API-038 là snapshot quyền, **không phải API-039 fresh evaluation**. Thu hồi trước lần lookup kế tiếp
-được áp dụng với cùng JWT; không bảo đảm nguyên tử giữa thu hồi quyền và commit ở S04.
-API-120 chưa tích hợp fresh evaluator API-039 theo yêu cầu của
-[runbook S01](../../docs/implementation/authorization/LIV-138-s01-authority-and-testing.md).
-Không có quyết định của người dùng cho phép API-038 thay bước fresh. Kiểm tra ngày
-23/11/2026 chưa tìm thấy evaluator/service assertion trong source S01 hoặc runtime
-OpenAPI hiện truy cập được; nhánh S01 fresh auth chưa có commit khác `develop`.
-[Báo cáo triển khai](../../docs/implementation/LIV-118-implementation-report.md) ghi
-bằng chứng dependency và các bước còn thiếu; chưa nghiệm thu đầy đủ auth API-120.
+Sau ALLOW, S04 mở write transaction, khóa lại version/scope và kiểm scope khớp decision trước mutation.
+ETag/revision, state, evidence, idempotency và rollback version/decision/audit vẫn giữ.
+Audit metadata ghi authorization decisionId/action/scope/authzRevision/evaluatedAt, không ghi token/secret.
+S01 ALLOW không tạo atomic transaction với S04; chưa bảo đảm instant revocation xuyên service.
 
-Request PASS mới cho document gắn repository yêu cầu `SourceReviewValidator` đáng tin cậy.
-Kết quả phải khớp tenant/workspace/repository/version/revision/SHA và còn hiệu lực trước khi ghi.
-Thiếu adapter, kết quả unknown/không hợp lệ/hết hạn trả `503 SOURCE_VALIDATION_UNAVAILABLE`;
-SHA khác trả `409 SOURCE_CHANGED_REVALIDATION_REQUIRED`. Các ca này không ghi state/decision/audit.
-RETURN và exact replay không yêu cầu source check mới.
+Cấu hình issuer/JWKS/audience: S01_ISSUER_URI, S01_JWK_SET_URI, S04_TOKEN_AUDIENCE.
+Cấu hình client: S01_REVIEW_ACCESS_CONTEXT_URI, S01_REVIEW_SERVICE_TOKEN_URI,
+S01_REVIEW_AUTHORIZATION_URI và S04_REVIEW_WORKLOAD_SECRET_PATH. Workload ID là s04;
+S01 giữ BCrypt hash và issuance policy, caller đọc secret riêng ngoài Git. Không mount private key S01.
+Compose dùng S04_WORKLOAD_SECRETS_DIR chứa s04.secret và mount read-only vào /run/secrets/s04.
 
-Chưa có adapter S02 thật; positive source tests dùng provider chỉ được import trong test.
-SourceBinding response chỉ có repositoryConnectionId/headSha đã lưu; targetKind, targetRef,
-comparisonSha, configRevision và capturedAt hiện null. Không suy diễn source provenance từ SHA.
+Mặc định HTTPS; HTTP local phải bật S04_REVIEW_ALLOW_INSECURE_HTTP=true.
+Hai internal URI cùng trusted origin; không follow redirect. Mỗi response tối đa 256 KiB,
+connect timeout 2 giây, deadline toàn response 3 giây; decision timestamp có tolerance clock skew 5 giây.
+API-039 200 DENY trả 403 REVIEW_FORBIDDEN. Workload credential/assertion lỗi, thiếu config,
+upstream unavailable/timeout, context/decision sai trả 503 AUTHORIZATION_UNAVAILABLE.
+User JWT bị S01 từ chối vẫn trả 401. Các nhánh này không ghi state/decision/audit.
 
-API đọc version/queue/context (API-106/115/116), UI, Final Approval, Publish và API S02 không được
-triển khai trong slice này. Các giới hạn tích hợp S01/S02 và SourceBinding được mô tả ở trên.
+**Giới hạn contract repository-free:** S01 PR2 đòi repository ID và effective grant cho mọi DOCUMENT_*.
+Tài liệu không gắn repository hiện trả 503 AUTHORIZATION_UNAVAILABLE cho PASS/RETURN/replay.
+Khác với slice API-038 cũ, positive path này chưa dùng được cho tới khi Owner/S01 chốt contract phù hợp;
+không tự tạo repository ID hoặc bỏ fresh check. Hành vi này được công bố trong OpenAPI 0.3.0.
 
-## Kiểm thử tích hợp S01 thật
+PASS mới của repository-bound document vẫn cần SourceReviewValidator đáng tin cậy.
+Thiếu adapter, unknown/expired/wrong-scope validation trả 503 SOURCE_VALIDATION_UNAVAILABLE;
+SHA khác trả 409 SOURCE_CHANGED_REVALIDATION_REQUIRED. RETURN và exact replay không gọi source check mới.
+Chưa có adapter S02 production; positive source tests dùng provider chỉ import trong test.
+LIV-143/V4 bổ sung persisted target kind/ref, config revision và capturedAt cho Submit.
+Review vẫn dùng model repositoryConnectionId/headSha; chưa có mapping/request và trust contract tới S02.
+Legacy provenance không được tự backfill. Grant production/trusted binding thuộc LIV-162/S02,
+không được S04 tự xác nhận VERIFIED. Queue/detail/context, Manager, Publish và S02 provider ngoài slice này.
 
-Từ repository root, build hai service rồi chạy runner:
+### Kiểm chứng tích hợp S01
 
 ```powershell
 mvn -B -ntp -f backend/identity-organization-service/pom.xml package
@@ -139,21 +157,58 @@ mvn -B -ntp -f backend/document-governance-service/pom.xml clean verify
 python -X utf8 scripts/test_api120_s01_integration.py
 ```
 
-Cần Java 21, Docker và Python 3.12. Runner tạo PostgreSQL 17/Redis tạm, sinh khóa chỉ cho S01,
-chạy hai JVM từ jar hiện tại, đăng ký/login qua HTTP thật và đọc quyền qua API-038 thật.
-Fixtures authority/document được tạo bằng SQL **chỉ trong DB test riêng**; không kiểm chứng operator CLI.
-Không đọc `.env`, không dùng DB Compose hiện có, không tạo VERIFIED repository grant để bỏ qua S02.
-Runner xóa đúng container tạm và dừng hai JVM khi kết thúc, ghi kết quả không chứa credential vào
-`target/api120-s01-integration.json` cùng service logs trong `target/` của S04.
+Collection riêng [LIV-118/API-120](../../tests/postman/liv118-review.postman_collection.json)
+chạy qua cùng runner với `--newman`; cần Node và Newman 6.2.3:
 
-Positive PASS/RETURN dùng document không gắn repository. Negative tests kiểm unprovisioned Identity,
-cross-tenant/workspace, grant PENDING, revoked role/membership, retry và S01 unavailable.
-Bộ Maven dùng API-038 contract stub/test issuer cho component tests; đây là bằng chứng riêng với
-runner hai service thật. Không suy ra Gateway/S02/repository-backed Golden Flow đã PASS.
+```powershell
+# Working directory: repository root
+python -X utf8 scripts/test_api120_s01_integration.py --newman --newman-cli "$env:TEMP/livingdocs-newman/node_modules/newman/bin/newman.js"
+```
+
+Năm phase kiểm review, workload lỗi, revoke Staff, revoke tenant và S01 outage.
+Runner sinh environment tạm, đổi authority/credential giữa các phase, kiểm DB không ghi thêm khi deny/replay,
+rồi dọn dữ liệu nhạy cảm. Collection hiện kiểm source guard trả 503; không chứng minh positive PASS với S02 thật.
+
+Runner dùng Java 21, Docker, Python 3.12; tạo PostgreSQL 17/Redis và chạy hai JVM riêng.
+JWT/JWKS/API-038, Service JWT issuance và API-039 gọi S01 thật.
+Positive mutation là RETURN với controlled SQL VERIFIED-grant fixture trong DB tạm;
+không chứng minh operator hoặc Grant/S02 trusted-binding production lifecycle.
+PASS thiếu S02 bị chặn; repository-free fail closed; retry/revoke/credential sai/S01 outage kiểm DB không mutate.
+Không đọc .env hoặc dùng DB ứng dụng; runner dừng đúng JVM/container của nó và ghi artifacts trong target/.
+
+Maven kiểm positive PASS bằng test source provider và S01 contract stubs, cùng PostgreSQL/RLS thật.
+Phân biệt component proof với runner hai service thật; chưa có S02/GitHub Golden Flow PASS.
+Runner API-113 bên dưới kiểm thêm Gateway, Newman và Staff Return dùng fresh API-039.
+[Báo cáo triển khai](../../docs/implementation/LIV-118-implementation-report.md) và
+[báo cáo tích hợp](../../docs/implementation/authorization/LIV-118-api120-s01-integration.md) ghi kết quả, giới hạn và nguồn.
+
+### Newman và runner sau tích hợp LIV-143
+
+Newman là CLI chạy Postman collection; đây là công cụ test, không phải một service deploy.
+`scripts/test_api113_s01_integration.py` đã có từ LIV-143 và được cập nhật để dựng
+Gateway/S01/S04, PostgreSQL/Redis tạm, cấp credential/token, sinh environment Newman và dọn tài nguyên.
+Workload secret/BCrypt registry chỉ tồn tại trong thư mục tạm; không dùng `.env` hoặc DB ứng dụng.
+
+```powershell
+# Working directory: repository root; cần JAR S01/S04/Gateway đã build
+npm.cmd install --prefix "$env:TEMP/livingdocs-newman" newman@6.2.3 --no-audit --no-fund
+python -X utf8 scripts/test_api113_s01_integration.py --gateway-newman --newman-cli "$env:TEMP/livingdocs-newman/node_modules/newman/bin/newman.js"
+```
+
+Collection có 5 phase (runner chạy phase workload trước revoke/outage): scoped Submit,
+Return/resubmit với Service JWT/API-039, revoked role, S01 unavailable và workload unavailable.
+Positive Return dùng repository-bound document với CONTROLLED SQL VERIFIED-grant fixture.
+Repository-free review vẫn kiểm 503; PASS thiếu S02 bị chặn; replay không được bỏ qua authority.
+Raw reports/environment chứa token được dọn; chỉ lưu summary/hash đã loại credential.
+Không cần deploy Newman/runner và không bổ sung CI workflow riêng cho endpoint.
+
+Kết quả tích hợp và đối chiếu Master Decision tại
+[Report cuối LIV-118](../../docs/implementation/LIV-118-implementation-report.md).
 
 ## Migration và chạy service
 
 - V1 tạo schema; V2 thêm aggregate revision/idempotency và siết review stage; V3 thêm response snapshot.
+- V4 thêm source provenance nullable và submit receipt append-only có tenant RLS.
 - Khi nâng cấp từ V1, kiểm tra `IN_REVIEW` có review_stage null. V2 từ chối dữ liệu đó;
   stage phải được xác định từ dữ liệu nghiệp vụ trước migration, không tự gán mặc định.
 - Test PostgreSQL kiểm chứng V2 lỗi được rollback cả schema/history; sau khi sửa fixture hợp lệ,
@@ -172,7 +227,7 @@ mvn -B -ntp clean verify
 ```
 
 Cần Java 21, Maven và Docker. Mặc định Testcontainers tạo PostgreSQL 17 riêng, bootstrap roles,
-chạy V1/V2/V3 và dùng JWT ký bằng RSA test key. `S04_USE_CI_DATABASE=true` chỉ dùng với DB test
+chạy V1–V4 và dùng JWT ký bằng RSA test key. `S04_USE_CI_DATABASE=true` chỉ dùng với DB test
 tách biệt do CI cung cấp (`DB_URL`, `DB_PASSWORD`, `FLYWAY_PASSWORD`, `S04_TEST_ADMIN_PASSWORD`).
 
 Tests gồm PASS/RETURN/history, token/scope denials, revision/idempotency/concurrency,
@@ -200,7 +255,7 @@ Repository-free document trả `sourceBinding = null`; các thuộc tính source
 Response class vẫn đọc được JSON snapshot V3 trước đây; legacy replay giữ version data/ETag và
 thêm envelope mới. Snapshot được ghi từ rollout này giữ nguyên toàn bộ body khi exact replay.
 
-Springdoc chỉ sinh runtime spec cho API-120. Mặc định `S04_OPENAPI_ENABLED=false`; bật biến này
+Springdoc sinh runtime spec cho API-120 và API-113. Mặc định `S04_OPENAPI_ENABLED=false`; bật biến này
 trong môi trường dev/test cần đối chiếu rồi khởi động lại S04. `GET /v3/api-docs` (JSON) và
 `GET /v3/api-docs.yaml` yêu cầu `Authorization: Bearer <verified JWT>` theo trust config S01.
 Không mở anonymous docs, Swagger UI S04 hoặc route docs qua Gateway. Docker Swagger tĩnh hiện tại

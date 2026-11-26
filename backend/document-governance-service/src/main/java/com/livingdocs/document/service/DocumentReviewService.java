@@ -8,5 +8,5 @@ import java.util.UUID;
 /** Records a guarded Staff review decision and its audit atomically. */
 public interface DocumentReviewService {
     StaffReviewResult review(UUID versionId, StaffDecisionCommand request, long expectedRevision,
-                          String key, ActorContext actor, String correlationId);
+                          String key, ActorContext actor, String userAccessToken, String correlationId);
 }

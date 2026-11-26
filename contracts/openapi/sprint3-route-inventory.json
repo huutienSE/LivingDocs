@@ -707,7 +707,7 @@
     "method": "POST",
     "path": "/api/v1/document-versions/{versionId}/submit",
     "business": "Submit Staff Review",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {

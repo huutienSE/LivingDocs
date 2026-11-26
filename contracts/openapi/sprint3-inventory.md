@@ -82,7 +82,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 | API-110 | S04 | `GET` | `/api/v1/document-versions/compare` | CANDIDATE | Allowlist (JWT) |
 | API-111 | S04 | `GET` | `/api/v1/document-versions/{versionId}/attribution` | CANDIDATE | Allowlist (JWT) |
 | API-112 | S04 | `POST` | `/api/v1/document-versions/{versionId}/regenerate` | CANDIDATE | Allowlist (JWT) |
-| API-113 | S04 | `POST` | `/api/v1/document-versions/{versionId}/submit` | CANDIDATE | Allowlist (JWT) |
+| API-113 | S04 | `POST` | `/api/v1/document-versions/{versionId}/submit` | IN_PROGRESS | Allowlist (JWT) |
 | API-114 | S04 | `POST` | `/api/v1/document-versions/{versionId}/revalidations` | CANDIDATE | Allowlist (JWT) |
 | API-115 | S04 | `GET` | `/api/v1/review-queue` | CANDIDATE | Allowlist (JWT) |
 | API-116 | S04 | `GET` | `/api/v1/document-versions/{versionId}/review-context` | CANDIDATE | Allowlist (JWT) |

@@ -4,6 +4,7 @@ import com.livingdocs.document.model.DocumentState;
 import com.livingdocs.document.model.ReviewStage;
 import jakarta.persistence.*;
 import java.util.UUID;
+import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,6 +24,17 @@ public class DocumentVersionEntity {
     private UUID documentId;
     @Column(name = "source_sha", length = 128, updatable = false)
     private String sourceSha;
+    // Persisted provenance is read-only in the Submit/Review slice.
+    @Column(name = "source_target_kind", length = 32, insertable = false, updatable = false)
+    private String sourceTargetKind;
+    @Column(name = "source_target_ref", length = 255, insertable = false, updatable = false)
+    private String sourceTargetRef;
+    @Column(name = "source_comparison_sha", length = 128, insertable = false, updatable = false)
+    private String sourceComparisonSha;
+    @Column(name = "source_config_revision", length = 255, insertable = false, updatable = false)
+    private String sourceConfigRevision;
+    @Column(name = "source_captured_at", insertable = false, updatable = false)
+    private Instant sourceCapturedAt;
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false, length = 32)
     private DocumentState state;

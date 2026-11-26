@@ -1,12 +1,12 @@
 openapi: 3.0.3
 info:
   title: LivingDocs S04 Staff Review
-  version: 0.2.0
+  version: 0.3.0
   description: >-
     LIV-118 implementation slice of LD-API-001 API-120.
     Contract candidate for staff decisions; read endpoints are outside this persistence slice.
     S01 Identity JWT authenticates the actor; API-038 supplies scoped authority for each request.
-    API-038 is an authority snapshot, not API-039 fresh evaluation.
+    API-038 supplies context; both PASS and RETURN additionally require fresh S01 API-039 ALLOW.
 security:
   - bearerAuth: []
 paths:
@@ -29,8 +29,8 @@ paths:
         tenant/workspace/repository/version/revision/SHA. Missing integration or unknown/expired
         validation returns 503; a changed authoritative SHA returns 409 without committing a decision.
         RETURN_FOR_REVISION and exact replay do not require a new source check.
-        Repository-free documents use active Staff membership in the owning workspace;
-        no document_ids ACL claim is required. Repository-backed documents still require repository scope.
+        Repository-free documents currently return 503 AUTHORIZATION_UNAVAILABLE: the S01 PR2
+        DOCUMENT_* contract requires a repository ID. No synthetic repository ID or API-038-only fallback.
         Each request, including an exact replay, forwards the verified User JWT to S01 API-038
         before opening the S04 write transaction. Identity, tenant and workspace authority come
         from that response, never scoped JWT claims or user-supplied headers. STAFF and
@@ -38,8 +38,13 @@ paths:
         or permission returns 403; a different tenant cannot see the version (404 under RLS).
         S01 401/403 map to 401/403. Missing configuration, timeout, upstream errors or malformed
         context return 503 AUTHORIZATION_UNAVAILABLE without writing. No cached-authority fallback.
-        API-038 remains a snapshot: revocation before the next lookup is enforced, but revocation
-        between lookup and commit is not atomic with the S04 mutation.
+        After resolving resource scope in a read transaction, S04 closes that transaction, obtains
+        an S01-issued Service JWT bound to the raw User JWT hash and exact action/scope, and calls
+        API-039 using the User JWT and X-LD-Service-Assertion. HTTP 200 DENY returns 403; invalid
+        workload credentials, unavailable authority or malformed/mismatched decisions return 503.
+        Every replay also requires a new ALLOW. S04 opens a write transaction after ALLOW and
+        locks/rechecks scope, state and revision before committing. Audit records decisionId,
+        authzRevision and evaluatedAt. Fresh ALLOW is not an atomic cross-service revocation fence.
       parameters:
         - name: If-Match
           in: header

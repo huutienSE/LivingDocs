@@ -7,17 +7,38 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** API-038 contract stub for S04 component tests; this is not a real S01 issuer. */
+/** API-038/039 and workload issuer stubs for component tests, never production authority. */
 final class ReviewAuthorityTestServer {
     static final Map<UUID, Object> CONTEXTS = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> STATUSES = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> CALLS = new ConcurrentHashMap<>();
+    static final Map<UUID, String> FRESH_DECISIONS = new ConcurrentHashMap<>();
+    static final Map<UUID, Integer> FRESH_STATUSES = new ConcurrentHashMap<>();
+    static final Map<UUID, Integer> FRESH_CALLS = new ConcurrentHashMap<>();
+    static final Map<UUID, Runnable> AFTER_EVALUATION = new ConcurrentHashMap<>();
+    static final Map<String, JsonNode> ASSERTIONS = new ConcurrentHashMap<>();
+    static final String SECRET_PATH = secretPath();
     static final HttpServer SERVER = start();
 
     static String uri() {
         return "http://127.0.0.1:" + SERVER.getAddress().getPort() + "/api/v1/users/me/access-context";
+    }
+
+    static String base() { return "http://127.0.0.1:" + SERVER.getAddress().getPort(); }
+
+    private static String secretPath() {
+        try {
+            Path path = Files.createTempFile("s04-test-workload-", ".secret");
+            Files.writeString(path, "test-only-workload-secret");
+            path.toFile().deleteOnExit();
+            return path.toString();
+        } catch (Exception ex) { throw new ExceptionInInitializerError(ex); }
     }
 
     static Map<String, Object> grant(UUID workspace, List<String> roles, List<String> permissions, List<UUID> repos) {
@@ -60,9 +81,62 @@ final class ReviewAuthorityTestServer {
                     exchange.sendResponseHeaders(500, -1);
                 } finally { exchange.close(); }
             });
+            server.createContext("/internal/v1/auth/service-tokens", exchange -> {
+                try {
+                    String expected = "Basic " + Base64.getEncoder().encodeToString("s04:test-only-workload-secret".getBytes(StandardCharsets.UTF_8));
+                    if (!expected.equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+                        exchange.sendResponseHeaders(401, -1); return;
+                    }
+                    var request = new JsonMapper().readTree(exchange.getRequestBody().readAllBytes());
+                    String assertion = UUID.randomUUID().toString();
+                    ASSERTIONS.put(assertion, request);
+                    respond(exchange, 200, Map.of("code", "SERVICE_TOKEN_ISSUED", "data",
+                            Map.of("accessToken", assertion, "tokenType", "Bearer", "expiresIn", 60)));
+                } catch (Exception ex) { exchange.sendResponseHeaders(500, -1); }
+                finally { exchange.close(); }
+            });
+            server.createContext("/internal/v1/authorization/evaluate", exchange -> {
+                try {
+                    String user = exchange.getRequestHeaders().getFirst("Authorization").substring(7);
+                    UUID identity = UUID.fromString(SignedJWT.parse(user).getJWTClaimsSet().getSubject());
+                    String assertion = exchange.getRequestHeaders().getFirst("X-LD-Service-Assertion").substring(7);
+                    var issued = ASSERTIONS.get(assertion);
+                    var request = new JsonMapper().readTree(exchange.getRequestBody().readAllBytes());
+                    String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(user.getBytes(StandardCharsets.US_ASCII)));
+                    if (issued == null || !hash.equals(issued.path("actorTokenSha256").asString())
+                            || !"authorization:evaluate".equals(issued.path("operation").asString())
+                            || !"livingdocs-s01-internal".equals(issued.path("audience").asString())
+                            || !"POST".equals(issued.path("method").asString())
+                            || !"/internal/v1/authorization/evaluate".equals(issued.path("path").asString())) {
+                        exchange.sendResponseHeaders(401, -1); return;
+                    }
+                    for (String field : List.of("action", "tenantId", "workspaceId", "repositoryConnectionId"))
+                        if (!issued.path(field).equals(request.path(field))) throw new IllegalArgumentException("Scope mismatch");
+                    FRESH_CALLS.merge(identity, 1, Integer::sum);
+                    var result = new HashMap<String, Object>();
+                    result.put("decision", FRESH_DECISIONS.getOrDefault(identity, "ALLOW"));
+                    result.put("reasonCode", result.get("decision").equals("ALLOW") ? null : "NOT_AUTHORIZED");
+                    for (String field : List.of("action", "tenantId", "workspaceId", "repositoryConnectionId"))
+                        result.put(field, request.path(field).asString());
+                    result.put("authzRevision", 2);
+                    result.put("evaluatedAt", Instant.now().toString());
+                    result.put("decisionId", UUID.randomUUID());
+                    var hook = AFTER_EVALUATION.remove(identity);
+                    if (hook != null) hook.run();
+                    respond(exchange, FRESH_STATUSES.getOrDefault(identity, 200), Map.of("code", "AUTHORIZATION_EVALUATED", "data", result));
+                } catch (Exception ex) { exchange.sendResponseHeaders(500, -1); }
+                finally { exchange.close(); }
+            });
             server.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> server.stop(0)));
             return server;
         } catch (Exception e) { throw new ExceptionInInitializerError(e); }
+    }
+
+    private static void respond(com.sun.net.httpserver.HttpExchange exchange, int status, Object value) throws Exception {
+        byte[] body = new JsonMapper().writeValueAsBytes(value);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, body.length);
+        try (var out = exchange.getResponseBody()) { out.write(body); }
     }
 }

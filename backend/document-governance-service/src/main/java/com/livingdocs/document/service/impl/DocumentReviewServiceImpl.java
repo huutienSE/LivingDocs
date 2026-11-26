@@ -5,6 +5,7 @@ import com.livingdocs.document.model.*;
 import com.livingdocs.document.exception.*;
 import com.livingdocs.document.repository.*;
 import com.livingdocs.document.security.ActorContext;
+import com.livingdocs.document.client.S01FreshReviewAuthorizationClient;
 import com.livingdocs.document.service.SourceReviewGuard;
 import com.livingdocs.document.service.DocumentReviewService;
 import com.livingdocs.document.service.ReviewSnapshotCodec;
@@ -13,6 +14,9 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -23,18 +27,38 @@ public class DocumentReviewServiceImpl implements DocumentReviewService {
     private final ReviewTransitionPolicy policy;
     private final SourceReviewGuard sourceGuard;
     private final ReviewSnapshotCodec snapshots;
+    private final S01FreshReviewAuthorizationClient freshAuthorization;
+    private final PlatformTransactionManager transactions;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public StaffReviewResult review(UUID versionId, StaffDecisionCommand request, long expectedRevision,
-                                 String key, ActorContext actor, String correlationId) {
+                                 String key, ActorContext actor, String userAccessToken, String correlationId) {
         if (expectedRevision < 0 || key == null || !key.matches("[A-Za-z0-9._:-]{1,128}")) {
             throw new ReviewRequestException(ReviewErrorCode.INVALID_REQUEST, "A valid revision and Idempotency-Key are required.");
         }
+        var read = new TransactionTemplate(transactions);
+        read.setReadOnly(true);
+        var scope = read.execute(status -> {
+            versions.setTenant(actor.tenantId());
+            var version = versions.find(versionId, actor.tenantId(), false).orElseThrow(DocumentVersionNotFoundException::new);
+            actor.requireStaffReview(version);
+            return version;
+        });
+        // The read transaction is closed before either S01 internal HTTP request.
+        var authorization = freshAuthorization.requireAllowed(scope, userAccessToken, correlationId);
+        return new TransactionTemplate(transactions).execute(status ->
+                record(versionId, request, expectedRevision, key, actor, correlationId, authorization));
+    }
+
+    private StaffReviewResult record(UUID versionId, StaffDecisionCommand request, long expectedRevision,
+                                     String key, ActorContext actor, String correlationId,
+                                     ReviewAuthorizationDecision authorization) {
         versions.setTenant(actor.tenantId());
         // Serialize decisions for the same version, including retries and review-round allocation.
         // Scope rows stay share-locked so a concurrent move cannot invalidate authorization.
         var before = versions.find(versionId, actor.tenantId(), true).orElseThrow(DocumentVersionNotFoundException::new);
+        if (!authorization.appliesTo(before)) throw new ReviewRevisionConflictException();
         actor.requireStaffReview(before);
         var previous = decisions.findRequest(actor.tenantId(), versionId, actor.identityId(), key);
         if (previous.isPresent()) {
@@ -64,7 +88,7 @@ public class DocumentReviewServiceImpl implements DocumentReviewService {
         var result = StaffReviewResult.recorded(decision, before);
         var snapshot = snapshots.encode(result);
         decisions.insert(decision, snapshot);
-        audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now, validation));
+        audits.insert(new DocumentAudit(UUID.randomUUID(), before, after, actor.identityId(), decision, correlationId, now, validation, authorization));
         // Repository flushes surface failures before returning; all three writes share one transaction.
         return result;
     }

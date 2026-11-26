@@ -20,7 +20,7 @@ class DocumentGovernanceServiceApplicationTests extends PostgresTestSupport {
     void noSourceAdapter_shouldFailClosedWithNoDatabaseChanges() throws Exception {
         var f = ReviewApiIntegrationTest.fixture();
         assertThatThrownBy(() -> reviews.review(f.version(), new StaffDecisionCommand(ReviewAction.PASS, null, List.of(f.evidence())),
-                0, "no-source-adapter", f.context(), "no-adapter"))
+                0, "no-source-adapter", f.context(), new ReviewApiIntegrationTest().token(f), "no-adapter"))
                 .isInstanceOfSatisfying(com.livingdocs.document.exception.SourceValidationUnavailableException.class, e -> {
                     assertThat(e.status()).isEqualTo(503);
                     assertThat(e.getErrorCode()).isEqualTo(com.livingdocs.document.exception.ReviewErrorCode.SOURCE_VALIDATION_UNAVAILABLE);

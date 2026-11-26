@@ -74,7 +74,7 @@ public class DocumentReviewController {
             @RequestHeader(value = "Idempotency-Key", required = false) String key,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
         var actor = actors.resolve(jwt);
-        return response(service.review(versionId, mapper.toCommand(body), VersionEtags.require(versionId, etag), key, actor,
+        return response(service.review(versionId, mapper.toCommand(body), VersionEtags.require(versionId, etag), key, actor, jwt.getTokenValue(),
                 (String) request.getAttribute(RequestCorrelationFilter.ATTRIBUTE)));
     }
 
