@@ -24,6 +24,10 @@ livingdocs:
       public-key-path: ${JWT_PUBLIC_KEY_PATH:}
       # Đường dẫn public key cũ khi rotation
       previous-public-key-path: ${JWT_PREVIOUS_PUBLIC_KEY_PATH:}
+    workloads:
+      registry-path: ${S01_WORKLOAD_REGISTRY_PATH:}
+      # bật cơ chế cho phép đượng truyền ko an toàn, khong ma hoa tls/https
+      allow-insecure-transport: ${S01_INTERNAL_ALLOW_INSECURE_TRANSPORT:false} # cờ bật tắt phép gọi endpoint cấp service token qua kết nối không có TLS/HTTPS (http.isSecure() == false, biến môi trường setup là true ==> có
     login:
       rate-limit:
         # đường dẫn đến file pepper trong redis limiter sử dụng HMAC để tạo key từ email đã chuẩn hóa - HMAC-SHA256(email, pepper) -

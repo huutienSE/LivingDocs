@@ -41,6 +41,8 @@ services:
       JWT_PUBLIC_KEY_PATH: /run/secrets/s01_jwt_public.pem
       JWT_PREVIOUS_PUBLIC_KEY_PATH: ${S01_PREVIOUS_PUBLIC_KEY_PATH:-}
       LOGIN_RATE_LIMIT_PEPPER_PATH: /run/secrets/s01_login_rate_pepper
+      S01_WORKLOAD_REGISTRY_PATH: /run/secrets/s01_workloads.json
+      S01_INTERNAL_ALLOW_INSECURE_TRANSPORT: "true"
     volumes:
       - ${S01_JWT_SECRETS_DIR:-../../../livingdocs-secrets}:/run/secrets:ro
     ports:

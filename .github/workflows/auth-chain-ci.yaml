@@ -96,11 +96,14 @@ jobs:
             -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='ld_s01_app'")"
           app_owns_tenants="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
             -c "SELECT pg_get_userbyid(relowner)='ld_s01_app' FROM pg_class WHERE oid='identity.tenants'::regclass")"
-          echo "S01 migrations=$migrations RLS tables=$rls_tables app BYPASSRLS=$app_bypassrls app owns tenants=$app_owns_tenants"
-          test "$migrations" = 4
+          connect_roles="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c "SELECT string_agg(role_code, ',' ORDER BY role_code) FROM identity.role_permissions WHERE permission_code='REPOSITORY_CONNECT'")"
+          echo "S01 migrations=$migrations RLS tables=$rls_tables app BYPASSRLS=$app_bypassrls app owns tenants=$app_owns_tenants connect roles=$connect_roles"
+          test "$migrations" = 6
           test "$rls_tables" = 11
           test "$app_bypassrls" = f
           test "$app_owns_tenants" = f
+          test "$connect_roles" = DEVELOPER,TECHNICAL_LEAD
 
       # 7. Một lượt Newman kiểm tra Login, JWT/JWKS, Gateway và Redis rate limit.
       # Chỉ in báo cáo CLI; không lưu access token hoặc response thành artifact.

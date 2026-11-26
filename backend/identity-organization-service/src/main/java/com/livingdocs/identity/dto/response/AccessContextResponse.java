@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 public class AccessContextResponse {
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private final UUID identityId;
-    @Schema(nullable = true)
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.REQUIRED)
     private final UUID tenantId;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private final long authzRevision;
