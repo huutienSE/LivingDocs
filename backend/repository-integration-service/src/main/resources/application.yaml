@@ -16,6 +16,14 @@ server:
   port: ${SERVER_PORT:0}
 
 livingdocs:
+  github:
+    authorization:
+      jwk-set-uri: ${LIVINGDOCS_GITHUB_AUTHORIZATION_JWK_SET_URI:}
+      s01-base-uri: ${LIVINGDOCS_GITHUB_AUTHORIZATION_S01_BASE_URI:}
+      app-id: ${LIVINGDOCS_GITHUB_AUTHORIZATION_APP_ID:}
+      app-slug: ${LIVINGDOCS_GITHUB_AUTHORIZATION_APP_SLUG:}
+      app-name: ${LIVINGDOCS_GITHUB_AUTHORIZATION_APP_NAME:}
+      allow-local-http: ${LIVINGDOCS_GITHUB_AUTHORIZATION_ALLOW_LOCAL_HTTP:false}
   source:
     request-timeout: "${LIVINGDOCS_SOURCE_REQUEST_TIMEOUT_SECONDS:15}s"
     github:

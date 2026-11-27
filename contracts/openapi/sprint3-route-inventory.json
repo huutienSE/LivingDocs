@@ -244,7 +244,7 @@
     "method": "GET",
     "path": "/api/v1/integrations/github/authorization",
     "business": "GitHub integration scopes",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {

@@ -9,30 +9,227 @@ paths:
   /api/v1/integrations/github/authorization:
     get:
       tags:
-        - S02 Public
+      - S02 Public
+      summary: GitHub authorization requirements and scoped context
+      description: 'Slice 1: required whole-App profile before user consent. Context-bearing reads fail closed
+        until onboarding is implemented. No granted permissions or repository access are asserted.'
       operationId: api046_get
-      summary: GitHub integration scopes
-      description: 'LD-API-001 API-046. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
-      x-api-id: API-046
-      x-contract-state: CANDIDATE
-      x-gateway-exposure: public
+      parameters:
+      - name: workspaceId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+          pattern: (?!00000000-0000-0000-0000-000000000000$)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+      - name: authorizationContextId
+        in: query
+        description: Owned context; reads fail closed until Slice 2 is available
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: Owned context; reads fail closed until Slice 2 is available
+          pattern: (?!00000000-0000-0000-0000-000000000000$)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+      - name: installationId
+        in: query
+        description: Positive decimal BIGINT, at most 9223372036854775807; requires authorizationContextId
+        required: false
+        schema:
+          type: string
+          description: Positive decimal BIGINT, at most 9223372036854775807; requires authorizationContextId
+          pattern: '[1-9][0-9]{0,18}'
+      - name: installationPage
+        in: query
+        description: Only with installationId; positive page, defaults to 1 when omitted
+        required: false
+        schema:
+          type: integer
+          default: 1
+          description: Only with installationId; positive page, defaults to 1 when omitted
+          maximum: 2147483647
+          minimum: 1
+          pattern: '[1-9][0-9]{0,9}'
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: OK
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateObject'
-        '400': &id001
-          $ref: '#/components/responses/Problem'
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/SuccessResponseGitHubAuthorizationView'
+        '400':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '401':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            WWW-Authenticate:
+              required: true
+              schema:
+                type: string
+                enum:
+                - Bearer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '403':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '404':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '405':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            Allow:
+              required: true
+              schema:
+                type: string
+                enum:
+                - GET, HEAD
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '406':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '500':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
+        '503':
+          description: Fail-closed authorization error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GitHubAuthorizationProblem'
       security:
-        - bearerAuth: []
+      - bearerAuth: []
+      x-contract-state: IN_PROGRESS
+      x-api-id: API-046
+      x-gateway-exposure: public
   /api/v1/workspaces/{workspaceId}/repository-connections:
     post:
       tags:
@@ -51,7 +248,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RepositoryConnectionView'
-        '400': *id001
+        '400': &id001
+          $ref: '#/components/responses/Problem'
         '401': *id001
         '403': *id001
         '404': *id001
@@ -1483,3 +1681,129 @@ components:
           minLength: 1
           maxLength: 255
           pattern: \S
+    GitHubAppView:
+      type: object
+      properties:
+        appId:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        installationUrl:
+          type: string
+      required:
+      - appId
+      - installationUrl
+      - name
+      - slug
+    GitHubAuthorizationContextView:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - NONE
+      required:
+      - status
+    GitHubAuthorizationVerificationView:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - USER_AUTHORIZATION_REQUIRED
+      required:
+      - status
+    GitHubAuthorizationView:
+      type: object
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+        integrationType:
+          type: string
+          enum:
+          - GITHUB_APP
+        app:
+          $ref: '#/components/schemas/GitHubAppView'
+        requirementsRevision:
+          type: string
+        requiredPermissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitHubRequiredPermission'
+        requiredEvents:
+          type: array
+          items:
+            type: string
+        context:
+          $ref: '#/components/schemas/GitHubAuthorizationContextView'
+        verification:
+          $ref: '#/components/schemas/GitHubAuthorizationVerificationView'
+      required:
+      - app
+      - context
+      - integrationType
+      - requiredEvents
+      - requiredPermissions
+      - requirementsRevision
+      - verification
+      - workspaceId
+    GitHubRequiredPermission:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+        purpose:
+          type: string
+      required:
+      - category
+      - level
+      - name
+      - purpose
+    SuccessResponseGitHubAuthorizationView:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/GitHubAuthorizationView'
+      required:
+      - code
+      - data
+      - message
+    GitHubAuthorizationProblem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+        correlationId:
+          type: string
+        status:
+          type: integer
+          format: int32
+      required:
+      - code
+      - correlationId
+      - detail
+      - instance
+      - status
+      - title
+      - type
