@@ -1,0 +1,858 @@
+{
+  "info": {
+    "name": "LIV-98 API-122/123 Manager approval reads",
+    "description": "Run all folders through scripts/test_api122_123_integration.py --newman. Real S01 login/API-038, real Gateway and S04 on disposable PostgreSQL/Redis. Versions are placed at MANAGER_APPROVAL with CONTROLLED SQL fixtures because a real Staff PASS needs the S02 source adapter that does not exist yet (see LIV-118 report). The runner owns role/outage phase changes and DB readback; running folders without those phase changes is invalid. Credentials and raw reports stay temporary.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Manager reads",
+      "item": [
+        {
+          "name": "Login Manager with real S01 credentials",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{managerEmail}}\",\"password\":\"{{managerPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('S01 issues a real User JWT through the Gateway', () => { pm.response.to.have.status(200);",
+                  "  const t = pm.response.json().data.accessToken; pm.expect(t.split('.')).to.have.length(3);",
+                  "  pm.environment.set('managerToken', t); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Manager scope comes from S01 API-038",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/users/me/access-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API-038 grants MANAGER + DOCUMENT_FINAL_APPROVE on the verified repository', () => { pm.response.to.have.status(200);",
+                  "  const g = pm.response.json().data.workspaceGrants.find(x => x.workspaceId === pm.environment.get('workspaceId'));",
+                  "  pm.expect(g.roles).to.include('MANAGER'); pm.expect(g.permissions).to.include('DOCUMENT_FINAL_APPROVE');",
+                  "  pm.expect(g.repositoryIds).to.include(pm.environment.get('repositoryId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 queue lists only in-scope Manager Approval versions, oldest PASS first",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 APPROVAL_QUEUE_LOADED with no-store', () => { pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().code).to.eql('APPROVAL_QUEUE_LOADED');",
+                  "  pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); });",
+                  "pm.test('Exactly the expected versions, in order', () => {",
+                  "  const d = pm.response.json().data; const ids = d.items.map(i => i.versionId);",
+                  "  pm.expect(ids).to.eql([pm.environment.get('olderVersionId'), pm.environment.get('newerVersionId'), pm.environment.get('repositoryFreeVersionId')]);",
+                  "  pm.expect(d.totalElements).to.eql(3); pm.expect(d.totalPages).to.eql(1); });",
+                  "pm.test('Excluded: Staff Review, ungranted repository, other workspace, other tenant', () => {",
+                  "  const ids = pm.response.json().data.items.map(i => i.versionId);",
+                  "  ['staffStageVersionId','otherRepoVersionId','otherWorkspaceVersionId','foreignVersionId'].forEach(k => pm.expect(ids).to.not.include(pm.environment.get(k))); });",
+                  "pm.test('Item fields', () => { const i = pm.response.json().data.items[0];",
+                  "  pm.expect(i.state).to.eql('IN_REVIEW'); pm.expect(i.reviewStage).to.eql('MANAGER_APPROVAL');",
+                  "  pm.expect(i.workspaceId).to.eql(pm.environment.get('workspaceId')); pm.expect(i.repositoryConnectionId).to.eql(pm.environment.get('repositoryId'));",
+                  "  pm.expect(i.staffPassedAt).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 pagination page=1 size=2",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue?page=1&size=2",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Second page holds the third item', () => { pm.response.to.have.status(200); const d = pm.response.json().data;",
+                  "  pm.expect(d.items.map(i => i.versionId)).to.eql([pm.environment.get('repositoryFreeVersionId')]);",
+                  "  pm.expect(d.page).to.eql(1); pm.expect(d.size).to.eql(2); pm.expect(d.totalPages).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 BVA size=100 accepted",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue?size=100",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Max page size accepted', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 BVA size=101 rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue?size=101",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST as RFC 9457 problem', () => { pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('INVALID_REQUEST'); pm.expect(p.status).to.eql(400);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 BVA size=0 rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue?size=0",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST as RFC 9457 problem', () => { pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('INVALID_REQUEST'); pm.expect(p.status).to.eql(400);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 page=-1 rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue?page=-1",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 INVALID_REQUEST as RFC 9457 problem', () => { pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('INVALID_REQUEST'); pm.expect(p.status).to.eql(400);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 context returns history, evidence and ETag",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{olderVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 APPROVAL_CONTEXT_LOADED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().code).to.eql('APPROVAL_CONTEXT_LOADED'); });",
+                  "pm.test('Strong ETag bound to version and revision', () => pm.expect(pm.response.headers.get('ETag')).to.eql('\"' + pm.environment.get('olderVersionId') + ':revision-2\"'));",
+                  "pm.test('Context body', () => { const d = pm.response.json().data;",
+                  "  pm.expect(d.awaitingManagerDecision).to.eql(true); pm.expect(d.version.versionId).to.eql(pm.environment.get('olderVersionId'));",
+                  "  pm.expect(d.version.reviewStage).to.eql('MANAGER_APPROVAL'); pm.expect(d.version.sourceBinding.repositoryConnectionId).to.eql(pm.environment.get('repositoryId'));",
+                  "  pm.expect(d.currentContent.revisionNo).to.eql(2); pm.expect(d.staffDecisions[0].decision).to.eql('PASS');",
+                  "  pm.expect(d.approvalDecisions[0].decision).to.eql('RETURN_TO_STAFF'); pm.expect(d.evidence[0].evidenceId).to.eql(pm.environment.get('evidenceId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 version still at Staff Review is readable but not awaiting",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{staffStageVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with awaitingManagerDecision=false', () => { pm.response.to.have.status(200);",
+                  "  const d = pm.response.json().data; pm.expect(d.awaitingManagerDecision).to.eql(false); pm.expect(d.version.reviewStage).to.eql('STAFF_REVIEW'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 cross-tenant version is hidden",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{foreignVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404 DOCUMENT_VERSION_NOT_FOUND as RFC 9457 problem', () => { pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('DOCUMENT_VERSION_NOT_FOUND'); pm.expect(p.status).to.eql(404);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 unknown version",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{unknownVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404 DOCUMENT_VERSION_NOT_FOUND as RFC 9457 problem', () => { pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('DOCUMENT_VERSION_NOT_FOUND'); pm.expect(p.status).to.eql(404);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 other workspace denied",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{otherWorkspaceVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 ungranted repository denied",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{otherRepoVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 anonymous rejected by Gateway",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 with Bearer challenge', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('WWW-Authenticate') || '').to.include('Bearer'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 invalid bearer rejected",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{olderVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Staff (no Manager role)",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/auth/login",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{staffEmail}}\",\"password\":\"{{staffPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('S01 issues a real User JWT through the Gateway', () => { pm.response.to.have.status(200);",
+                  "  const t = pm.response.json().data.accessToken; pm.expect(t.split('.')).to.have.length(3);",
+                  "  pm.environment.set('staffToken', t); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-122 Staff without MANAGER is denied",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 Staff without MANAGER is denied",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{olderVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Revoked Manager",
+      "item": [
+        {
+          "name": "API-122 denied after MANAGER role revoke (same JWT)",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 denied after MANAGER role revoke (same JWT)",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{olderVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403 APPROVAL_FORBIDDEN as RFC 9457 problem', () => { pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json(); pm.expect(p.code).to.eql('APPROVAL_FORBIDDEN'); pm.expect(p.status).to.eql(403);",
+                  "  pm.expect(p.correlationId).to.eql('liv98-newman');",
+                  "  pm.expect(pm.response.text()).to.not.include('document_versions'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 S01 unavailable",
+      "item": [
+        {
+          "name": "API-122 fails closed when S01 is unavailable",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/approval-queue",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('503 AUTHORIZATION_UNAVAILABLE (or Gateway 5xx), never 200', () => { pm.expect(pm.response.code).to.be.oneOf([502, 503, 504]);",
+                  "  if (pm.response.code === 503 && (pm.response.headers.get('Content-Type') || '').includes('problem+json')) pm.expect(pm.response.json().code).to.eql('AUTHORIZATION_UNAVAILABLE'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-123 fails closed when S01 is unavailable",
+          "request": {
+            "method": "GET",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{olderVersionId}}/approval-context",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv98-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Never returns approval data without S01 authority', () => { pm.expect(pm.response.code).to.be.oneOf([502, 503, 504]); pm.expect(pm.response.text()).to.not.include('APPROVAL_CONTEXT_LOADED'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://127.0.0.1:8081"
+    },
+    {
+      "key": "invalidToken",
+      "value": "not-a-jwt"
+    }
+  ]
+}
