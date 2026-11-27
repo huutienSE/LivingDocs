@@ -49,7 +49,7 @@ public class ReviewSecurityConfiguration {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/v3/api-docs", "/v3/api-docs.yaml").authenticated()
-                        .requestMatchers("/api/v1/document-versions/**").authenticated().anyRequest().denyAll())
+                        .requestMatchers("/api/v1/document-versions/**", "/api/v1/review-queue").authenticated().anyRequest().denyAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler((request, response, exception) ->
                         problems.write(request, response, ReviewErrorCode.REVIEW_FORBIDDEN, "Access denied.")))
                 .oauth2ResourceServer(o -> o.jwt(j -> {}).authenticationEntryPoint(entryPoint)).build();

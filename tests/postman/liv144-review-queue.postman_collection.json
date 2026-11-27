@@ -1,0 +1,897 @@
+{
+  "info": {
+    "name": "LIV-144 API-115 Staff Review Queue",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Real Gateway/S01/S04 integration. Run phased by scripts/test_api115_s01_integration.py with disposable authority/Draft/severity fixtures. This collection never provisions production access."
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://127.0.0.1:8080"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Scoped queue",
+      "item": [
+        {
+          "name": "Only granted candidates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2); pm.expect(body.data.items.map(x=>x.versionId)).to.have.members([pm.environment.get('versionId'),pm.environment.get('secondaryVersionId')]); body.data.items.forEach(x=>{pm.expect(x.workspaceId).to.eql(pm.environment.get('workspaceId')); pm.expect(x.repositoryConnectionId).to.eql(pm.environment.get('repositoryId'));pm.expect(x.state).to.eql('IN_REVIEW');pm.expect(x.reviewStage).to.eql('STAFF_REVIEW');}); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Scope count before paging",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?size=1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2); pm.expect(body.data.items).to.have.lengthOf(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?size=1&page=1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2); pm.expect(body.data.items).to.have.lengthOf(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Empty page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?page=2&size=1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2); pm.expect(body.data.items).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Combined filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?workspaceId={{workspaceId}}&repositoryConnectionId={{repositoryId}}&templateId={{templateId}}&driftSeverity=CRITICAL"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(1);pm.expect(body.data.items[0].versionId).to.eql(pm.environment.get('versionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Severity order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?sort=DRIFT_SEVERITY&direction=ASC"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.items.map(x=>x.driftSeverity)).to.eql(['LOW','CRITICAL']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Date bounds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?submittedFrom=2000-01-01T00:00:00Z&submittedTo=2100-01-01T00:00:00Z"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2);body.data.items.forEach(x=>pm.expect(x.submittedAt).to.be.a('string')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Template sort",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?sort=TEMPLATE&direction=ASC"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.items[0].templateId).to.eql(pm.environment.get('templateId'));pm.expect(body.data.items[1].templateId).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repository sort",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?sort=REPOSITORY&direction=DESC"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Foreign workspace",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?workspaceId={{foreignWorkspaceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('REVIEW_FORBIDDEN'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Foreign repository",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?repositoryConnectionId={{foreignRepositoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('REVIEW_FORBIDDEN'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid size",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?size=0"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('INVALID_REQUEST'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown sort",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?sort=title"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('INVALID_REQUEST'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ambiguous page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?page=0&page=1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('INVALID_REQUEST'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Blank repository",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?repositoryConnectionId="
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('INVALID_REQUEST'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Return and resubmit",
+      "item": [
+        {
+          "name": "Return through real S01 fresh auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{versionId}}:revision-1\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "liv144-newman-1"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/staff-decisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\": \"RETURN_FOR_REVISION\", \"feedback\": \"API115 integration feedback\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('STAFF_REVIEW_RECORDED');pm.expect(body.data.state).to.eql('DRAFT'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Returned candidate disappears",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(1);pm.expect(body.data.items[0].versionId).to.eql(pm.environment.get('secondaryVersionId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmit through real S01 fresh auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{versionId}}:revision-2\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "liv144-newman-2"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/submit",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('DOCUMENT_SUBMITTED');pm.expect(body.data.reviewStage).to.eql('STAFF_REVIEW'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmitted candidate reappears first",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(2);pm.expect(body.data.items[0].versionId).to.eql(pm.environment.get('versionId')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Revoked repository",
+      "item": [
+        {
+          "name": "Revoked repo excluded from count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Scoped queue envelope', () => { pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED'); pm.expect(body.data.items).to.be.an('array'); pm.expect(body.data.totalElements).to.be.a('number'); });",
+                  "pm.test('No cache and correlation', () => { pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.data.totalElements).to.eql(0);pm.expect(body.data.items).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explicit revoked repo denied",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue?repositoryConnectionId={{repositoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('REVIEW_FORBIDDEN'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Revoked Staff",
+      "item": [
+        {
+          "name": "Developer alone cannot read queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('REVIEW_FORBIDDEN'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 S01 unavailable",
+      "item": [
+        {
+          "name": "Authority outage fails closed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv144-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 503', () => pm.response.to.have.status(503));",
+                  "const body = pm.response.json();",
+                  "pm.test('RFC9457 error', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(body.status).to.eql(pm.response.code); pm.expect(body.correlationId).to.eql('liv144-newman'); });",
+                  "pm.test('Business assertion', () => { pm.expect(body.code).to.eql('AUTHORIZATION_UNAVAILABLE'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

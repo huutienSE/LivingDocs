@@ -703,44 +703,163 @@ paths:
   /api/v1/review-queue:
     get:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api115_get
-      summary: Hàng chờ Staff Review
-      description: 'LD-API-001 API-115. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      summary: Staff Review Queue
+      description: LIV-144. Staff + DOCUMENT_READ + WORKSPACE_VIEW from S01 API-038;
+        scoped before paging/count. No API-039 on reads. AND filters, inclusive time
+        bounds, NULL last and versionId ASC tie-break. Other read roles and owner contract
+        approval remain pending.
       x-api-id: API-115
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Scoped queue, including an empty page
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReviewQueueView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/ReviewQueueApiResponse'
+        '400':
+          description: Invalid or repeated query / configured budget exceeded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+                enum:
+                - Bearer
+        '403':
+          description: Missing Staff read permission or requested scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '405':
+          description: Only GET supported
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            Allow:
+              schema:
+                type: string
+        '406':
+          description: Unsupported response type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Queue persistence failure
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: S01 unavailable or malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: page
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
-        - name: size
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+        description: Server-configured default and maximum; no fixed contract hard cap.
+      - name: workspaceId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: repositoryConnectionId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: templateId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: driftSeverity
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - CRITICAL
+      - name: submittedFrom
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: submittedTo
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - REPOSITORY
+          - TEMPLATE
+          - DRIFT_SEVERITY
+          - SUBMISSION_DATE
+          default: SUBMISSION_DATE
+        description: Repository/template sort by UUID; severity LOW < MEDIUM < HIGH
+          < CRITICAL. NULL always last.
+      - name: direction
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ASC
+          - DESC
+          default: DESC
   /api/v1/document-versions/{versionId}/review-context:
     get:
       tags:
@@ -1956,12 +2075,13 @@ components:
     ReviewQueueItem:
       type: object
       required:
-        - versionId
-        - documentId
-        - documentTitle
-        - versionNo
-        - state
-        - reviewStage
+      - versionId
+      - documentId
+      - documentTitle
+      - versionNo
+      - state
+      - reviewStage
+      - workspaceId
       properties:
         versionId:
           type: string
@@ -1974,14 +2094,15 @@ components:
         versionNo:
           type: integer
           minimum: 1
+          format: int32
         state:
           type: string
           enum:
-            - IN_REVIEW
+          - IN_REVIEW
         reviewStage:
           type: string
           enum:
-            - STAFF_REVIEW
+          - STAFF_REVIEW
         sourceSha:
           type: string
           nullable: true
@@ -1991,14 +2112,40 @@ components:
           nullable: true
         submittedBy:
           type: string
+          format: uuid
           nullable: true
+        workspaceId:
+          type: string
+          format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
+          nullable: true
+        templateId:
+          type: string
+          format: uuid
+          nullable: true
+        templateVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        driftSeverity:
+          type: string
+          nullable: true
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - CRITICAL
+          - null
+      additionalProperties: false
     ReviewQueueView:
       type: object
       required:
-        - items
-        - page
-        - size
-        - totalElements
+      - items
+      - page
+      - size
+      - totalElements
       properties:
         items:
           type: array
@@ -2007,12 +2154,30 @@ components:
         page:
           type: integer
           minimum: 0
+          format: int32
         size:
           type: integer
           minimum: 1
+          format: int32
         totalElements:
           type: integer
           minimum: 0
+          format: int64
+      additionalProperties: false
+    ReviewQueueApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - data
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ReviewQueueView'
     EvidenceView:
       type: object
       required:

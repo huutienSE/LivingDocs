@@ -1,4 +1,46 @@
-# S04 — Staff Review và Submit Draft
+# S04 — Staff Review, Submit Draft và Review Queue
+
+## API-115 — Staff Review Queue
+
+`GET /api/v1/review-queue` đọc candidate `IN_REVIEW / STAFF_REVIEW` từ PostgreSQL.
+JWT được xác thực theo S01; API-038 trả context thật. Policy hiện tại cần `STAFF`,
+`DOCUMENT_READ`, `WORKSPACE_VIEW` trong cùng workspace grant và repository grant
+khi candidate gắn repository. Không cần `DOCUMENT_STAFF_REVIEW` để đọc; không gọi
+fresh API-039 cho GET. Quyền đọc của các vai trò khác đang chờ Owner quyết định.
+
+Filters kết hợp AND: `workspaceId`, `repositoryConnectionId`, `templateId`,
+`driftSeverity=LOW|MEDIUM|HIGH|CRITICAL`, `submittedFrom`, `submittedTo` (ISO-8601,
+hai biên inclusive). `sort=REPOSITORY|TEMPLATE|DRIFT_SEVERITY|SUBMISSION_DATE`,
+`direction=ASC|DESC`; mặc định submission date giảm dần. Repository/template sort
+theo UUID; severity theo mức độ. NULL luôn cuối, tie-break `versionId ASC`.
+`page` bắt đầu từ 0; `size` mặc định 20, tối đa 100 và statement timeout 2000ms là
+**server budgets có thể cấu hình**, không phải hard cap đóng trong contract.
+Xem các biến `S04_REVIEW_QUEUE_*` trong `.env.example`.
+
+Success là `SuccessResponse<ReviewQueueView>` với code `REVIEW_QUEUE_LOADED`,
+`data={items,page,size,totalElements}`, `Cache-Control: no-store`. Lỗi RFC 9457:
+400 query không hợp lệ, 401 JWT, 403 quyền/scope, 500 DB, 503 S01 unavailable.
+Scope áp trong SQL trước paging/count, transaction read-only repeatable-read,
+tenant context và query timeout transaction-local. View dùng `security_invoker`.
+
+Migration V5 thêm view chỉ đọc và severity nullable, không sửa V1–V4. Metadata cũ
+không được suy đoán: severity thiếu trả NULL; submission lấy receipt mới nhất,
+không dùng ngày tạo version thay ngày Submit. Luồng nhận severity từ S03 chưa
+được tích hợp trong API đọc này. Chi tiết và evidence:
+[LIV-144 implementation report](../../docs/implementation/LIV-144-implementation-report.md).
+
+Chạy test S04 từ thư mục service: `mvn -B -ntp verify`.
+Chạy integration/Newman từ repository root, sau khi build S01/S04/Gateway JARs:
+
+```powershell
+python -X utf8 scripts/test_api115_s01_integration.py --newman-cli "$env:TEMP/livingdocs-newman/node_modules/newman/bin/newman.js"
+```
+
+Runner tạo PostgreSQL/Redis và các process Java cô lập rồi dọn chúng; không đọc
+`.env` hoặc dùng DB đang phát triển. Raw credentials/Newman chỉ ở temp; JSON
+evidence đã lọc được lưu tại `target/api115-s01-integration.json` của S04.
+
+## Staff Decision và Submit
 
 Spring Boot 4.1.1 / Java 21 / PostgreSQL 17. Phạm vi: Staff PASS/RETURN,
 DocumentVersion, ReviewDecision, DocumentAudit và Flyway persistence.

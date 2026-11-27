@@ -193,7 +193,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         String path = "/api/v1/document-versions/{versionId}/staff-decisions";
         assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
         assertThat(runtime.path("info").path("version").asString()).isEqualTo(reviewed.path("info").path("version").asString());
-        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit");
+        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit", "/api/v1/review-queue");
         var actual = runtime.path("paths").path(path).path("post");
         var expected = reviewed.path("paths").path(path).path("post");
         assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());
@@ -848,7 +848,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 connection.rollback();
             }
         }
-        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(4L);
+        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(5L);
         assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(13L);
     }
 }

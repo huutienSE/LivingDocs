@@ -725,7 +725,7 @@
     "method": "GET",
     "path": "/api/v1/review-queue",
     "business": "Hàng chờ Staff Review",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {

@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SuccessCode {
     STAFF_REVIEW_RECORDED("STAFF_REVIEW_RECORDED", "Staff review decision recorded"),
-    DOCUMENT_SUBMITTED("DOCUMENT_SUBMITTED", "Document submitted for Staff Review");
+    DOCUMENT_SUBMITTED("DOCUMENT_SUBMITTED", "Document submitted for Staff Review"),
+    REVIEW_QUEUE_LOADED("REVIEW_QUEUE_LOADED", "Staff review queue loaded");
 
     private final String wireCode;
     private final String defaultMessage;

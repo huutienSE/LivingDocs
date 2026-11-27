@@ -73,9 +73,10 @@ def request(base, path, token=None, payload=None, headers=None):
         return response.status, dict(response.headers), json.loads(body) if body else None
 
 
-def run_newman(folder, variables, cli, temporary):
+def run_newman(folder, variables, cli, temporary, collection_path=None):
     """Keep credentials and raw Newman response data only in the temporary directory."""
-    collection = json.loads(COLLECTION.read_text(encoding="utf-8"))
+    collection_path = collection_path or COLLECTION
+    collection = json.loads(collection_path.read_text(encoding="utf-8"))
     expected = len(next(group for group in collection["item"] if group["name"] == folder)["item"])
     environment = temporary / "newman-environment.json"
     raw_report = temporary / "newman-report.json"
@@ -83,7 +84,7 @@ def run_newman(folder, variables, cli, temporary):
         {"key": key, "value": value, "enabled": True, "type": "secret"}
         for key, value in variables.items()]}), encoding="utf-8")
     environment.chmod(0o600)
-    result = subprocess.run([shutil.which("node"), str(cli), "run", str(COLLECTION),
+    result = subprocess.run([shutil.which("node"), str(cli), "run", str(collection_path),
                              "--folder", folder, "--environment", str(environment),
                              "--timeout-request", "10000", "--timeout", "120000",
                              "--reporters", "json", "--reporter-json-export", str(raw_report)],
@@ -238,7 +239,7 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
                   "S01_AUTHORIZATION_EVALUATION_URI": s01 + "/internal/v1/authorization/evaluate",
                   "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH": workload_secret,
                   "S04_REVIEW_ALLOW_INSECURE_HTTP": "true", "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP": "true"})
-        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "4:13")
+        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "5:13")
         if args.gateway_newman:
             start(2, {"server.port": gateway_port, "management.server.port": gateway_management_port,
                       "spring.profiles.active": "", "JWT_ISSUER_URI": "urn:livingdocs:s01",
