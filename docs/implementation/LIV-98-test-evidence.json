@@ -1,0 +1,128 @@
+{
+  "startedAt": "2026-11-27T11:27:20.010566+00:00",
+  "scope": "Real S01 Identity JWT + API-038, real Gateway, S04 API-122/123 on disposable PostgreSQL/Redis.",
+  "fixtureMode": "CONTROLLED SQL fixtures for identity/tenant/role/VERIFIED-grant rows and for versions at MANAGER_APPROVAL (real API-120 PASS needs the missing S02 adapter). Not production provisioning.",
+  "infrastructure": "local",
+  "artifactsSha256": {
+    "backend/identity-organization-service/target/identity-organization-service-0.0.1-SNAPSHOT.jar": "43f9b64675a9d5985ec4b8c26326fff83d34d3e4b833bac3e713366a96de03e9",
+    "backend/document-governance-service/target/document-governance-service-0.0.1-SNAPSHOT.jar": "7cc7c6eed3bec266f86bce9be1cf4a51fe6679622a02f6770993079efa3dcf1b",
+    "infrastructure/api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar": "704ce6462c4d53a0f05fe17599430c0abc3e8a6bd2186a6bd0439e0f0a12bdc6",
+    "scripts/test_api122_123_integration.py": "4705a9037611e3948a67695618a5e9aef2d73f6280ab9a0e373e6e460c74eb5a",
+    "tests/postman/liv98-approval-read.postman_collection.json": "a9f9032c48b23238c258f906f8192c081ca2b6618d7939b2559e3273431f43b0"
+  },
+  "checks": [
+    {
+      "name": "S04 Flyway and RLS counts agree with CI",
+      "result": "PASS"
+    },
+    {
+      "name": "S01 real HTTP registration (manager)",
+      "result": "PASS"
+    },
+    {
+      "name": "S01 real HTTP registration (staff)",
+      "result": "PASS"
+    },
+    {
+      "name": "S01 real HTTP login (manager)",
+      "result": "PASS"
+    },
+    {
+      "name": "S01 JWT carries Identity only, no tenant/workspace authority",
+      "result": "PASS"
+    },
+    {
+      "name": "Unprovisioned Identity has no Manager scope (HTTP 403)",
+      "result": "PASS"
+    },
+    {
+      "name": "API-038 returns real DB Manager permission and VERIFIED repository",
+      "result": "PASS"
+    },
+    {
+      "name": "Direct S04 API-122 returns exactly the in-scope queue, oldest PASS first",
+      "result": "PASS"
+    },
+    {
+      "name": "Direct S04 API-123 returns context and version-bound ETag",
+      "result": "PASS"
+    },
+    {
+      "name": "Cross-tenant version hidden by RLS (HTTP 404, DOCUMENT_VERSION_NOT_FOUND)",
+      "result": "PASS"
+    },
+    {
+      "name": "Other workspace denied (HTTP 403, APPROVAL_FORBIDDEN)",
+      "result": "PASS"
+    },
+    {
+      "name": "Ungranted repository denied (HTTP 403, APPROVAL_FORBIDDEN)",
+      "result": "PASS"
+    },
+    {
+      "name": "Reads leave versions, decisions and audit unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "Same JWT denied after MANAGER role revoke (no cached authority)",
+      "result": "PASS"
+    },
+    {
+      "name": "Restored MANAGER role is accepted again",
+      "result": "PASS"
+    },
+    {
+      "name": "S01 down fails closed (503 AUTHORIZATION_UNAVAILABLE)",
+      "result": "PASS"
+    },
+    {
+      "name": "Denied and failed reads still leave state unchanged",
+      "result": "PASS"
+    }
+  ],
+  "newman": [
+    {
+      "folder": "01 Manager reads",
+      "requests": 19,
+      "assertions": 24,
+      "failedAssertions": 0,
+      "skippedAssertions": 0,
+      "result": "PASS"
+    },
+    {
+      "folder": "02 Revoked Manager",
+      "requests": 2,
+      "assertions": 2,
+      "failedAssertions": 0,
+      "skippedAssertions": 0,
+      "result": "PASS"
+    },
+    {
+      "folder": "03 S01 unavailable",
+      "requests": 2,
+      "assertions": 2,
+      "failedAssertions": 0,
+      "skippedAssertions": 0,
+      "result": "PASS"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "API-120 real PASS",
+      "status": "BLOCKED",
+      "scope": "Needs the S02 source adapter; MANAGER_APPROVAL versions are SQL fixtures"
+    },
+    {
+      "id": "Production repository grants",
+      "status": "NOT_VERIFIED",
+      "scope": "Controlled SQL VERIFIED grant, not Request/Verify/Activate or S02 binding"
+    },
+    {
+      "id": "API-124 eligibility",
+      "status": "OUT_OF_SCOPE",
+      "scope": "No Self Final Approval and API-039 fresh authorization belong to API-124"
+    }
+  ],
+  "result": "PASS",
+  "finishedAt": "2026-11-27T11:28:05.408077+00:00"
+}
