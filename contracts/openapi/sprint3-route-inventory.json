@@ -590,7 +590,7 @@
     "method": "POST",
     "path": "/api/v1/workspaces/{workspaceId}/documents",
     "business": "Tạo document",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -599,7 +599,7 @@
     "method": "GET",
     "path": "/api/v1/documents/{documentId}",
     "business": "Đọc document canonical",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -626,7 +626,7 @@
     "method": "GET",
     "path": "/api/v1/documents/{documentId}/versions",
     "business": "Danh sách document versions",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -635,7 +635,7 @@
     "method": "POST",
     "path": "/api/v1/documents/{documentId}/versions",
     "business": "Tạo version draft",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -644,7 +644,7 @@
     "method": "GET",
     "path": "/api/v1/document-versions/{versionId}",
     "business": "Đọc exact document version",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -653,7 +653,7 @@
     "method": "PATCH",
     "path": "/api/v1/document-versions/{versionId}/content",
     "business": "Sửa nội dung Draft",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -662,7 +662,7 @@
     "method": "GET",
     "path": "/api/v1/document-versions/{versionId}/evidence",
     "business": "Đọc version evidence",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {
@@ -707,7 +707,7 @@
     "method": "POST",
     "path": "/api/v1/document-versions/{versionId}/submit",
     "business": "Submit Staff Review",
-    "state": "CANDIDATE",
+    "state": "IN_PROGRESS",
     "gatewayEnabled": true
   },
   {

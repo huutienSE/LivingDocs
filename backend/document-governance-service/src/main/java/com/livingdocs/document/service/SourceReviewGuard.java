@@ -1,0 +1,33 @@
+package com.livingdocs.document.service;
+
+import lombok.RequiredArgsConstructor;
+import com.livingdocs.document.client.SourceReviewValidator;
+
+import com.livingdocs.document.model.*;
+import com.livingdocs.document.exception.ReviewException;
+import java.time.Instant;
+import java.util.Optional;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class SourceReviewGuard {
+    private final Optional<SourceReviewValidator> validator;
+
+    public SourceReviewValidation requireCurrent(DocumentVersion version) {
+        if (version.repositoryConnectionId() == null) return null;
+        var adapter = validator.orElseThrow(SourceReviewValidation::unavailable);
+        SourceReviewValidation validation;
+        try {
+            validation = adapter.validate(version);
+        } catch (ReviewException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            // Do not expose upstream URLs, credentials or response bodies in a Problem.
+            throw SourceReviewValidation.unavailable();
+        }
+        if (validation == null) throw SourceReviewValidation.unavailable();
+        validation.requireMatches(version, Instant.now());
+        return validation;
+    }
+}

@@ -117,6 +117,21 @@ services:
       DB_PASSWORD: ${S04_DB_PASSWORD:-}
       FLYWAY_USERNAME: ld_s04_migrator
       FLYWAY_PASSWORD: ${S04_FLYWAY_PASSWORD:-}
+      S01_ISSUER_URI: ${JWT_ISSUER_URI:-urn:livingdocs:s01}
+      S01_JWK_SET_URI: http://identity-organization-service:8081/.well-known/jwks.json
+      S04_TOKEN_AUDIENCE: ${JWT_AUDIENCE:-livingdocs-api}
+      S01_REVIEW_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
+      S01_AUTHORIZATION_SERVICE_TOKEN_URI: http://identity-organization-service:8081/internal/v1/auth/service-tokens
+      S01_AUTHORIZATION_EVALUATION_URI: http://identity-organization-service:8081/internal/v1/authorization/evaluate
+      S04_AUTHORIZATION_WORKLOAD_SECRET_PATH: /run/secrets/s04/s04.secret
+      S04_AUTHORIZATION_ALLOW_INSECURE_HTTP: "true"
+      # Local Compose network only; deployed environments must use HTTPS.
+      S04_REVIEW_ALLOW_INSECURE_HTTP: "true"
+      S01_SUBMIT_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
+      S04_SUBMIT_ALLOW_INSECURE_HTTP: "true" # Local Compose transport exception.
+    volumes:
+      # Dedicated caller secret only, outside the repository; never S01's signing-key directory.
+      - ${S04_WORKLOAD_SECRETS_DIR:-../../../livingdocs-s04-secrets}:/run/secrets/s04:ro
     ports:
       - "127.0.0.1:8084:8084"
     depends_on:
