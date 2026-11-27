@@ -239,7 +239,7 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
                   "S01_AUTHORIZATION_EVALUATION_URI": s01 + "/internal/v1/authorization/evaluate",
                   "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH": workload_secret,
                   "S04_REVIEW_ALLOW_INSECURE_HTTP": "true", "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP": "true"})
-        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "5:13")
+        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "6:13")
         if args.gateway_newman:
             start(2, {"server.port": gateway_port, "management.server.port": gateway_management_port,
                       "spring.profiles.active": "", "JWT_ISSUER_URI": "urn:livingdocs:s01",

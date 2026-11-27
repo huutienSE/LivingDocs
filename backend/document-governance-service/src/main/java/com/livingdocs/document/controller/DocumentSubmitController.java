@@ -45,7 +45,7 @@ public class DocumentSubmitController {
         @ApiResponse(responseCode="500",description="Persistence failure; rolled back",content=@Content(mediaType="application/problem+json",schema=@Schema(implementation=SubmitProblem.class))),
         @ApiResponse(responseCode="503",description="Authorization authority unavailable",content=@Content(mediaType="application/problem+json",schema=@Schema(implementation=SubmitProblem.class)))})
     public ResponseEntity<SuccessResponse<ReviewResponse>> submit(@PathVariable UUID versionId, @Valid @RequestBody SubmitReviewRequest body,
-            @Parameter(required=true) @RequestHeader(value="If-Match",required=false) String etag,
+            @Parameter(required=true, description="Strong version ETag or complete API-116 context ETag; checks the embedded version revision.") @RequestHeader(value="If-Match",required=false) String etag,
             @Parameter(required=true) @NotNull @Pattern(regexp="^[A-Za-z0-9._:-]{1,128}$") @RequestHeader(value="Idempotency-Key",required=false) String key,
             @Parameter(hidden=true) @AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
         long revision=VersionEtags.require(versionId,etag);

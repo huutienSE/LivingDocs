@@ -26,10 +26,12 @@ springdoc:
     enabled: ${S04_OPENAPI_ENABLED:false}
     version: OPENAPI_3_0
   packages-to-scan: com.livingdocs.document.controller
-  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit,/api/v1/review-queue
+  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit,/api/v1/review-queue,/api/v1/document-versions/*/review-context
   override-with-generic-response: false
 
 livingdocs:
+  review-context:
+    query-timeout-ms: ${S04_REVIEW_CONTEXT_QUERY_TIMEOUT_MS:2000}
   review-queue:
     access-context-uri: ${S01_REVIEW_QUEUE_ACCESS_CONTEXT_URI:${livingdocs.review.access-context-uri:}}
     allow-insecure-http: ${S04_REVIEW_QUEUE_ALLOW_INSECURE_HTTP:${livingdocs.review.allow-insecure-http:false}}
@@ -37,6 +39,8 @@ livingdocs:
     max-page-size: ${S04_REVIEW_QUEUE_MAX_PAGE_SIZE:100}
     query-timeout-ms: ${S04_REVIEW_QUEUE_QUERY_TIMEOUT_MS:2000}
   authorization:
+    access-context-uri: ${S01_READ_ACCESS_CONTEXT_URI:${livingdocs.review-queue.access-context-uri:}}
+    access-context-allow-insecure-http: ${S04_READ_ALLOW_INSECURE_HTTP:${livingdocs.review-queue.allow-insecure-http:false}}
     service-token-uri: ${S01_AUTHORIZATION_SERVICE_TOKEN_URI:${livingdocs.review.service-token-uri:}}
     authorization-uri: ${S01_AUTHORIZATION_EVALUATION_URI:${livingdocs.review.authorization-uri:}}
     workload-secret-path: ${S04_AUTHORIZATION_WORKLOAD_SECRET_PATH:${livingdocs.review.workload-secret-path:}}

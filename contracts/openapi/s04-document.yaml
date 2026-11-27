@@ -370,7 +370,7 @@ paths:
           required: true
           schema:
             type: string
-          description: 'Strong ETag của chính document version. Missing: 428; stale: 412.'
+          description: 'Strong version ETag or complete API-116 context ETag. Checks embedded version revision, not context digest. Missing: 428; stale revision: 412.'
       requestBody:
         required: true
         content:
@@ -636,7 +636,7 @@ paths:
         required: true
         schema:
           type: string
-        description: 'Strong ETag của chính document version. Missing: 428; stale: 412.'
+        description: 'Strong version ETag or complete API-116 context ETag. Checks embedded version revision, not context digest. Missing: 428; stale revision: 412.'
       - name: Idempotency-Key
         in: header
         required: true
@@ -863,42 +863,136 @@ paths:
   /api/v1/document-versions/{versionId}/review-context:
     get:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api116_get
       summary: Review context và ETag
-      description: 'LD-API-001 API-116. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      description: LIV-145. Canonical S04 review context with a strong representation ETag usable
+        unchanged as If-Match by API-113/API-120. SHA-256 covers the complete JSON success
+        response; mutation concurrency still checks the embedded version revision, not the
+        context digest. Revision-only mutation ETags remain accepted. Standalone If-None-Match
+        wildcard matches only after authorization and resource-scope checks.
+        Staff + DOCUMENT_READ + WORKSPACE_VIEW from API-038; exact tenant/workspace/repository
+        access before loading content. No fresh API-039 on GET. Latest content revision,
+        selected template and highest prior versionNo with state APPROVED/PUBLISHED
+        from the same document. Legacy content remains null, never a reference passed
+        off as text. No external artifact fetching or ticket dependency; owner/FE approval
+        remains pending.
       x-api-id: API-116
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Scoped canonical context
+          headers:
+            ETag:
+              description: 'Strong context ETag: "{versionId}:revision-{revision}:context-{sha256}".
+                SHA-256 covers the complete JSON success response. Content writers must still
+                atomically advance the parent version revision for mutation concurrency.'
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReviewContextView'
+                $ref: '#/components/schemas/ReviewContextApiResponse'
+        '304':
+          description: Complete context ETag matches or standalone wildcard selects an existing scoped context; authorization still checked; no body
           headers:
             ETag:
-              description: Strong ETag từ đúng document version, bắt buộc cho protected mutation.
+              description: 'Strong context ETag: "{versionId}:revision-{revision}:context-{sha256}".
+                SHA-256 covers the complete JSON success response. Content writers must still
+                atomically advance the parent version revision for mutation concurrency.'
               schema:
                 type: string
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              schema:
+                type: string
+        '400':
+          description: Invalid version ID or unsupported query parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Invalid or missing JWT
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+                enum:
+                - Bearer
+        '403':
+          description: Staff read permission missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Absent or inaccessible version/template scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '405':
+          description: Only GET supported
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            Allow:
+              schema:
+                type: string
+        '406':
+          description: Unsupported response media type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Context persistence failure or query timeout
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: S01 authority unavailable or malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: versionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-None-Match
+        in: header
+        required: false
+        schema:
+          type: string
+        description: Complete context validator or standalone wildcard; scope authorization still checked before
+          304.
   /api/v1/document-versions/{versionId}/review-comments:
     get:
       tags:
@@ -2193,12 +2287,14 @@ components:
           type: string
     ReviewContextView:
       type: object
+      additionalProperties: false
       required:
-        - version
-        - documentTitle
-        - versionNo
-        - content
-        - evidence
+      - version
+      - documentTitle
+      - versionNo
+      - content
+      - evidence
+      - reviewRound
       properties:
         version:
           $ref: '#/components/schemas/DocumentVersionView'
@@ -2206,16 +2302,29 @@ components:
           type: string
         versionNo:
           type: integer
+          format: int32
           minimum: 1
         content:
           type: string
+          nullable: true
         contentFormat:
           type: string
+          nullable: true
           enum:
-            - MARKDOWN
-            - TEXT
+          - MARKDOWN
+          - TEXT
+          - null
+        contentRef:
+          type: string
+          nullable: true
+        contentRevisionNo:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
         submittedBy:
           type: string
+          format: uuid
           nullable: true
         submittedAt:
           type: string
@@ -2223,11 +2332,138 @@ components:
           nullable: true
         reviewRound:
           type: integer
+          format: int32
           minimum: 0
+          description: Highest persisted review round, zero when no decision has been
+            recorded
+        template:
+          $ref: '#/components/schemas/ReviewContextTemplate'
+        baseline:
+          $ref: '#/components/schemas/ReviewContextBaseline'
         evidence:
           type: array
           items:
-            $ref: '#/components/schemas/EvidenceView'
+            $ref: '#/components/schemas/ReviewContextEvidence'
+    ReviewContextEvidence:
+      type: object
+      additionalProperties: false
+      required:
+      - ref
+      - kind
+      - attachedAt
+      properties:
+        ref:
+          type: string
+          format: uuid
+          description: S04 document_evidence_id UUID belonging to this tenant and version
+        kind:
+          type: string
+        sourceRef:
+          type: string
+          nullable: true
+        artifactRef:
+          type: string
+          nullable: true
+        attachedAt:
+          type: string
+          format: date-time
+    ReviewContextTemplate:
+      type: object
+      additionalProperties: false
+      required:
+      - templateId
+      - templateVersionId
+      - name
+      - documentType
+      - versionNo
+      - structureRef
+      - formattingRules
+      properties:
+        templateId:
+          type: string
+          format: uuid
+        templateVersionId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        documentType:
+          type: string
+        versionNo:
+          type: integer
+          format: int32
+          minimum: 1
+        structureRef:
+          type: string
+        formattingRules:
+          type: object
+          additionalProperties: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+      nullable: true
+    ReviewContextBaseline:
+      type: object
+      additionalProperties: false
+      required:
+      - versionId
+      - versionNo
+      - state
+      properties:
+        versionId:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+          format: int32
+          minimum: 1
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - IN_REVIEW
+          - APPROVED
+          - PUBLISHED
+          - NEEDS_REVALIDATION
+          - REJECTED
+          - SUPERSEDED
+        sourceSha:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        contentFormat:
+          type: string
+          nullable: true
+          enum:
+          - MARKDOWN
+          - TEXT
+          - null
+        contentRef:
+          type: string
+          nullable: true
+        contentRevisionNo:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+      nullable: true
+    ReviewContextApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - data
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ReviewContextView'
     ManagerDecisionRequest:
       type: object
       required:

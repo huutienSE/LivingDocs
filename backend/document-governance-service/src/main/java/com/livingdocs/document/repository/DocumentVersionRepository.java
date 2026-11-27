@@ -25,6 +25,11 @@ public class DocumentVersionRepository {
                 .setParameter("tenant", tenantId.toString()).getSingleResult();
     }
 
+    public void setQueryTimeout(int milliseconds) {
+        entities.createNativeQuery("SELECT set_config('statement_timeout', :timeout, true)", String.class)
+                .setParameter("timeout", Integer.toString(milliseconds)).getSingleResult();
+    }
+
     public Optional<DocumentVersion> find(UUID id, UUID tenantId, boolean forUpdate) {
         // Intentional native SQL: separate UPDATE/SHARE locks also freeze authorization scope.
         var scopes = entities.createNativeQuery("""

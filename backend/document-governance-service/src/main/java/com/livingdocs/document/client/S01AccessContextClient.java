@@ -36,12 +36,18 @@ public class S01AccessContextClient {
     }
 
     public S01AccessContext resolve(Jwt jwt, URI endpoint) {
+        return resolve(jwt, endpoint, null);
+    }
+
+    public S01AccessContext resolve(Jwt jwt, URI endpoint, String correlationId) {
         if (jwt == null) throw S01AuthorityException.unauthenticated();
         if (endpoint == null) throw S01AuthorityException.unavailable();
         try {
             var request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(3))
-                    .header("Authorization", "Bearer " + jwt.getTokenValue()).header("Accept", "application/json").GET().build();
-            var pending = http.sendAsync(request, ignored -> new LimitedBodySubscriber());
+                    .header("Authorization", "Bearer " + jwt.getTokenValue()).header("Accept", "application/json");
+            if (correlationId != null && correlationId.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}"))
+                request.header("X-Correlation-ID", correlationId);
+            var pending = http.sendAsync(request.GET().build(), ignored -> new LimitedBodySubscriber());
             HttpResponse<byte[]> response;
             try {
                 response = pending.get(3, TimeUnit.SECONDS);

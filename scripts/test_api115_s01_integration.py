@@ -23,10 +23,12 @@ from test_api113_s01_integration import ROOT, S01, S04, GATEWAY, java_executable
 COLLECTION = ROOT / "tests/postman/liv144-review-queue.postman_collection.json"
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(scenario=None):
+    api = scenario.API if scenario is not None else "api115"
+    collection_path = scenario.COLLECTION if scenario is not None else COLLECTION
+    parser = argparse.ArgumentParser(description=scenario.__doc__ if scenario is not None else __doc__)
     parser.add_argument("--newman-cli", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=S04 / "target/api115-s01-integration.json")
+    parser.add_argument("--output", type=Path, default=S04 / f"target/{api}-s01-integration.json")
     args = parser.parse_args()
     jars = [p / f"target/{p.name}-0.0.1-SNAPSHOT.jar" for p in (S01, S04, GATEWAY)]
     if not all(p.is_file() for p in jars) or not args.newman_cli.is_file() or not shutil.which("node"):
@@ -36,11 +38,14 @@ def main():
               "scope": "Real Gateway/S01 JWT + API-038/S04 API-115 and Submit/Return/resubmit; controlled SQL authority/Draft/severity fixtures; no FE/S02/S03 proof",
               "checks": [], "newman": [], "artifactsSha256": {
                   str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                  for p in [*jars, Path(__file__), COLLECTION]}}
+                  for p in [*jars, Path(__file__), Path(__file__).with_name("test_api113_s01_integration.py"), collection_path]}}
+    if scenario is not None:
+        report["scope"] = scenario.SCOPE
+        report["artifactsSha256"][str(Path(scenario.__file__).relative_to(ROOT))] = hashlib.sha256(Path(scenario.__file__).read_bytes()).hexdigest()
     containers, processes, logs = [], [], []
     run_id = uuid4().hex[:10]
     java = java_executable()
-    temporary = tempfile.TemporaryDirectory(prefix="ld-api115-")
+    temporary = tempfile.TemporaryDirectory(prefix=f"ld-{api}-")
     temp = Path(temporary.name)
 
     def check(name, ok):
@@ -52,7 +57,7 @@ def main():
         password = secrets.token_hex(24)
         for image, port, extra in [("postgres:17", 5432, ["-e", "POSTGRES_DB=livingdocs", "-e", "POSTGRES_PASSWORD=" + password]),
                                    ("redis:8.2-alpine", 6379, [])]:
-            name = "ld-api115-" + run_id + "-" + str(port)
+            name = "ld-" + api + "-" + run_id + "-" + str(port)
             command("docker", "run", "--rm", "-d", "--name", name, "-p", f"127.0.0.1::{port}", *extra, image)
             containers.append(name)
         pg, redis = containers
@@ -92,7 +97,7 @@ class Hash {public static void main(String[] a) throws Exception {Files.writeStr
                   "DB_URL": f"jdbc:postgresql://127.0.0.1:{pg_port}/livingdocs", "spring.jpa.hibernate.ddl-auto": "validate"}
 
         def start(index, options):
-            logfile = args.output.parent / f"api115-service-{index}.log"
+            logfile = args.output.parent / f"{api}-service-{index}.log"
             stream = logfile.open("w", encoding="utf-8"); logs.append(stream)
             environment = {k:v for k,v in os.environ.items() if not k.startswith(("DB_", "FLYWAY_", "SPRING_", "S01_", "S04_", "JWT_", "REDIS_", "LOGIN_RATE_"))}
             process = subprocess.Popen([java, "-jar", str(jars[index]), *[f"--{k}={v}" for k,v in {**common, **options}.items()]],
@@ -116,6 +121,7 @@ class Hash {public static void main(String[] a) throws Exception {Files.writeStr
                   "S01_JWK_SET_URI":s01+"/.well-known/jwks.json", "S04_TOKEN_AUDIENCE":"livingdocs-api",
                   "S01_REVIEW_ACCESS_CONTEXT_URI":s01+"/api/v1/users/me/access-context", "S04_REVIEW_ALLOW_INSECURE_HTTP":"true",
                   "S01_SUBMIT_ACCESS_CONTEXT_URI":s01+"/api/v1/users/me/access-context", "S04_SUBMIT_ALLOW_INSECURE_HTTP":"true",
+                  "S01_READ_ACCESS_CONTEXT_URI":s01+"/api/v1/users/me/access-context", "S04_READ_ALLOW_INSECURE_HTTP":"true",
                   "S01_AUTHORIZATION_SERVICE_TOKEN_URI":s01+"/internal/v1/auth/service-tokens",
                   "S01_AUTHORIZATION_EVALUATION_URI":s01+"/internal/v1/authorization/evaluate",
                   "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH":secret, "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP":"true"})
@@ -159,14 +165,21 @@ INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,docum
         hidden = [fixture(t=foreign_tenant, templ=None), fixture(w=foreign_workspace, templ=None), fixture(repo=foreign_repo, templ=None)]
         for version in hidden:
             sql(f"UPDATE document.document_versions SET state='IN_REVIEW',review_stage='STAFF_REVIEW' WHERE document_version_id='{version}';")
+        extra_variables = scenario.prepare(sql, primary, secondary, hidden, actor, tenant, template, tv) if scenario is not None else {}
         for version in [primary, secondary]:
             submitted = request(gateway, f"/api/v1/document-versions/{version}/submit", token, {}, {"If-Match":f'"{version}:revision-0"',"Idempotency-Key":"api115-seed"})
             check("Real Submit enters Staff queue", submitted[0] == 200)
         variables = {"gatewayUrl":gateway,"accessToken":token,"versionId":primary,"secondaryVersionId":secondary,
                      "workspaceId":workspace,"repositoryId":repository,"templateId":template,
                      "foreignWorkspaceId":foreign_workspace,"foreignRepositoryId":foreign_repo}
+        variables.update(extra_variables)
 
-        def newman(folder): report["newman"].append(run_newman(folder, variables, args.newman_cli, temp, COLLECTION))
+        def newman(folder): report["newman"].append(run_newman(folder, variables, args.newman_cli, temp, collection_path))
+        if scenario is not None:
+            scenario.run(sql=sql, check=check, newman=newman, variables=variables, authority=authority,
+                         secret=secret, tenant=tenant, actor=actor, workspace_member=wm, s04=s04)
+            report["result"] = "PASS"
+            return
         def counts(): return sql("SELECT (SELECT sum(revision) FROM document.document_versions) || ':' || (SELECT count(*) FROM document.document_audits) || ':' || (SELECT count(*) FROM document.submit_requests) || ':' || (SELECT count(*) FROM document.review_decisions);")
         before = counts(); newman("01 Scoped queue")
         check("GETs preserve revisions, audit, submissions and decisions", counts() == before)

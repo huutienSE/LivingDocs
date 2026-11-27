@@ -22,6 +22,10 @@ public class DocumentVersionEntity {
     private UUID tenantId;
     @Column(name = "document_id", nullable = false, updatable = false)
     private UUID documentId;
+    @Column(name = "version_no", nullable = false, insertable = false, updatable = false)
+    private int versionNo;
+    @Column(name = "template_version_id", insertable = false, updatable = false)
+    private UUID templateVersionId;
     @Column(name = "source_sha", length = 128, updatable = false)
     private String sourceSha;
     // Persisted provenance is read-only in the Submit/Review slice.

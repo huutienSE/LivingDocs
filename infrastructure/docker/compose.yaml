@@ -127,6 +127,9 @@ services:
       S04_AUTHORIZATION_ALLOW_INSECURE_HTTP: "true"
       # Local Compose network only; deployed environments must use HTTPS.
       S04_REVIEW_ALLOW_INSECURE_HTTP: "true"
+      S01_READ_ACCESS_CONTEXT_URI: ${S01_READ_ACCESS_CONTEXT_URI:-http://identity-organization-service:8081/api/v1/users/me/access-context}
+      S04_READ_ALLOW_INSECURE_HTTP: ${S04_READ_ALLOW_INSECURE_HTTP:-true}
+      S04_REVIEW_CONTEXT_QUERY_TIMEOUT_MS: ${S04_REVIEW_CONTEXT_QUERY_TIMEOUT_MS:-2000}
       S01_SUBMIT_ACCESS_CONTEXT_URI: http://identity-organization-service:8081/api/v1/users/me/access-context
       S04_SUBMIT_ALLOW_INSECURE_HTTP: "true" # Local Compose transport exception.
     volumes:

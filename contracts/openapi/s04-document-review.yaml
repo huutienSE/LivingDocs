@@ -49,7 +49,7 @@ paths:
         - name: If-Match
           in: header
           required: true
-          description: Exact strong ETag returned for this version; missing is 428, malformed is 400.
+          description: Strong version ETag or complete API-116 context ETag; checks the embedded version revision, not the context digest. Missing is 428, malformed is 400.
           schema:
             type: string
           example: '"e12de65e-40c5-4c73-a53a-6529064c2eb4:revision-0"'

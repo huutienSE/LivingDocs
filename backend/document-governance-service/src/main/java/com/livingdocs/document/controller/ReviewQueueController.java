@@ -1,10 +1,11 @@
 package com.livingdocs.document.controller;
 
 import com.livingdocs.document.dto.request.ReviewQueueQuery;
+import com.livingdocs.document.config.RequestCorrelationFilter;
 import com.livingdocs.document.dto.response.*;
 import com.livingdocs.document.exception.InvalidReviewQueueQueryException;
 import com.livingdocs.document.model.SuccessCode;
-import com.livingdocs.document.security.ReviewQueueAccessResolver;
+import com.livingdocs.document.security.StaffReadAccessResolver;
 import com.livingdocs.document.service.ReviewQueueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -25,7 +26,7 @@ public class ReviewQueueController {
     private static final Set<String> PARAMETERS = Set.of("page", "size", "workspaceId", "repositoryConnectionId",
             "templateId", "driftSeverity", "submittedFrom", "submittedTo", "sort", "direction");
     private final ReviewQueueService service;
-    private final ReviewQueueAccessResolver authority;
+    private final StaffReadAccessResolver authority;
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(operationId = "api115_get", summary = "Staff Review Queue within current granted scope")
@@ -46,7 +47,7 @@ public class ReviewQueueController {
         if (request.getParameterMap().entrySet().stream().anyMatch(e -> !PARAMETERS.contains(e.getKey())
                 || e.getValue().length != 1 || e.getValue()[0].isBlank()))
             throw new InvalidReviewQueueQueryException();
-        var result = service.list(authority.resolve(jwt), query);
+        var result = service.list(authority.resolve(jwt, (String) request.getAttribute(RequestCorrelationFilter.ATTRIBUTE)), query);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(SuccessResponse.of(SuccessCode.REVIEW_QUEUE_LOADED, result));
     }

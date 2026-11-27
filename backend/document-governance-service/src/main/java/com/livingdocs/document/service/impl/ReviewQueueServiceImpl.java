@@ -10,6 +10,7 @@ import com.livingdocs.document.mapper.ReviewQueueMapper;
 import com.livingdocs.document.model.S01AccessContext;
 import com.livingdocs.document.repository.*;
 import com.livingdocs.document.service.ReviewQueueService;
+import com.livingdocs.document.security.StaffReadPolicy;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +30,7 @@ public class ReviewQueueServiceImpl implements ReviewQueueService {
     // API-038 was resolved before entering this transaction; count and content share a snapshot.
     @Override @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ReviewQueueView list(S01AccessContext actor, ReviewQueueQuery request) {
-        var grants = actor.grants().stream().filter(g -> g.roles().contains("STAFF")
-                && g.permissions().containsAll(List.of("DOCUMENT_READ", "WORKSPACE_VIEW")))
+        var grants = StaffReadPolicy.grants(actor).stream()
                 .filter(g -> request.getWorkspaceId() == null || request.getWorkspaceId().equals(g.workspaceId()))
                 .filter(g -> request.getRepositoryConnectionId() == null || g.repositoryIds().contains(request.getRepositoryConnectionId()))
                 .toList();

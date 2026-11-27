@@ -67,7 +67,7 @@ public class DocumentReviewController {
     })
     public ResponseEntity<SuccessResponse<ReviewResponse>> review(@PathVariable UUID versionId,
             @Valid @RequestBody ReviewRequest body,
-            @Parameter(required = true, description = "Exact strong version ETag; missing returns 428.")
+            @Parameter(required = true, description = "Strong version ETag or complete API-116 context ETag; checks the embedded version revision. Missing returns 428.")
             @RequestHeader(value = "If-Match", required = false) String etag,
             @Parameter(required = true, schema = @Schema(pattern = "^[A-Za-z0-9._:-]{1,128}$"))
             @NotNull @Pattern(regexp = "^[A-Za-z0-9._:-]{1,128}$")

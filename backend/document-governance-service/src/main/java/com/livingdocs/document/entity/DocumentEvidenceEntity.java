@@ -21,6 +21,10 @@ public class DocumentEvidenceEntity {
     private UUID tenantId;
     @Column(name = "document_version_id", nullable = false, updatable = false)
     private UUID versionId;
+    @Column(name = "evidence_type", nullable = false, length = 64, updatable = false)
+    private String kind;
+    @Column(name = "attached_at", nullable = false, updatable = false)
+    private java.time.Instant attachedAt;
     @Column(name = "source_ref", columnDefinition = "text", updatable = false)
     private String sourceRef;
     @Column(name = "artifact_ref", columnDefinition = "text", updatable = false)

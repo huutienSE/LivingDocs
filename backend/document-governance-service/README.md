@@ -1,4 +1,52 @@
-# S04 — Staff Review, Submit Draft và Review Queue
+# S04 — Staff Review, Submit Draft, Review Queue và Review Context
+
+## API-116 — Staff Review Context
+
+`GET /api/v1/document-versions/{versionId}/review-context` trả
+`SuccessResponse<ReviewContextView>` với code `REVIEW_CONTEXT_LOADED`, strong ETag
+`"{versionId}:revision-{revision}:context-{sha256}"`, `Cache-Control: no-store` và correlation header.
+SHA-256 bao phủ toàn JSON success response; metadata/template/baseline/evidence đổi
+cũng đổi validator khi body đổi. API-113/120 nhận nguyên tag context mới và tag
+revision-only cũ; mutation vẫn kiểm version revision, không xác minh context digest.
+Standalone `If-None-Match: *` trả 304 sau khi kiểm quyền và resource scope thành công.
+ETag dùng trực tiếp làm `If-Match` cho API-120. GET không ghi state/audit hoặc gọi
+fresh API-039; conditional GET vẫn kiểm quyền trước khi trả 304.
+
+Policy đọc Staff dùng chung với queue: JWT hợp lệ, S01 API-038 thật,
+`STAFF + DOCUMENT_READ + WORKSPACE_VIEW` trong cùng workspace grant và repository
+grant khi version gắn repository. Thiếu quyền đọc trả 403; version không tồn tại,
+sai tenant/workspace/repository hoặc template ngoài scope đều trả 404 để không lộ dữ liệu.
+
+Context gồm version/source binding lưu trong S04, content revision mới nhất,
+selected template (identity/version/structure ref/formatting rules), baseline và
+evidence `ref` là S04 `document_evidence_id` UUID đúng tenant/version. Baseline là
+version có `versionNo` lớn nhất trước candidate, cùng document, state APPROVED hoặc
+PUBLISHED; không có thì NULL. Không tự tính diff, xác nhận template PASS, gọi GitHub,
+đọc artifact URL hoặc phụ thuộc ticket enrichment trong endpoint GET này.
+
+Migration V6 bổ sung `content_text` và `content_format` vào `content_revisions`
+theo quyết định người dùng. Snapshot thật tách khỏi `content_ref`; legacy thiếu
+snapshot trả `content=null`, không lấy ref làm nội dung. Writer tạo/sửa content
+cần append revision và tăng revision Document Version cùng transaction; API-116
+không thêm endpoint ghi hoặc tự backfill dữ liệu cũ.
+
+Shared read resolver là `StaffReadAccessResolver`, policy là `StaffReadPolicy`.
+Config chung `S01_READ_ACCESS_CONTEXT_URI` / `S04_READ_ALLOW_INSECURE_HTTP` ưu tiên
+cao hơn config queue/review cũ; fallback vẫn được giữ. Query timeout riêng:
+`S04_REVIEW_CONTEXT_QUERY_TIMEOUT_MS` (default 2000ms), đã forward trong Compose.
+Transaction read-only repeatable-read giữ content/baseline/evidence/version revision
+cùng snapshot và RLS tenant context transaction-local.
+
+Chạy từ repository root sau khi build JARs S01/S04/Gateway:
+
+```powershell
+python -X utf8 scripts/test_api116_s01_integration.py --newman-cli "$env:TEMP/livingdocs-newman/node_modules/newman/bin/newman.js"
+```
+
+Runner tái sử dụng bootstrap cô lập của queue, dùng collection riêng
+`tests/postman/liv145-review-context.postman_collection.json`. Chi tiết kiểm chứng,
+contract còn chờ owner/FE và giới hạn service khác được ghi trong
+[report LIV-145](../../docs/implementation/LIV-145-implementation-report.md).
 
 ## API-115 — Staff Review Queue
 

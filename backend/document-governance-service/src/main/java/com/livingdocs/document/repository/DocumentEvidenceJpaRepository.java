@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface DocumentEvidenceJpaRepository extends JpaRepository<DocumentEvidenceEntity, UUID> {
+    List<DocumentEvidenceEntity> findByTenantIdAndVersionIdOrderById(UUID tenantId, UUID versionId);
     @Query("""
             select e.id from DocumentEvidenceEntity e
             where e.tenantId = :tenant and e.versionId = :version

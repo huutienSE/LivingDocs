@@ -99,6 +99,7 @@ class ReviewQueueApiIntegrationTest extends PostgresTestSupport {
         assertThat(item.path("submittedAt").isNull()).isTrue();
         assertThat(item.path("driftSeverity").isNull()).isTrue();
         assertThat(ReviewAuthorityTestServer.FRESH_CALLS.getOrDefault(f.actor(), 0)).isZero();
+        assertThat(ReviewAuthorityTestServer.CORRELATIONS.get(f.actor())).isEqualTo("liv144-queue-test");
         assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?", f.version())).isEqualTo(0L);
         assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?", f.version())).isEqualTo(0L);
     }

@@ -74,12 +74,17 @@ class ReviewTransitionPolicyTest {
     @Test
     void etag_mustBeStrongAndBoundToVersion() {
         assertThat(VersionEtags.require(id, VersionEtags.format(id, 7))).isEqualTo(7);
+        String contextEtag = VersionEtags.formatContext(id, 7, new byte[]{1, 2, 3});
+        assertThat(VersionEtags.require(id, contextEtag)).isEqualTo(7);
         assertThatThrownBy(() -> VersionEtags.require(id, null)).isInstanceOfSatisfying(ReviewException.class,
                 e -> assertThat(e.status()).isEqualTo(428));
-        for (String invalid : List.of("*", "W/\"revision-7\"", "7", VersionEtags.format(id, 7) + "," + VersionEtags.format(id, 8))) {
+        for (String invalid : List.of("*", "W/\"revision-7\"", "7", VersionEtags.format(id, 7) + "," + VersionEtags.format(id, 8),
+                "W/" + contextEtag, contextEtag.replace(":context-", ":unknown-"), contextEtag.replaceFirst("[0-9a-f]{64}", "short"))) {
             assertThatThrownBy(() -> VersionEtags.require(id, invalid)).isInstanceOf(ReviewException.class);
         }
         assertThatThrownBy(() -> VersionEtags.require(id, VersionEtags.format(UUID.randomUUID(), 7)))
                 .isInstanceOfSatisfying(ReviewRevisionConflictException.class, e -> assertThat(e.status()).isEqualTo(412));
+        assertThatThrownBy(() -> VersionEtags.require(id, VersionEtags.formatContext(UUID.randomUUID(), 7, new byte[0])))
+                .isInstanceOf(ReviewRevisionConflictException.class);
     }
 }

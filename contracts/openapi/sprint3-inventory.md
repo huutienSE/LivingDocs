@@ -85,7 +85,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 | API-113 | S04 | `POST` | `/api/v1/document-versions/{versionId}/submit` | IN_PROGRESS | Allowlist (JWT) |
 | API-114 | S04 | `POST` | `/api/v1/document-versions/{versionId}/revalidations` | CANDIDATE | Allowlist (JWT) |
 | API-115 | S04 | `GET` | `/api/v1/review-queue` | IN_PROGRESS | Allowlist (JWT) |
-| API-116 | S04 | `GET` | `/api/v1/document-versions/{versionId}/review-context` | CANDIDATE | Allowlist (JWT) |
+| API-116 | S04 | `GET` | `/api/v1/document-versions/{versionId}/review-context` | IN_PROGRESS | Allowlist (JWT) |
 | API-117 | S04 | `GET` | `/api/v1/document-versions/{versionId}/review-comments` | CANDIDATE | Allowlist (JWT) |
 | API-118 | S04 | `POST` | `/api/v1/document-versions/{versionId}/review-comments` | CANDIDATE | Allowlist (JWT) |
 | API-119 | S04 | `PATCH` | `/api/v1/document-versions/{versionId}/staff-edits` | CANDIDATE | Allowlist (JWT) |
@@ -122,7 +122,7 @@ Không đánh dấu `CANDIDATE` thành `IMPLEMENTED` chỉ vì Gateway có route
 ## Các vấn đề chặn tích hợp
 
 1. **M01 API-115:** S04 đã có controller/service/JPA và schema cụ thể trên nhánh task; xem `docs/implementation/LIV-144-implementation-report.md`. Còn chờ owner duyệt DTO, tích hợp FE và remote CI trước khi coi contract ổn định.
-2. **M02 API-116:** S04 chưa có `GET /api/v1/document-versions/{versionId}/review-context`; phải trả `ReviewContextView` và strong `ETag` dạng `"{versionId}:revision-{revision}"` tương thích API-120.
+2. **M02 API-116:** S04 context controller/service/JPA and strong ETag are implemented on the task branch; see `docs/implementation/LIV-145-implementation-report.md`. Owner/FE DTO review and legacy content/artifact/source integrations remain pending.
 3. **M03:** FE xử lý `FORBIDDEN_SCOPE`, S04 PR #20 trả `REVIEW_FORBIDDEN`; Thịnh cần bổ sung mã mới vào `describeError()` hoặc thống nhất lỗi với Hải.
 4. **M04:** S04 API-120 đã có `documentId` và `sourceBinding`; không còn coi đó là thiếu DTO. FE cần xác thực evidence `ref` là `document_evidence_id` UUID, giới hạn tối đa 100 phần tử không trùng, và semantics retry nguyên `If-Match`/key.
 5. **M05:** S01/Gateway access JWT và JWKS đã có implementation LIV-137; domain service E2E và Refresh Token thuộc task sau. Không dùng mock issuer để tuyên bố FLOW PASS.

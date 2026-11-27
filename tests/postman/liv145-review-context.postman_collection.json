@@ -1,0 +1,937 @@
+{
+  "info": {
+    "name": "LIV-145 API-116 Staff Review Context",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run phased with scripts/test_api116_s01_integration.py on disposable Gateway/S01/S04/PostgreSQL/Redis. Real identity and fresh mutation authorization; SQL canonical-content/template/baseline/authority fixtures. No S02/artifact reader/FE proof."
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://127.0.0.1:8080"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Canonical context",
+      "item": [
+        {
+          "name": "Content/template/baseline/evidence from S04",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Context envelope and canonical version', () => {pm.expect(body.code).to.eql('REVIEW_CONTEXT_LOADED');pm.expect(body.data.version.versionId).to.be.a('string');});",
+                  "pm.test('Strong ETag/no-store/correlation', () => {pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9a-f-]{36}:revision-[0-9]+:context-[0-9a-f]{64}\"$/);pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {const d=body.data;pm.expect(d.content).to.eql('# Current candidate body');pm.expect(d.contentFormat).to.eql('MARKDOWN');pm.expect(d.contentRef).to.eql('artifact://current');pm.expect(d.contentRevisionNo).to.eql(2);pm.expect(d.versionNo).to.eql(3);pm.expect(d.template.templateVersionId).to.eql(pm.environment.get('templateVersionId'));pm.expect(d.template.formattingRules.headings).to.eql(['Overview']);pm.expect(d.baseline.versionId).to.eql(pm.environment.get('baselineVersionId'));pm.expect(d.baseline.content).to.eql('Published baseline body');pm.expect(d.evidence).to.have.lengthOf(2);pm.expect(d.evidence.map(e=>e.ref)).to.include(pm.environment.get('diffEvidenceId'));d.evidence.forEach(e=>pm.expect(e.ref).to.match(/^[a-f0-9-]{36}$/));pm.expect(d.submittedBy).to.be.a('string');pm.expect(d.reviewRound).to.eql(0);pm.environment.set('initialContextEtag',pm.response.headers.get('ETag'));pm.environment.set('contextEtag',pm.response.headers.get('ETag'));});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Legacy reference is not fake body",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{secondaryVersionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Context envelope and canonical version', () => {pm.expect(body.code).to.eql('REVIEW_CONTEXT_LOADED');pm.expect(body.data.version.versionId).to.be.a('string');});",
+                  "pm.test('Strong ETag/no-store/correlation', () => {pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9a-f-]{36}:revision-[0-9]+:context-[0-9a-f]{64}\"$/);pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.data.content).to.eql(null);pm.expect(body.data.contentFormat).to.eql(null);pm.expect(body.data.contentRef).to.eql('artifact://legacy-reference');pm.expect(body.data.template).to.eql(null);pm.expect(body.data.baseline).to.eql(null);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong tenant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{foreignTenantVersionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong workspace",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{foreignWorkspaceVersionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong repository",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{foreignRepositoryVersionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{missingVersionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid version UUID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/not-a-uuid/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('INVALID_REQUEST');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject client evidence selector",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context?evidenceRef={{diffEvidenceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('INVALID_REQUEST');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conditional context read",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{initialContextEtag}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 304', () => pm.response.to.have.status(304));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Authorized conditional read has no body', () => {pm.expect(pm.response.text()).to.eql('');pm.expect(pm.response.headers.get('ETag')).to.eql(pm.environment.get('initialContextEtag'));});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wildcard matches authorized context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 304', () => pm.response.to.have.status(304));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Authorized conditional read has no body', () => {pm.expect(pm.response.text()).to.eql('');pm.expect(pm.response.headers.get('ETag')).to.eql(pm.environment.get('initialContextEtag'));});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Context metadata invalidation",
+      "item": [
+        {
+          "name": "Template rename invalidates previous context validator",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{initialContextEtag}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200 for changed metadata', () => pm.response.to.have.status(200));",
+                  "pm.test('Updated metadata and unchanged version revision', () => {const d=pm.response.json().data;pm.expect(d.template.name).to.eql('Updated template metadata');pm.expect(d.version.revision).to.eql(1);});",
+                  "pm.test('New strong representation validator', () => {const tag=pm.response.headers.get('ETag');pm.expect(tag).to.match(/^\"[0-9a-f-]{36}:revision-1:context-[0-9a-f]{64}\"$/);pm.expect(tag).not.to.eql(pm.environment.get('initialContextEtag'));pm.environment.set('contextEtag',tag);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Updated context validator returns 304 only for unchanged body",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{contextEtag}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 304', () => pm.response.to.have.status(304));",
+                  "pm.test('No body and same updated validator', () => {pm.expect(pm.response.text()).to.eql('');pm.expect(pm.response.headers.get('ETag')).to.eql(pm.environment.get('contextEtag'));});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Context ETag and decision",
+      "item": [
+        {
+          "name": "Return uses ETag from context",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{contextEtag}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "liv145-return"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/staff-decisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\": \"RETURN_FOR_REVISION\", \"feedback\": \"Context ETag integration check\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('STAFF_REVIEW_RECORDED');pm.expect(body.data.state).to.eql('DRAFT');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh context after Return",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Context envelope and canonical version', () => {pm.expect(body.code).to.eql('REVIEW_CONTEXT_LOADED');pm.expect(body.data.version.versionId).to.be.a('string');});",
+                  "pm.test('Strong ETag/no-store/correlation', () => {pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9a-f-]{36}:revision-[0-9]+:context-[0-9a-f]{64}\"$/);pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.data.version.state).to.eql('DRAFT');pm.expect(body.data.version.revision).to.eql(2);pm.expect(body.data.reviewRound).to.eql(1);pm.expect(pm.response.headers.get('ETag')).not.to.eql(pm.environment.get('initialContextEtag'));pm.environment.set('contextEtag',pm.response.headers.get('ETag'));});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stale context ETag cannot mutate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{initialContextEtag}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "liv145-stale"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/staff-decisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"decision\": \"RETURN_FOR_REVISION\", \"feedback\": \"Stale context\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 412', () => pm.response.to.have.status(412));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('REVISION_CONFLICT');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmit uses new context ETag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{contextEtag}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "liv145-resubmit"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/submit",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_SUBMITTED');pm.expect(body.data.revision).to.eql(3);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Changed version returns new context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{initialContextEtag}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Context envelope and canonical version', () => {pm.expect(body.code).to.eql('REVIEW_CONTEXT_LOADED');pm.expect(body.data.version.versionId).to.be.a('string');});",
+                  "pm.test('Strong ETag/no-store/correlation', () => {pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9a-f-]{36}:revision-[0-9]+:context-[0-9a-f]{64}\"$/);pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store');pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.data.version.reviewStage).to.eql('STAFF_REVIEW');pm.expect(body.data.version.revision).to.eql(3);pm.expect(body.data.content).to.eql('# Current candidate body');pm.environment.set('contextEtag',pm.response.headers.get('ETag'));});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Revoked repository",
+      "item": [
+        {
+          "name": "Revoked repository context denied",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conditional read cannot bypass revoked scope",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "{{contextEtag}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shared queue read policy regression",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/review-queue"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('REVIEW_QUEUE_LOADED');pm.expect(body.data.totalElements).to.eql(0);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wildcard cannot bypass revoked scope",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-None-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('DOCUMENT_VERSION_NOT_FOUND');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Revoked Staff",
+      "item": [
+        {
+          "name": "Developer alone cannot read context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('REVIEW_FORBIDDEN');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 S01 unavailable",
+      "item": [
+        {
+          "name": "Authority outage fails closed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv145-newman"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{versionId}}/review-context"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 503', () => pm.response.to.have.status(503));",
+                  "const body = pm.response.code === 304 ? null : pm.response.json();",
+                  "pm.test('RFC9457 error', () => {pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(body.status).to.eql(pm.response.code);pm.expect(body.correlationId).to.eql('liv145-newman');});",
+                  "pm.test('Business assertion', () => {pm.expect(body.code).to.eql('AUTHORIZATION_UNAVAILABLE');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -18,6 +18,7 @@ final class ReviewAuthorityTestServer {
     static final Map<UUID, Object> CONTEXTS = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> STATUSES = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> CALLS = new ConcurrentHashMap<>();
+    static final Map<UUID, String> CORRELATIONS = new ConcurrentHashMap<>();
     static final Map<UUID, String> FRESH_DECISIONS = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> FRESH_STATUSES = new ConcurrentHashMap<>();
     static final Map<UUID, Integer> FRESH_CALLS = new ConcurrentHashMap<>();
@@ -70,6 +71,8 @@ final class ReviewAuthorityTestServer {
                     String authorization = exchange.getRequestHeaders().getFirst("Authorization");
                     UUID identity = UUID.fromString(SignedJWT.parse(authorization.substring(7)).getJWTClaimsSet().getSubject());
                     CALLS.merge(identity, 1, Integer::sum);
+                    String correlation = exchange.getRequestHeaders().getFirst("X-Correlation-ID");
+                    if (correlation != null) CORRELATIONS.put(identity, correlation);
                     int status = STATUSES.getOrDefault(identity, 200);
                     Object data = CONTEXTS.getOrDefault(identity, context(identity, null, List.of()));
                     byte[] body = new JsonMapper().writeValueAsString(Map.of("code", "ACCESS_CONTEXT_LOADED", "data", data))
