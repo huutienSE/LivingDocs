@@ -1,0 +1,2193 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LIV-151 complete GitHub authorization approved design",
+    "version": "0.1.0-review",
+    "description": "Design v1 approved by Project Owner in chat on 2026-11-24. Existing canonical S02 YAML/inventory/Gateway remain unchanged. API-046 read plus five onboarding operations are approved as design only; not implemented or production-ready. Implementation/Git/Jira/App setup/deploy are not authorized by this approval. New numeric API identifiers remain unassigned."
+  },
+  "x-review-status": "APPROVED_DESIGN",
+  "paths": {
+    "/api/v1/integrations/github/authorization": {
+      "get": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "public",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "api046_get",
+        "summary": "Required permissions and scoped installation verification",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "description": ""
+          },
+          {
+            "name": "authorizationContextId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "description": "Owned, unexpired S02 context; optional only to show requirements before authorization."
+          },
+          {
+            "name": "installationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+            },
+            "description": "Requires authorizationContextId. Never an ownership assertion."
+          },
+          {
+            "name": "installationPage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            },
+            "description": "Only with installationId. Re-read the selected user-scoped page; missing selected ID is 409 SELECTION_CHANGED, not a negative installation lookup."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Typed success; no credentials.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationResponse"
+                },
+                "examples": {
+                  "beforeUserConsent": {
+                    "summary": "Before user consent; fictional fixture, not actual App configuration",
+                    "value": {
+                      "code": "GITHUB_AUTHORIZATION_CONTEXT_READ",
+                      "message": "GitHub authorization context retrieved",
+                      "data": {
+                        "workspaceId": "15100000-0000-4000-8000-000000000002",
+                        "integrationType": "GITHUB_APP",
+                        "app": {
+                          "appId": "151",
+                          "slug": "livingdocs-example",
+                          "name": "LivingDocs Example Fixture",
+                          "installationUrl": "https://github.com/apps/livingdocs-example/installations/new"
+                        },
+                        "requirementsRevision": "github-app-profile-v1-example",
+                        "requiredPermissions": [
+                          {
+                            "category": "REPOSITORY",
+                            "name": "metadata",
+                            "level": "read",
+                            "purpose": "Repository identity and access metadata"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "contents",
+                            "level": "write",
+                            "purpose": "Read source and controlled published-document export"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "pull_requests",
+                            "level": "write",
+                            "purpose": "Read PR context and create controlled export PR"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "checks",
+                            "level": "write",
+                            "purpose": "Publish source-bound verification feedback"
+                          }
+                        ],
+                        "requiredEvents": [
+                          "push",
+                          "pull_request"
+                        ],
+                        "context": {
+                          "status": "NONE"
+                        },
+                        "verification": {
+                          "status": "USER_AUTHORIZATION_REQUIRED"
+                        }
+                      }
+                    }
+                  },
+                  "sufficient": {
+                    "summary": "VERIFIED_SUFFICIENT; fictional fixture, not actual App configuration",
+                    "value": {
+                      "code": "GITHUB_AUTHORIZATION_CONTEXT_READ",
+                      "message": "GitHub authorization context retrieved",
+                      "data": {
+                        "workspaceId": "15100000-0000-4000-8000-000000000002",
+                        "integrationType": "GITHUB_APP",
+                        "app": {
+                          "appId": "151",
+                          "slug": "livingdocs-example",
+                          "name": "LivingDocs Example Fixture",
+                          "installationUrl": "https://github.com/apps/livingdocs-example/installations/new"
+                        },
+                        "requirementsRevision": "github-app-profile-v1-example",
+                        "requiredPermissions": [
+                          {
+                            "category": "REPOSITORY",
+                            "name": "metadata",
+                            "level": "read",
+                            "purpose": "Repository identity and access metadata"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "contents",
+                            "level": "write",
+                            "purpose": "Read source and controlled published-document export"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "pull_requests",
+                            "level": "write",
+                            "purpose": "Read PR context and create controlled export PR"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "checks",
+                            "level": "write",
+                            "purpose": "Publish source-bound verification feedback"
+                          }
+                        ],
+                        "requiredEvents": [
+                          "push",
+                          "pull_request"
+                        ],
+                        "context": {
+                          "status": "AUTHORIZED",
+                          "contextId": "15100000-0000-4000-8000-000000000010",
+                          "expiresAt": "2026-11-24T12:15:00Z"
+                        },
+                        "verification": {
+                          "status": "VERIFIED_SUFFICIENT",
+                          "installation": {
+                            "installationId": "15101",
+                            "accountId": "15102",
+                            "accountLogin": "example-organization",
+                            "repositorySelection": "selected"
+                          },
+                          "grantedPermissions": [
+                            {
+                              "category": "REPOSITORY",
+                              "name": "metadata",
+                              "level": "read"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "contents",
+                              "level": "write"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "pull_requests",
+                              "level": "write"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "checks",
+                              "level": "write"
+                            }
+                          ],
+                          "missingPermissions": [],
+                          "checkedAt": "2026-11-24T12:05:00Z",
+                          "repositoryAccessVerified": false
+                        }
+                      }
+                    }
+                  },
+                  "insufficient": {
+                    "summary": "VERIFIED_INSUFFICIENT; fictional fixture, not actual App configuration",
+                    "value": {
+                      "code": "GITHUB_AUTHORIZATION_CONTEXT_READ",
+                      "message": "GitHub authorization context retrieved",
+                      "data": {
+                        "workspaceId": "15100000-0000-4000-8000-000000000002",
+                        "integrationType": "GITHUB_APP",
+                        "app": {
+                          "appId": "151",
+                          "slug": "livingdocs-example",
+                          "name": "LivingDocs Example Fixture",
+                          "installationUrl": "https://github.com/apps/livingdocs-example/installations/new"
+                        },
+                        "requirementsRevision": "github-app-profile-v1-example",
+                        "requiredPermissions": [
+                          {
+                            "category": "REPOSITORY",
+                            "name": "metadata",
+                            "level": "read",
+                            "purpose": "Repository identity and access metadata"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "contents",
+                            "level": "write",
+                            "purpose": "Read source and controlled published-document export"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "pull_requests",
+                            "level": "write",
+                            "purpose": "Read PR context and create controlled export PR"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "checks",
+                            "level": "write",
+                            "purpose": "Publish source-bound verification feedback"
+                          }
+                        ],
+                        "requiredEvents": [
+                          "push",
+                          "pull_request"
+                        ],
+                        "context": {
+                          "status": "AUTHORIZED",
+                          "contextId": "15100000-0000-4000-8000-000000000010",
+                          "expiresAt": "2026-11-24T12:15:00Z"
+                        },
+                        "verification": {
+                          "status": "VERIFIED_INSUFFICIENT",
+                          "installation": {
+                            "installationId": "15101",
+                            "accountId": "15102",
+                            "accountLogin": "example-organization",
+                            "repositorySelection": "selected"
+                          },
+                          "grantedPermissions": [
+                            {
+                              "category": "REPOSITORY",
+                              "name": "metadata",
+                              "level": "read"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "contents",
+                              "level": "write"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "pull_requests",
+                              "level": "write"
+                            }
+                          ],
+                          "missingPermissions": [
+                            {
+                              "category": "REPOSITORY",
+                              "name": "checks",
+                              "level": "write"
+                            }
+                          ],
+                          "checkedAt": "2026-11-24T12:05:00Z",
+                          "repositoryAccessVerified": false
+                        }
+                      }
+                    }
+                  },
+                  "suspended": {
+                    "summary": "INSTALLATION_SUSPENDED; fictional fixture, not actual App configuration",
+                    "value": {
+                      "code": "GITHUB_AUTHORIZATION_CONTEXT_READ",
+                      "message": "GitHub authorization context retrieved",
+                      "data": {
+                        "workspaceId": "15100000-0000-4000-8000-000000000002",
+                        "integrationType": "GITHUB_APP",
+                        "app": {
+                          "appId": "151",
+                          "slug": "livingdocs-example",
+                          "name": "LivingDocs Example Fixture",
+                          "installationUrl": "https://github.com/apps/livingdocs-example/installations/new"
+                        },
+                        "requirementsRevision": "github-app-profile-v1-example",
+                        "requiredPermissions": [
+                          {
+                            "category": "REPOSITORY",
+                            "name": "metadata",
+                            "level": "read",
+                            "purpose": "Repository identity and access metadata"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "contents",
+                            "level": "write",
+                            "purpose": "Read source and controlled published-document export"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "pull_requests",
+                            "level": "write",
+                            "purpose": "Read PR context and create controlled export PR"
+                          },
+                          {
+                            "category": "REPOSITORY",
+                            "name": "checks",
+                            "level": "write",
+                            "purpose": "Publish source-bound verification feedback"
+                          }
+                        ],
+                        "requiredEvents": [
+                          "push",
+                          "pull_request"
+                        ],
+                        "context": {
+                          "status": "AUTHORIZED",
+                          "contextId": "15100000-0000-4000-8000-000000000010",
+                          "expiresAt": "2026-11-24T12:15:00Z"
+                        },
+                        "verification": {
+                          "status": "INSTALLATION_SUSPENDED",
+                          "installation": {
+                            "installationId": "15101",
+                            "accountId": "15102",
+                            "accountLogin": "example-organization",
+                            "repositorySelection": "selected"
+                          },
+                          "grantedPermissions": [
+                            {
+                              "category": "REPOSITORY",
+                              "name": "metadata",
+                              "level": "read"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "contents",
+                              "level": "write"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "pull_requests",
+                              "level": "write"
+                            },
+                            {
+                              "category": "REPOSITORY",
+                              "name": "checks",
+                              "level": "write"
+                            }
+                          ],
+                          "missingPermissions": [],
+                          "checkedAt": "2026-11-24T12:05:00Z",
+                          "repositoryAccessVerified": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "406": {
+            "$ref": "#/components/responses/Problem406"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        },
+        "description": "GET never creates/updates contexts, connections, grants, source observations or tokens. User/workspace verified via S01 before context or provider access. Installation metadata read only after current user-scoped installation membership is proven. GET returns INSTALLATION_* states only on evidence; unknown provider errors are 503. repositoryAccessVerified is always false; API-047 verifies the selected repository afresh. Cross-field query validation required.",
+        "x-invariants": [
+          "workspaceId is nonzero UUID; authorizationContextId is nonzero UUID when provided.",
+          "installationId requires authorizationContextId; installationPage requires installationId.",
+          "Context NONE iff verification USER_AUTHORIZATION_REQUIRED.",
+          "Context PENDING iff verification AUTHORIZATION_PENDING.",
+          "Context AUTHORIZED is required for INSTALLATION_SELECTION_REQUIRED and all verified branches.",
+          "Verified installationId equals requested installationId; metadata App identity equals pinned configured App.",
+          "repositoryAccessVerified is always false; this is not a repository connection capability.",
+          "No write, token mint/refresh, or hidden installation pagination scan in API-046 GET."
+        ],
+        "x-design-state": "APPROVED"
+      }
+    },
+    "/api/v1/integrations/github/authorization-contexts": {
+      "post": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "not-enabled-until-implemented-and-verified",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "githubAuthorizationContextCreate",
+        "summary": "Create actor/workspace-bound integration authorization context",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Typed success; no credentials.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              },
+              "Set-Cookie": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Scoped, host-only __Secure- cookie, HttpOnly, Secure, SameSite=Lax; one nonce per context; no provider or LivingDocs token."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        },
+        "description": "Proposed new operation. Verified LivingDocs JWT + current Workspace policy + exact Origin. Server creates one-time state, S256 PKCE, scoped HttpOnly Secure SameSite=Lax nonce cookie. Does not create a connection or issue a LivingDocs session. Repeated requests may create separate bounded contexts; no idempotency guarantee.",
+        "x-design-state": "APPROVED"
+      }
+    },
+    "/api/v1/integrations/github/authorization/callback": {
+      "get": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "not-enabled-until-implemented-and-verified",
+        "security": [],
+        "operationId": "githubAuthorizationCallback",
+        "summary": "Consume integration OAuth callback; never logs code/state/query",
+        "description": "Protocol-specific exception, not anonymous API-046 access or S01 login. Requires authenticated opaque state, matching nonce cookie, unexpired DB context and one-time CAS claim before code exchange. code xor error; exact redirect URI, S256 PKCE. Stores only encrypted short-lived GitHub user token after immutable user identity verification. Fixed frontend redirect carries contextId only. Completion requires a second conditional commit from EXCHANGING while unexpired/not cancelled and owner/App/config/row revision still match. If cancel/expiry won, discard returned credential and never revive the context. Optional provider error_description/error_uri are ignored/redacted.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 2048
+            },
+            "description": ""
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "description": ""
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": ""
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "description": "Optional provider error text, ignored/redacted; never reflected to frontend or logs."
+          },
+          {
+            "name": "error_uri",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Optional provider URI, ignored; never fetched or used as redirect."
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Completed; fixed allowlisted frontend completion URL, contextId only. Clear nonce cookie.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              },
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Set-Cookie": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-design-state": "APPROVED"
+      }
+    },
+    "/api/v1/integrations/github/authorization-contexts/{contextId}/installations": {
+      "get": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "not-enabled-until-implemented-and-verified",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "githubAuthorizationInstallationsList",
+        "summary": "User-accessible installations, one scoped page",
+        "parameters": [
+          {
+            "name": "contextId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            },
+            "description": "One GitHub page, fixed per_page=100. Never silently scan all pages or treat a missing row on one page as uninstalled."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Typed success; no credentials.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        },
+        "x-design-state": "APPROVED"
+      }
+    },
+    "/api/v1/integrations/github/authorization-contexts/{contextId}/installations/{installationId}/repositories": {
+      "get": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "not-enabled-until-implemented-and-verified",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "githubAuthorizationRepositoriesList",
+        "summary": "Repositories accessible to both GitHub user and App",
+        "parameters": [
+          {
+            "name": "contextId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "installationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "default": 1
+            },
+            "description": "One GitHub page, fixed per_page=100. Never silently scan all pages or treat a missing row on one page as uninstalled."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Typed success; no credentials.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        },
+        "description": "After LivingDocs JWT, current Workspace and owned-context checks, call GET /user/installations/{id}/repositories with the context's GitHub App user token. The provider enforces user-scoped access; never probe with an App JWT first or scan all installation pages. page selects the repository page. Unknown/provider failures do not prove uninstallation.",
+        "x-design-state": "APPROVED"
+      }
+    },
+    "/api/v1/integrations/github/authorization-contexts/{contextId}": {
+      "delete": {
+        "tags": [
+          "LIV-151 proposal"
+        ],
+        "x-contract-state": "CANDIDATE",
+        "x-gateway-exposure": "not-enabled-until-implemented-and-verified",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "githubAuthorizationContextCancel",
+        "summary": "Cancel own context and erase local encrypted credentials; does not globally revoke GitHub authorization",
+        "parameters": [
+          {
+            "name": "contextId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cancelled; no body. Repeating within owned retained context is idempotent.",
+            "headers": {
+              "Cache-Control": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              },
+              "X-Correlation-ID": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        },
+        "x-design-state": "APPROVED"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "LivingDocs user JWT"
+      }
+    },
+    "schemas": {
+      "Permission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "name",
+          "level"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "REPOSITORY",
+              "ORGANIZATION",
+              "ACCOUNT",
+              "ENTERPRISE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "admin"
+            ]
+          }
+        }
+      },
+      "RequiredPermission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "name",
+          "level",
+          "purpose"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "REPOSITORY",
+              "ORGANIZATION",
+              "ACCOUNT",
+              "ENTERPRISE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "admin"
+            ]
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        }
+      },
+      "App": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "appId",
+          "slug",
+          "name",
+          "installationUrl"
+        ],
+        "properties": {
+          "appId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,99}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "installationUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://github\\.com/apps/[a-z0-9-]+/installations/new$"
+          }
+        }
+      },
+      "Context": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "NONE"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "contextId",
+              "expiresAt"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "AUTHORIZED"
+                ]
+              },
+              "contextId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "Installation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installationId",
+          "accountId",
+          "accountLogin",
+          "repositorySelection"
+        ],
+        "properties": {
+          "installationId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "accountId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "accountLogin": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "repositorySelection": {
+            "type": "string",
+            "enum": [
+              "all",
+              "selected"
+            ]
+          }
+        }
+      },
+      "Unverified": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "USER_AUTHORIZATION_REQUIRED",
+              "AUTHORIZATION_PENDING",
+              "INSTALLATION_SELECTION_REQUIRED"
+            ]
+          }
+        }
+      },
+      "ContextStartRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          }
+        }
+      },
+      "ContextStartView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contextId",
+          "expiresAt",
+          "authorizationUrl",
+          "installationUrl"
+        ],
+        "properties": {
+          "contextId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authorizationUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Backend-built GitHub user authorization URL with opaque state and S256 PKCE challenge; never contains access/refresh tokens."
+          },
+          "installationUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://github\\.com/apps/[a-z0-9-]+/installations/new$"
+          }
+        }
+      },
+      "InstallationItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "installationId",
+          "accountId",
+          "accountLogin",
+          "repositorySelection",
+          "suspended"
+        ],
+        "properties": {
+          "installationId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "accountId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "accountLogin": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "repositorySelection": {
+            "type": "string",
+            "enum": [
+              "all",
+              "selected"
+            ]
+          },
+          "suspended": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RepositoryItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repositoryId",
+          "fullName",
+          "canRead"
+        ],
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Positive decimal BIGINT, maximum 9223372036854775807; validate range server-side."
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "canRead": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "correlationId"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]+$"
+          },
+          "correlationId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+          }
+        }
+      },
+      "Sufficient": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "installation",
+          "grantedPermissions",
+          "missingPermissions",
+          "checkedAt",
+          "repositoryAccessVerified"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "VERIFIED_SUFFICIENT"
+            ]
+          },
+          "installation": {
+            "$ref": "#/components/schemas/Installation"
+          },
+          "grantedPermissions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            }
+          },
+          "missingPermissions": {
+            "type": "array",
+            "maxItems": 0,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "minItems": 0
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repositoryAccessVerified": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "Insufficient": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "installation",
+          "grantedPermissions",
+          "missingPermissions",
+          "checkedAt",
+          "repositoryAccessVerified"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "VERIFIED_INSUFFICIENT"
+            ]
+          },
+          "installation": {
+            "$ref": "#/components/schemas/Installation"
+          },
+          "grantedPermissions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            }
+          },
+          "missingPermissions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "minItems": 1
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repositoryAccessVerified": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "Suspended": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "installation",
+          "grantedPermissions",
+          "missingPermissions",
+          "checkedAt",
+          "repositoryAccessVerified"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "INSTALLATION_SUSPENDED"
+            ]
+          },
+          "installation": {
+            "$ref": "#/components/schemas/Installation"
+          },
+          "grantedPermissions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            }
+          },
+          "missingPermissions": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "minItems": 0
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "repositoryAccessVerified": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "GitHubAuthorizationView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId",
+          "integrationType",
+          "app",
+          "requirementsRevision",
+          "requiredPermissions",
+          "requiredEvents",
+          "context",
+          "verification"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          },
+          "integrationType": {
+            "type": "string",
+            "enum": [
+              "GITHUB_APP"
+            ]
+          },
+          "app": {
+            "$ref": "#/components/schemas/App"
+          },
+          "requirementsRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "requiredPermissions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/RequiredPermission"
+            }
+          },
+          "requiredEvents": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            },
+            "maxItems": 100
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "verification": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Unverified"
+              },
+              {
+                "$ref": "#/components/schemas/Sufficient"
+              },
+              {
+                "$ref": "#/components/schemas/Insufficient"
+              },
+              {
+                "$ref": "#/components/schemas/Suspended"
+              }
+            ]
+          }
+        }
+      },
+      "InstallationListView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page",
+          "hasNext"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/InstallationItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RepositoryListView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page",
+          "hasNext"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/RepositoryItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuthorizationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "GITHUB_AUTHORIZATION_CONTEXT_READ"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "GitHub authorization context retrieved"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/GitHubAuthorizationView"
+          }
+        }
+      },
+      "ContextStartResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "GITHUB_AUTHORIZATION_CONTEXT_CREATED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "GitHub authorization context created"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/ContextStartView"
+          }
+        }
+      },
+      "InstallationListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "GITHUB_INSTALLATIONS_LISTED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "GitHub installations listed"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/InstallationListView"
+          }
+        }
+      },
+      "RepositoryListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "GITHUB_REPOSITORIES_LISTED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "GitHub repositories listed"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/RepositoryListView"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Problem400": {
+        "description": "Invalid request input or OAuth callback state. Operation-specific query/body/state rules apply.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "INVALID_REQUEST",
+                        "OAUTH_STATE_INVALID"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "INVALID_REQUEST",
+          "OAUTH_STATE_INVALID"
+        ]
+      },
+      "Problem401": {
+        "description": "LivingDocs user JWT missing or invalid. Provider token rejection uses a separate 409/503 code.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          },
+          "WWW-Authenticate": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Bearer"
+              ]
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "UNAUTHENTICATED"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "UNAUTHENTICATED"
+        ]
+      },
+      "Problem403": {
+        "description": "Workspace role denied, or verified user lacks permitted GitHub access.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "FORBIDDEN_SCOPE",
+                        "GITHUB_ACCESS_DENIED"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "FORBIDDEN_SCOPE",
+          "GITHUB_ACCESS_DENIED"
+        ]
+      },
+      "Problem404": {
+        "description": "Workspace/context not visible; does not prove an installation is uninstalled.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "WORKSPACE_NOT_FOUND",
+                        "AUTHORIZATION_CONTEXT_NOT_FOUND"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "WORKSPACE_NOT_FOUND",
+          "AUTHORIZATION_CONTEXT_NOT_FOUND"
+        ]
+      },
+      "Problem406": {
+        "description": "Requested response media type unsupported.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_ACCEPTABLE"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "NOT_ACCEPTABLE"
+        ]
+      },
+      "Problem409": {
+        "description": "Context expired, consumed, not ready, configuration changed, reauthorization required or selected installation moved. Restart/refresh according to stable code; never infer uninstallation.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "AUTHORIZATION_CONTEXT_EXPIRED",
+                        "AUTHORIZATION_CONTEXT_CONSUMED",
+                        "AUTHORIZATION_CONTEXT_NOT_READY",
+                        "AUTHORIZATION_CONFIGURATION_CHANGED",
+                        "GITHUB_REAUTHORIZATION_REQUIRED",
+                        "INSTALLATION_SELECTION_CHANGED"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "AUTHORIZATION_CONTEXT_EXPIRED",
+          "AUTHORIZATION_CONTEXT_CONSUMED",
+          "AUTHORIZATION_CONTEXT_NOT_READY",
+          "AUTHORIZATION_CONFIGURATION_CHANGED",
+          "GITHUB_REAUTHORIZATION_REQUIRED",
+          "INSTALLATION_SELECTION_CHANGED"
+        ]
+      },
+      "Problem429": {
+        "description": "Context creation capacity reached; retry after context expiry. Not a new product quota.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "AUTHORIZATION_CONTEXT_LIMIT_REACHED"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "AUTHORIZATION_CONTEXT_LIMIT_REACHED"
+        ]
+      },
+      "Problem500": {
+        "description": "Unexpected internal failure; no raw dependency body.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "INTERNAL_ERROR"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "INTERNAL_ERROR"
+        ]
+      },
+      "Problem503": {
+        "description": "Trust, S01, GitHub, configuration, secret store or bounded execution cannot be verified; fail closed with a stable dependency code.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "USER_TOKEN_TRUST_UNAVAILABLE",
+                        "AUTHORIZATION_CONTEXT_UNAVAILABLE",
+                        "GITHUB_AUTHORIZATION_UNAVAILABLE",
+                        "GITHUB_AUTHORIZATION_CONFIG_UNAVAILABLE",
+                        "AUTHORIZATION_CAPACITY_EXCEEDED",
+                        "UPSTREAM_UNAVAILABLE"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "USER_TOKEN_TRUST_UNAVAILABLE",
+          "AUTHORIZATION_CONTEXT_UNAVAILABLE",
+          "GITHUB_AUTHORIZATION_UNAVAILABLE",
+          "GITHUB_AUTHORIZATION_CONFIG_UNAVAILABLE",
+          "AUTHORIZATION_CAPACITY_EXCEEDED",
+          "UPSTREAM_UNAVAILABLE"
+        ]
+      },
+      "Problem504": {
+        "description": "Gateway downstream timeout. Does not imply a successful background operation.",
+        "headers": {
+          "Cache-Control": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "no-store"
+              ]
+            }
+          },
+          "X-Correlation-ID": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "UPSTREAM_TIMEOUT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "x-error-codes": [
+          "UPSTREAM_TIMEOUT"
+        ]
+      }
+    }
+  },
+  "x-approval": {
+    "by": "Project Owner (user in this chat)",
+    "date": "2026-11-24",
+    "recordedAt": "2026-11-24T14:59:00+07:00",
+    "timezone": "Asia/Saigon",
+    "decision": "Duyệt thiết kế v1 đầy đủ",
+    "scope": "D01-D10 and five onboarding helpers; design only; implementation not authorized"
+  }
+}
