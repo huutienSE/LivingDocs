@@ -607,67 +607,503 @@ paths:
   /internal/v1/source/resolve:
     post:
       tags:
-        - S02 Internal
+      - S02 Internal
       operationId: api069_post
-      summary: Resolve snapshot theo authoritative SHA
-      description: 'LD-API-001 API-069. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
-        có controller/CI và xác nhận owner.'
+      summary: Resolve authoritative source head
+      description: 'LD-API-001 API-069. HTTP adapter implemented locally in LIV-122. Production service identity claim
+        contract is pending: requests are denied by default until trusted decoder and scoped workload mapper are integrated.
+        Test-only signed JWTs do not prove S03/S04 integration. Maximum request body 16 KiB; unknown/duplicate JSON
+        fields are rejected.'
       x-api-id: API-069
       x-contract-state: INTERNAL_CANDIDATE
       x-gateway-exposure: not-enabled
-      responses:
-        '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateObject'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
       security:
-        - serviceAuth: []
+      - serviceAuth: []
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateObject'
-  /internal/v1/source/validate:
-    post:
-      tags:
-        - S02 Internal
-      operationId: api070_post
-      summary: Validate source currentness
-      description: 'LD-API-001 API-070. Trạng thái: INTERNAL_CANDIDATE. Không coi đây là endpoint hoạt động khi chưa
-        có controller/CI và xác nhận owner.'
-      x-api-id: API-070
-      x-contract-state: INTERNAL_CANDIDATE
-      x-gateway-exposure: not-enabled
+              $ref: '#/components/schemas/SourceResolveRequest'
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Authoritative source result
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SourceValidationReceipt'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/SuccessResponseSourceSnapshotView'
+        '400':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            WWW-Authenticate:
+              required: true
+              schema:
+                type: string
+                enum:
+                - Bearer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '405':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            Allow:
+              required: true
+              schema:
+                type: string
+                enum:
+                - POST
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '406':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /internal/v1/source/validate:
+    post:
+      tags:
+      - S02 Internal
+      operationId: api070_post
+      summary: Validate bound source head
+      description: 'LD-API-001 API-070. HTTP adapter implemented locally in LIV-122. Production service identity claim
+        contract is pending: requests are denied by default until trusted decoder and scoped workload mapper are integrated.
+        Test-only signed JWTs do not prove S03/S04 integration. Maximum request body 16 KiB; unknown/duplicate JSON
+        fields are rejected.'
+      x-api-id: API-070
+      x-contract-state: INTERNAL_CANDIDATE
+      x-gateway-exposure: not-enabled
       security:
-        - serviceAuth: []
+      - serviceAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SourceValidationRequest'
+      responses:
+        '200':
+          description: Authoritative source result
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseSourceValidationReceipt'
+        '400':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            WWW-Authenticate:
+              required: true
+              schema:
+                type: string
+                enum:
+                - Bearer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '405':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+            Allow:
+              required: true
+              schema:
+                type: string
+                enum:
+                - POST
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '406':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: Fail-closed source operation error; see HLD error matrix.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                - no-store
+            X-Correlation-ID:
+              required: true
+              schema:
+                type: string
+                pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /internal/v1/source/content:
     post:
       tags:
@@ -747,6 +1183,111 @@ components:
           type: string
         correlationId:
           type: string
+    SourceResolveRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - repositoryConnectionId
+      - targetKind
+      - targetRef
+      properties:
+        repositoryConnectionId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        targetKind:
+          type: string
+          enum:
+          - TRACKED_BRANCH
+          - PR
+        targetRef:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: 'TRACKED_BRANCH: full Git ref refs/heads/...; PR: positive decimal 1..2147483647, no leading
+            zero.'
+        explicitSha:
+          type: string
+          pattern: ^(?!0{40}$)[0-9a-fA-F]{40}$
+    SourceSnapshotView:
+      type: object
+      additionalProperties: false
+      required:
+      - tenantId
+      - workspaceId
+      - repositoryConnectionId
+      - targetKind
+      - targetRef
+      - resolvedSha
+      - configRevision
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        workspaceId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        repositoryConnectionId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        targetKind:
+          type: string
+          enum:
+          - TRACKED_BRANCH
+          - PR
+        targetRef:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: 'TRACKED_BRANCH: full Git ref refs/heads/...; PR: positive decimal 1..2147483647, no leading
+            zero.'
+        resolvedSha:
+          type: string
+          pattern: ^(?!0{40}$)[0-9a-fA-F]{40}$
+        configRevision:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+    SuccessResponseSourceSnapshotView:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - data
+      properties:
+        code:
+          type: string
+          enum:
+          - SOURCE_RESOLVED
+        message:
+          type: string
+          enum:
+          - Source resolved
+        data:
+          $ref: '#/components/schemas/SourceSnapshotView'
+    SuccessResponseSourceValidationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - data
+      properties:
+        code:
+          type: string
+          enum:
+          - SOURCE_VALIDATED
+        message:
+          type: string
+          enum:
+          - Source validated
+        data:
+          $ref: '#/components/schemas/SourceValidationReceipt'
     CandidateObject:
       type: object
       additionalProperties: true
@@ -762,31 +1303,75 @@ components:
           type: string
     SourceValidationReceipt:
       type: object
-      description: CANDIDATE — S02 LIV-122 phải xác nhận field, lifecycle, TTL và trust boundary.
+      additionalProperties: false
+      required:
+      - validationStatus
+      - reason
+      - validationId
+      - tenantId
+      - workspaceId
+      - repositoryConnectionId
+      - targetKind
+      - targetRef
+      - validatedHeadSha
+      - configRevision
+      - sourceRevision
+      - checkedAt
+      - expiresAt
       properties:
-        repositoryConnectionId:
+        validationStatus:
           type: string
-          format: uuid
-        targetRef:
+          enum:
+          - PASS
+        reason:
           type: string
-        validatedHeadSha:
-          type: string
-        configRevision:
-          type: string
-        checkedAt:
-          type: string
-          format: date-time
-        sourceRevision:
-          type: string
-        fenceToken:
-          type: string
+          enum:
+          - CURRENT
         validationId:
           type: string
           format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        tenantId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        workspaceId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        repositoryConnectionId:
+          type: string
+          format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        targetKind:
+          type: string
+          enum:
+          - TRACKED_BRANCH
+          - PR
+        targetRef:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: 'TRACKED_BRANCH: full Git ref refs/heads/...; PR: positive decimal 1..2147483647, no leading
+            zero.'
+        validatedHeadSha:
+          type: string
+          pattern: ^(?!0{40}$)[0-9a-fA-F]{40}$
+        configRevision:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+        sourceRevision:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+          description: Positive BIGINT as a decimal string; maximum 9223372036854775807.
+        checkedAt:
+          type: string
+          format: date-time
         expiresAt:
           type: string
           format: date-time
-          nullable: true
     RepositoryConnectRequest:
       type: object
       description: 'CANDIDATE S02: xác nhận IDs theo GitHub App installation thay vì tin client về permission.'
@@ -867,19 +1452,34 @@ components:
           nullable: true
     SourceValidationRequest:
       type: object
-      description: 'CANDIDATE internal: authoritative SHA validation, S02 LIV-122 xác nhận exact wire fields.'
+      additionalProperties: false
+      required:
+      - repositoryConnectionId
+      - targetKind
+      - targetRef
+      - boundHeadSha
+      - configRevision
       properties:
         repositoryConnectionId:
           type: string
           format: uuid
+          pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
         targetKind:
           type: string
           enum:
-            - PR
-            - TRACKED_BRANCH
+          - TRACKED_BRANCH
+          - PR
         targetRef:
           type: string
+          minLength: 1
+          maxLength: 512
+          description: 'TRACKED_BRANCH: full Git ref refs/heads/...; PR: positive decimal 1..2147483647, no leading
+            zero.'
         boundHeadSha:
           type: string
+          pattern: ^(?!0{40}$)[0-9a-fA-F]{40}$
         configRevision:
           type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S

@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: S02 Source Validation — LIV-122 contract candidate
+  version: 0.1.0
+  description: >-
+    Proposed API-070 contract. The validation core exists; HTTP authentication,
+    repository/provider adapters and durable evidence are not implemented yet.
+    This file does not assert a deployed endpoint or an Accepted security decision.
+paths:
+  /internal/v1/source/validate:
+    post:
+      operationId: validateCurrentSource
+      tags: [Internal Source]
+      summary: Compare an expected source binding with a fresh authoritative head
+      description: >-
+        Private service network only; never route via the public Gateway.
+        Verify service identity, audience, scope and authorized tenant/workspace.
+        The authenticated service must have source validation permission for this scope.
+        Request scope must match authorization; body IDs do not grant access.
+        A direct authenticated response is evidence for this attempt, not a reusable
+        bearer receipt. PASS alone does not authorize Publish. S04 must bind evidence
+        to its approved version and ETag, reject expired/stale evidence, and commit
+        state/audit/outbox conditionally. GitHub and S04 do not share an ACID transaction.
+      security:
+        - serviceIdentity: []
+      parameters:
+        - name: X-Correlation-ID
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceValidationRequest'
+      responses:
+        '200':
+          description: >-
+            Completed validation attempt; validationStatus must be checked even on HTTP 200.
+            Only PASS/CURRENT may proceed to remaining S04 guards. Every other reason
+            blocks Publish. Unknown or inaccessible connections use the same reason.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceValidationResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '503':
+          description: >-
+            Dependency failure before a validation result can be produced.
+            Missing response, timeout, invalid JSON or any non-200 response also blocks Publish.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  securitySchemes:
+    serviceIdentity:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Candidate service identity profile, pending S3-EN01 integration.
+        Validate signature, issuer, expiry, S02 audience and source validation scope.
+        A user JWT or arbitrary tenant header is not service authorization.
+  responses:
+    Problem:
+      description: Rejected request; no successful validation evidence
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    SourceValidationRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, workspaceId, repositoryConnectionId, targetKind, targetRef, expectedHeadSha, expectedConfigRevision]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        targetKind:
+          type: string
+          enum: [BRANCH, PR]
+        targetRef:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: >-
+            BRANCH uses a valid full refs/heads/... ref, never a tag or abbreviated ref.
+            PR uses a positive decimal pull request number; resolve the PR head, never merge SHA.
+        expectedHeadSha:
+          type: string
+          pattern: '^[0-9a-fA-F]{40}$'
+        expectedConfigRevision:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Nonblank S02-owned configuration revision bound to the candidate
+    SourceValidationResult:
+      type: object
+      additionalProperties: false
+      required: [validationId, tenantId, workspaceId, repositoryConnectionId, targetKind, targetRef, expectedHeadSha, configRevision, validationStatus, reason, checkedAt, expiresAt]
+      properties:
+        validationId:
+          type: string
+          format: uuid
+          description: Attempt identifier; not proof of durable storage in the initial core
+        tenantId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
+        targetKind:
+          type: string
+          enum: [BRANCH, PR]
+        targetRef:
+          type: string
+        expectedHeadSha:
+          type: string
+        configRevision:
+          type: string
+          description: Expected revision; PASS requires equality with current S02 configuration
+        validationStatus:
+          type: string
+          enum: [PASS, FAIL]
+        reason:
+          type: string
+          enum: [CURRENT, INVALID_REQUEST, UNKNOWN_CONNECTION, CONNECTION_INACTIVE, CONFIG_CHANGED, UNKNOWN_REF, SOURCE_BINDING_MISMATCH, INVALID_SOURCE, VALIDATION_EXPIRED, STALE_SHA, SOURCE_UNAVAILABLE]
+        validatedHeadSha:
+          type: string
+          nullable: true
+          pattern: '^[0-9a-fA-F]{40}$'
+          description: Present for CURRENT or STALE_SHA; null for unverified source
+        sourceRevision:
+          type: string
+          nullable: true
+          description: >-
+            Nonblank S02-owned revision/fence for the observation. Required for PASS.
+            Must be rechecked/invalidate on source/configuration changes; not a GitHub lock.
+        checkedAt:
+          type: string
+          format: date-time
+          description: Start of this validation attempt, conservatively before the provider read
+        expiresAt:
+          type: string
+          format: date-time
+          description: >-
+            checkedAt plus configured validity. Exact boundary is expired.
+            Validity requires deployment/security review; no default TTL is approved here.
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, correlationId]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+          description: Sanitized; no GitHub credentials, credential references or raw provider errors
+        instance:
+          type: string
+          description: Opaque occurrence URI without sensitive resource paths
+        code:
+          type: string
+        correlationId:
+          type: string
