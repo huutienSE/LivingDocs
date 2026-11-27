@@ -12,6 +12,14 @@ spring:
       timeout: 2s
 
 livingdocs:
+  s02:
+    binding:
+      base-url: ${S02_BINDING_BASE_URL:}
+      path: ${S02_BINDING_PATH:/internal/v1/repository-bindings/verify} # đường dẫn http s02 dùng để xác minh req một grant
+      audience: ${S02_BINDING_AUDIENCE:livingdocs-s02-internal} # service đihcs được phép nhận service jwt
+      operation: ${S02_BINDING_OPERATION:repository-binding:verify} # thao tác
+      timeout-ms: ${S02_BINDING_TIMEOUT_MS:1500}
+      allow-http: ${S02_BINDING_ALLOW_HTTP:false} # băt phải dùng https/tls
   security:
     jwt:
       # định  danh hệ thống nơi phát hành jwt

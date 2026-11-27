@@ -5,6 +5,7 @@ import com.livingdocs.identity.security.JwtTokenIssuer;
 import com.livingdocs.identity.security.ServiceJwtIssuer;
 import com.livingdocs.identity.security.JwtKeyManager;
 import com.livingdocs.identity.security.TenantContext;
+import com.livingdocs.identity.service.RepositoryBindingClient;
 import com.livingdocs.identity.dto.request.ServiceTokenRequest;
 import com.livingdocs.identity.exception.GlobalExceptionHandler;
 import com.nimbusds.jwt.SignedJWT;
@@ -40,6 +41,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import static org.mockito.Mockito.when;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -79,6 +82,7 @@ class AuthorizationEvaluationIntegrationTest {
     @Autowired JdbcTemplate runtimeJdbc;
     @Autowired GlobalExceptionHandler errors;
     @Autowired RegistrationService registration;
+    @MockitoBean RepositoryBindingClient binding;
     private final ObjectMapper json = new ObjectMapper();
 
     @Test void developerConnectAndRevocationAreFreshAndScoped() throws Exception {
@@ -158,7 +162,9 @@ class AuthorizationEvaluationIntegrationTest {
                 tenant, workspace, wm, repository, "Requested by a real technical lead", actor);
         evaluate(user, repoAssertion, repoBody, "DENY");
         // Test-only authoritative fixture: production has no PR2 verification mutation.
-        admin.update("UPDATE identity.repository_grants SET verification_status='VERIFIED', verification_source='S02', verified_at=now() WHERE repository_connection_id=?", repository);
+        admin.update("UPDATE identity.repository_grants SET verification_status='VERIFIED', verification_source='S02', verified_at=now(), verified_binding_revision=1 WHERE repository_connection_id=?", repository);
+        when(binding.lookup(tenant, workspace, repository)).thenAnswer(ignored ->
+                new RepositoryBindingClient.BindingEvidence(tenant, workspace, repository, "ACTIVE", 1, Instant.now()));
         evaluate(user, repoAssertion, repoBody, "ALLOW");
         String staffBody = documentBody(tenant, workspace, repository, "DOCUMENT_STAFF_REVIEW");
         String finalBody = documentBody(tenant, workspace, repository, "DOCUMENT_FINAL_APPROVE");

@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.DynamicUpdate;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -18,6 +19,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(schema = "identity", name = "repository_grants")
 @Getter
+@DynamicUpdate
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RepositoryGrant {
 
@@ -38,6 +40,20 @@ public class RepositoryGrant {
         if (!"ACTIVE".equals(status)) throw new IllegalStateException("Grant is not active");
         status = "REVOKED";
         endedAt = Instant.now();
+    }
+
+    public void verifyFromS02(long bindingRevision) {
+        if (!"ACTIVE".equals(status) || !"PENDING".equals(verificationStatus)
+                || bindingRevision <= 0) throw new IllegalStateException("Grant cannot be verified");
+        verificationStatus = "VERIFIED";
+        verificationSource = "S02";
+        verifiedBindingRevision = bindingRevision;
+        verifiedAt = Instant.now();
+    }
+
+    public boolean isEffectiveCandidate() {
+        return "ACTIVE".equals(status) && "VERIFIED".equals(verificationStatus)
+                && "S02".equals(verificationSource) && verifiedBindingRevision != null;
     }
 
     @Id
@@ -81,6 +97,9 @@ public class RepositoryGrant {
 
     @Column(name = "verified_at")
     private Instant verifiedAt;
+
+    @Column(name = "verified_binding_revision")
+    private Long verifiedBindingRevision;
 
     @Column(name = "ended_at")
     private Instant endedAt;

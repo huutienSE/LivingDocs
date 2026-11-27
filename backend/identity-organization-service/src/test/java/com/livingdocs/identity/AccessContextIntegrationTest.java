@@ -154,17 +154,14 @@ class AccessContextIntegrationTest {
                 .andExpect(jsonPath("$.data.tenantId").value(tenant.toString()))
                 .andExpect(jsonPath("$.data.workspaceGrants.length()").value(2))
                 .andReturn().getResponse().getContentAsString();
-        assertThat(body).contains("DOCUMENT_STAFF_REVIEW", "DOCUMENT_FINAL_APPROVE", "DOCUMENT_AUTHOR");
-        assertThat(body).doesNotContain(repository.toString());
+        assertThat(body).contains(repository.toString(), "GRANT_NOT_VERIFIED", "\"repositoryIds\":[]");
         var grants = com.jayway.jsonpath.JsonPath.read(body, "$.data.workspaceGrants");
         String firstPermissions = com.jayway.jsonpath.JsonPath.read(body,
                 "$.data.workspaceGrants[?(@.workspaceId=='" + first + "')].permissions").toString();
         String secondPermissions = com.jayway.jsonpath.JsonPath.read(body,
                 "$.data.workspaceGrants[?(@.workspaceId=='" + second + "')].permissions").toString();
-        assertThat(firstPermissions).contains("DOCUMENT_STAFF_REVIEW", "DOCUMENT_FINAL_APPROVE")
-                .doesNotContain("DOCUMENT_AUTHOR");
-        assertThat(secondPermissions).contains("DOCUMENT_AUTHOR")
-                .doesNotContain("DOCUMENT_FINAL_APPROVE", "DOCUMENT_STAFF_REVIEW");
+        assertThat(firstPermissions).doesNotContain("DOCUMENT_STAFF_REVIEW", "DOCUMENT_FINAL_APPROVE", "DOCUMENT_AUTHOR");
+        assertThat(secondPermissions).doesNotContain("DOCUMENT_AUTHOR", "DOCUMENT_FINAL_APPROVE", "DOCUMENT_STAFF_REVIEW");
         long before = admin.queryForObject("SELECT authz_revision FROM identity.tenants WHERE tenant_id = ?", Long.class, tenant);
         admin.update("UPDATE identity.tenant_memberships SET status = 'REVOKED', ended_at = now() WHERE membership_id = ?", tenantMember);
         long after = admin.queryForObject("SELECT authz_revision FROM identity.tenants WHERE tenant_id = ?", Long.class, tenant);

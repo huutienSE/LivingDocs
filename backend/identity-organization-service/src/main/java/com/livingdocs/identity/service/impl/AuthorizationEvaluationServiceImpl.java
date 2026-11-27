@@ -6,6 +6,7 @@ import com.livingdocs.identity.exception.AuthorityException;
 import com.livingdocs.identity.repository.*;
 import com.livingdocs.identity.security.TenantContext;
 import com.livingdocs.identity.service.AuthorizationEvaluationService;
+import com.livingdocs.identity.service.RepositoryBindingClient;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class AuthorizationEvaluationServiceImpl implements AuthorizationEvaluati
     private final WorkspaceRoleAssignmentRepository workspaceRoles;
     private final RolePermissionRepository permissions;
     private final RepositoryGrantRepository repositoryGrants;
+    private final RepositoryBindingClient bindings;
 
     @Override
     public AuthorizationEvaluationResponse evaluate(UUID actorId, AuthorizationEvaluationRequest request) {
@@ -52,22 +54,35 @@ public class AuthorizationEvaluationServiceImpl implements AuthorizationEvaluati
         //Gọi TenantContext.readInTenant() để kiểm quyền trong phạm vi Tenant
         //Bên trong sẽ thực thi evaluateSnapshot(actorId, request).
         // Kết quả ALLOW/DENY quay về evaluate(), rồi về Controller.
-        return context.readInTenant(tenant, () -> evaluateSnapshot(actorId, request));
+        Snapshot first = context.readInTenant(tenant, () -> evaluateSnapshot(actorId, request));
+        if (!"ALLOW".equals(first.response().getDecision()) || "REPOSITORY_CONNECT".equals(request.getAction()))
+            return first.response();
+        var evidence = bindings.lookup(tenant, request.getWorkspaceId(), request.getRepositoryConnectionId());
+        if (evidence == null || !evidence.activeFor(tenant, request.getWorkspaceId(),
+                request.getRepositoryConnectionId(), first.bindingRevision())
+                || evidence.revision() != first.bindingRevision())
+            return result(request, first.response().getAuthzRevision(), false);
+        Snapshot second = context.readInTenant(tenant, () -> evaluateSnapshot(actorId, request));
+        if (!"ALLOW".equals(second.response().getDecision())
+                || !java.util.Objects.equals(first.response().getAuthzRevision(), second.response().getAuthzRevision())
+                || !java.util.Objects.equals(first.bindingRevision(), second.bindingRevision()))
+            return result(request, second.response().getAuthzRevision(), false);
+        return second.response();
     }
 
-    private AuthorizationEvaluationResponse evaluateSnapshot(UUID actorId, AuthorizationEvaluationRequest request) {
+    private Snapshot evaluateSnapshot(UUID actorId, AuthorizationEvaluationRequest request) {
         //1. Kiểm tra Identity, Tenant và Tenant Membership ACTIVE.
         var identity = identities.findById(actorId).orElse(null);
         var tenant = tenants.findById(request.getTenantId()).orElse(null);
         if (identity == null || !"ACTIVE".equals(identity.getStatus()) || tenant == null
                 || !"ACTIVE".equals(tenant.getStatus())
                 || tenantMembers.findActive(request.getTenantId(), actorId).isEmpty())
-            return result(request, tenant == null ? null : tenant.getAuthzRevision(), false);
+            return new Snapshot(result(request, tenant == null ? null : tenant.getAuthzRevision(), false), null);
 
         // 2. Kiểm tra Workspace Membership ACTIVE.
         var member = workspaceMembers.findActiveForIdentity(request.getTenantId(), actorId).stream()
                 .filter(m -> request.getWorkspaceId().equals(m.getWorkspaceId())).findFirst().orElse(null);
-        if (member == null) return result(request, tenant.getAuthzRevision(), false);
+        if (member == null) return new Snapshot(result(request, tenant.getAuthzRevision(), false), null);
 
         //3. Lấy các Workspace Role ACTIVE của người dùng.
         var roles = workspaceRoles.findActive(request.getTenantId(), Set.of(member.getWorkspaceMembershipId()))
@@ -76,14 +91,18 @@ public class AuthorizationEvaluationServiceImpl implements AuthorizationEvaluati
         boolean permission = !roles.isEmpty() && permissions.findForRoles(roles).stream()
                 .anyMatch(p -> request.getAction().equals(p.getId().getPermissionCode()));
         //5. Nếu có Repository Connection, kiểm Repository Grant hiệu lực.
-        boolean grant = request.getRepositoryConnectionId() == null || repositoryGrants
+        Long bindingRevision = request.getRepositoryConnectionId() == null ? null : repositoryGrants
                 .findEffective(request.getTenantId(), Set.of(member.getWorkspaceMembershipId())).stream()
-                .anyMatch(g -> request.getWorkspaceId().equals(g.getWorkspaceId())
-                        && request.getRepositoryConnectionId().equals(g.getRepositoryConnectionId()));
+                .filter(g -> request.getWorkspaceId().equals(g.getWorkspaceId())
+                        && request.getRepositoryConnectionId().equals(g.getRepositoryConnectionId()))
+                .map(g -> g.getVerifiedBindingRevision()).findFirst().orElse(null);
+        boolean grant = request.getRepositoryConnectionId() == null || bindingRevision != null;
 
         // ALLOW = PERMISSTON ^ GRANT
-        return result(request, tenant.getAuthzRevision(), permission && grant);
+        return new Snapshot(result(request, tenant.getAuthzRevision(), permission && grant), bindingRevision);
     }
+
+    private record Snapshot(AuthorizationEvaluationResponse response, Long bindingRevision) {}
 
     private AuthorizationEvaluationResponse result(AuthorizationEvaluationRequest request, Long revision, boolean allow) {
         return new AuthorizationEvaluationResponse(allow ? "ALLOW" : "DENY",

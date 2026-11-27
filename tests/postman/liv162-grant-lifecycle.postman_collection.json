@@ -1,0 +1,49 @@
+{
+  "info": {
+    "name": "LIV-162 Grant lifecycle (requires provisioned S01 and real S02 binding)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Lead requests PENDING",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Authorization","value":"Bearer {{leadJwt}}"},
+          {"key":"Idempotency-Key","value":"{{requestKey}}"},
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "url":"{{baseUrl}}/api/v1/tenants/{{tenantId}}/workspaces/{{workspaceId}}/repository-grants",
+        "body":{"mode":"raw","raw":"{\"workspaceMembershipId\":\"{{workspaceMembershipId}}\",\"repositoryConnectionId\":\"{{repositoryConnectionId}}\",\"provenance\":\"LIV-162 provisioned HTTP Grant request\"}"}
+      },
+      "event":[{"listen":"test","script":{"exec":[
+        "pm.test('PENDING grant is not effective', () => { pm.response.to.have.status(201); const d = pm.response.json().data; pm.expect(d.status).to.eql('ACTIVE'); pm.expect(d.verificationStatus).to.eql('PENDING'); pm.expect(d.effective).to.eql(false); pm.collectionVariables.set('grantId', d.grantId); });"
+      ]}}]
+    },
+    {
+      "name":"02 Lead cannot verify own request",
+      "request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{leadJwt}}"}],"url":"{{baseUrl}}/api/v1/tenants/{{tenantId}}/workspaces/{{workspaceId}}/repository-grants/{{grantId}}/verify"},
+      "event":[{"listen":"test","script":{"exec":["pm.test('Self verification denied', () => pm.response.to.have.status(403));"]}}]
+    },
+    {
+      "name":"03 Owner verifies authoritative S02 binding",
+      "request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{ownerJwt}}"}],"url":"{{baseUrl}}/api/v1/tenants/{{tenantId}}/workspaces/{{workspaceId}}/repository-grants/{{grantId}}/verify"},
+      "event":[{"listen":"test","script":{"exec":["pm.test('Grant verified with live binding', () => { pm.response.to.have.status(200); const d=pm.response.json().data; pm.expect(d.verificationStatus).to.eql('VERIFIED'); pm.expect(d.effective).to.eql(true); pm.expect(d.verifiedBindingRevision).to.be.above(0); });"]}}]
+    },
+    {
+      "name":"04 Lead sees repository in access context",
+      "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{leadJwt}}"}],"url":"{{baseUrl}}/api/v1/users/me/access-context"},
+      "event":[{"listen":"test","script":{"exec":["pm.test('Verified repository is effective', () => { pm.response.to.have.status(200); const scopes=pm.response.json().data.workspaceGrants; pm.expect(scopes.some(w => w.repositoryIds.includes(pm.environment.get('repositoryConnectionId')))).to.eql(true); });"]}}]
+    },
+    {
+      "name":"05 Lead revokes own Grant",
+      "request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{leadJwt}}"}],"url":"{{baseUrl}}/api/v1/tenants/{{tenantId}}/workspaces/{{workspaceId}}/repository-grants/{{grantId}}/revoke"},
+      "event":[{"listen":"test","script":{"exec":["pm.test('Grant revoked', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('REVOKED'); });"]}}]
+    },
+    {
+      "name":"06 Revoked Grant disappears from access context",
+      "request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{leadJwt}}"}],"url":"{{baseUrl}}/api/v1/users/me/access-context"},
+      "event":[{"listen":"test","script":{"exec":["pm.test('Revoked repository is not effective', () => { pm.response.to.have.status(200); const scopes=pm.response.json().data.workspaceGrants; pm.expect(scopes.some(w => w.repositoryIds.includes(pm.environment.get('repositoryConnectionId')))).to.eql(false); });"]}}]
+    }
+  ]
+}

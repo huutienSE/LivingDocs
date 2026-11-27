@@ -1225,13 +1225,94 @@ paths:
                   workspaceGrants:
                     - workspaceId: 33333333-3333-4333-8333-333333333333
                       roles: [MANAGER, STAFF]
-                      permissions: [DOCUMENT_FINAL_APPROVE, DOCUMENT_PUBLISH, DOCUMENT_READ, DOCUMENT_STAFF_REVIEW, WORKSPACE_VIEW]
+                      permissions: [WORKSPACE_VIEW]
                       repositoryIds: []
+                      repositoryGrantStatuses: []
         '401': *id001
         '403': *id001
         '500': *id001
       security:
         - bearerAuth: []
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_request
+      x-api-id: LIV-162-GRANT-REQUEST
+      x-contract-state: IN_PROGRESS
+      summary: Request a PENDING Repository Grant
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RepositoryGrantRequest'}
+      responses:
+        '201': {description: PENDING grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    get:
+      operationId: liv162_grant_list
+      x-api-id: LIV-162-GRANT-LIST
+      x-contract-state: IN_PROGRESS
+      summary: List scoped Repository Grants
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Scoped grants, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantListApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: liv162_grant_get
+      x-api-id: LIV-162-GRANT-GET
+      x-contract-state: IN_PROGRESS
+      summary: Get a scoped Repository Grant
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Grant detail, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/verify:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_verify
+      x-api-id: LIV-162-GRANT-VERIFY
+      x-contract-state: IN_PROGRESS
+      summary: Verify a pending Grant against authoritative S02 binding
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Verified Grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/revoke:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_revoke
+      x-api-id: LIV-162-GRANT-REVOKE
+      x-contract-state: IN_PROGRESS
+      summary: Revoke a scoped Repository Grant
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Revoked Grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     workloadBasic:
@@ -1261,6 +1342,38 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    RepositoryGrantRequest:
+      type: object
+      required: [workspaceMembershipId, repositoryConnectionId, provenance]
+      properties:
+        workspaceMembershipId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        provenance: {type: string, minLength: 10, maxLength: 2000}
+    RepositoryGrantView:
+      type: object
+      required: [grantId, tenantId, workspaceId, workspaceMembershipId, repositoryConnectionId, status, verificationStatus, effective]
+      properties:
+        grantId: {type: string, format: uuid}
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        workspaceMembershipId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE, REVOKED]}
+        verificationStatus: {type: string, enum: [PENDING, VERIFIED, REJECTED]}
+        verificationSource: {type: string, nullable: true}
+        effective: {type: boolean}
+        effectiveReason: {type: string, nullable: true}
+        verifiedBindingRevision: {type: integer, format: int64, nullable: true}
+        verifiedAt: {type: string, format: date-time, nullable: true}
+        endedAt: {type: string, format: date-time, nullable: true}
+    RepositoryGrantApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ApiResponseBase'}
+        - {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/RepositoryGrantView'}}}
+    RepositoryGrantListApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ApiResponseBase'}
+        - {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/RepositoryGrantView'}}}}
     ServiceTokenRequest:
       type: object
       required: [audience, operation, method, path, tenantId]
@@ -1549,7 +1662,7 @@ components:
               $ref: '#/components/schemas/AccessContextView'
     AccessContextView:
       type: object
-      description: Current effective navigation snapshot; pending repository grants never appear.
+      description: Current navigation snapshot; pending grants may appear in status detail but never in effective repositoryIds.
       required: [identityId, tenantId, authzRevision, evaluatedAt, tenantRoles, tenantPermissions, workspaceGrants]
       properties:
         identityId: {type: string, format: uuid}
@@ -1579,3 +1692,17 @@ components:
         repositoryIds:
           type: array
           items: {type: string, format: uuid}
+        repositoryGrantStatuses:
+          type: array
+          description: UI snapshot; binding failures yield effective false and BINDING_UNVERIFIED.
+          items: {$ref: '#/components/schemas/RepositoryGrantStatus'}
+    RepositoryGrantStatus:
+      type: object
+      required: [grantId, repositoryConnectionId, status, verificationStatus, effective]
+      properties:
+        grantId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE, REVOKED]}
+        verificationStatus: {type: string, enum: [PENDING, VERIFIED, REJECTED]}
+        effective: {type: boolean}
+        effectiveReason: {type: string, nullable: true}
