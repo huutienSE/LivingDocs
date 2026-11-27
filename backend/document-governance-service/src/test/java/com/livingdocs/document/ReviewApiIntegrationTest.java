@@ -193,7 +193,8 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
         String path = "/api/v1/document-versions/{versionId}/staff-decisions";
         assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
         assertThat(runtime.path("info").path("version").asString()).isEqualTo(reviewed.path("info").path("version").asString());
-        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit");
+        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit",
+                "/api/v1/approval-queue", "/api/v1/document-versions/{versionId}/approval-context");
         var actual = runtime.path("paths").path(path).path("post");
         var expected = reviewed.path("paths").path(path).path("post");
         assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());

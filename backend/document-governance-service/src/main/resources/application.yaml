@@ -26,7 +26,7 @@ springdoc:
     enabled: ${S04_OPENAPI_ENABLED:false}
     version: OPENAPI_3_0
   packages-to-scan: com.livingdocs.document.controller
-  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit
+  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit,/api/v1/approval-queue,/api/v1/document-versions/*/approval-context
   override-with-generic-response: false
 
 livingdocs:
@@ -40,6 +40,8 @@ livingdocs:
     # API-122/123 read Manager scope from the same S01 API-038 endpoint as Staff Review unless overridden.
     access-context-uri: ${S01_APPROVAL_ACCESS_CONTEXT_URI:${livingdocs.review.access-context-uri:}}
     allow-insecure-http: ${S04_APPROVAL_ALLOW_INSECURE_HTTP:${livingdocs.review.allow-insecure-http:false}}
+    queue:
+      max-page-size: ${S04_APPROVAL_QUEUE_MAX_PAGE_SIZE:100}
   submit:
     access-context-uri: ${S01_SUBMIT_ACCESS_CONTEXT_URI:}
     allow-insecure-http: ${S04_SUBMIT_ALLOW_INSECURE_HTTP:false}
