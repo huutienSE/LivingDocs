@@ -31,7 +31,7 @@ public class SourceProblems {
         problem.setProperty("correlationId", request.getAttribute(SourceCorrelationFilter.ATTRIBUTE));
         log.atInfo().addKeyValue("code", error.name()).addKeyValue("httpStatus", error.getStatus())
                 .addKeyValue("correlationId", request.getAttribute(SourceCorrelationFilter.ATTRIBUTE))
-                .log("Source request rejected");
+                .log("Source request rejected: {}", error.name());
         return problem;
     }
 

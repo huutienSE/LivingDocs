@@ -44,6 +44,7 @@ public class SourceSecurityConfiguration {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/internal/v1/source/resolve").hasAuthority("source:resolve")
                         .requestMatchers("/internal/v1/source/validate").hasAuthority("source:validate")
+                        .requestMatchers("/internal/v1/repository-bindings/verify").hasAuthority("repository-binding:verify")
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(errors -> errors

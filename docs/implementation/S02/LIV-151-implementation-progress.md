@@ -19,7 +19,7 @@ Ngày bắt đầu: 27/11/2026, Asia/Saigon. Nhánh do Owner chuẩn bị: `feat
 
 Contract artifact là approved design, không phải API runtime đã implemented. Canonical OpenAPI được cập nhật theo từng slice cùng HTTP/DTO. App ID/slug/domain/secret references thật còn thiếu: chặn GitHub live/browser acceptance, không chặn component tests bằng fixture đã ghi nhãn. Docker mặc định bị chặn quyền pipe; Maven offline chạy được khi cấp quyền cache lock. Không đọc raw secrets hoặc `.env` thật.
 
-**Kiểm chứng:** Maven offline `validate` PASS (JDK 25, Java release 21); static JSON/OpenAPI lint ghi trong log Slice 0. Không có runtime thay đổi trong slice này. Commit: `c374e22` — `docs(LIV-151): define API-046 authorization contract`.
+**Kiểm chứng:** Maven offline `validate` PASS (JDK 25, Java release 21); static JSON/OpenAPI lint ghi trong log Slice 0. Không có runtime thay đổi trong slice này. Commit: `96a6935` — `docs(LIV-151): xác định hợp đồng cấp quyền GitHub cho API-046`.
 
 ## Slice 1 Xem required permissions
 
@@ -37,7 +37,7 @@ Allowlist bổ sung theo các finding review: `client/GitHubAuthorizationIo`, `m
 - [x] Review Standards và Spec riêng; xử lý toàn bộ findings: malformed projection, policy trong adapter, JWKS lock deadline và unknown-length body lifecycle. Rereview không còn finding.
 - [x] GET không tạo context/connection/grant, không truy cập S02 persistence trong luồng này; source token/trust hiện hữu giữ nguyên. User JWT không trở thành source workload credential.
 - [x] Diff/allowlist tách user changes và secrets; success/Problem fixtures không chứa token/private key/credential reference.
-- [x] Commit riêng `feat(LIV-151): expose required GitHub App permissions` sau verification; xem SHA bằng Git log trên nhánh hiện tại.
+- [x] Commit riêng `feat(LIV-151): cung cấp danh sách quyền GitHub App bắt buộc` sau verification; xem SHA bằng Git log trên nhánh hiện tại.
 
 ### Luồng hoàn thành trong Slice 1
 
@@ -109,13 +109,13 @@ Evidence đã có **trước thay đổi quy trình**: 13 context/persistence te
 
 | Slice | Hành vi | Trạng thái |
 | --- | --- | --- |
-| 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | CODE COMPLETE; final test checklist QUEUED |
-| 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | CODE COMPLETE; final test checklist QUEUED |
-| 4 | So sánh levels/permissions, sufficient/insufficient/suspended | CODE COMPLETE; final test checklist QUEUED |
+| 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | CODE COMPLETE; kiểm thử tổng PASS, browser acceptance xem checkpoint cuối |
+| 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | CODE COMPLETE; kiểm thử tổng PASS, browser acceptance xem checkpoint cuối |
+| 4 | So sánh levels/permissions, sufficient/insufficient/suspended | CODE COMPLETE; kiểm thử tổng PASS, browser acceptance xem checkpoint cuối |
 | 4A | Repository-specific verification trong API-046 | N/A theo contract |
-| 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | CODE COMPLETE; kiểm thử tổng và E2E acceptance đang thực hiện |
+| 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | CODE COMPLETE; fixture/integration PASS; browser/App profile BLOCKED |
 
-Không báo Task Done dựa trên từng slice hoặc CI xanh; không chuyển slice nếu gate tương ứng còn FAIL/BLOCKED.
+Owner đã đổi quy trình: hoàn thiện toàn bộ nghiệp vụ trước, kiểm thử tổng sau; không tiếp tục lặp theo lát. Chỉ báo đúng phạm vi evidence đã PASS.
 
 ### Slice 3 — Đọc bằng chứng quyền từ GitHub
 
@@ -144,8 +144,24 @@ Slice 3 cung cấp inspection cho orchestration; Slice 4 nối evidence này và
 
 - [x] Gateway allowlist đúng 6 method/path; callback GET có security chain state/cookie riêng, không yêu cầu hoặc xác thực LivingDocs Bearer ở callback.
 - [x] Routes LIV-151 timeout 12s gồm cả body, giữ 5s cho routes khác; security failure dùng Problem + no-store + correlation; CORS credentials không mở rộng.
-- [x] Compose chỉ thêm secret references/mount read-only, không thay secret thật hoặc App settings; CI cập nhật Flyway 4 migrations / 11 RLS tables.
+- [x] Compose chỉ thêm secret references/mount read-only, không thay secret thật hoặc App settings; CI cập nhật Flyway 5 migrations / 11 RLS tables (gồm binding handoff S01).
 - [x] Gateway production compile PASS: `target/liv151-slice5-gateway-compile.log`.
 - [x] [Runbook, sequence diagram và checklist nghiệm thu](LIV-151-van-hanh-va-nghiem-thu.md) đã bổ sung.
 - [ ] Kiểm thử tổng sau khi code nghiệp vụ hoàn tất: đang chuẩn bị fixtures/test suite và validators; file test commit riêng.
 - [ ] E2E thật trên App LIV-122: chỉ ghi PASS khi có evidence mới, không suy từ test fixtures.
+
+
+## Checkpoint tích hợp cuối — 28/11/2026
+
+- [x] Code toàn bộ LIV-151 đã hoàn thiện; test files tách commit riêng theo Owner.
+- [x] Nhận Service JWT đúng contract S01 PR2 cho S03 resolve/S04 validate, và PR3 cho repository binding verify.
+- [x] Receiver binding production + RLS + revision invalidation, xử lý race commit và INSERT/rebind/snapshot; không đọc chéo DB service.
+- [x] Full S02: 260 ca, 0 failures/errors, 2 skipped live legacy; Gateway 30/30 PASS.
+- [x] Runtime/static/HTTP schema và inventory PASS; 125 APIs, 101 exact Gateway entries, 24 groups.
+- [x] E2E S01 → Gateway → S02 → GitHub thật PASS: request/verify/revoke Grant, API-038 effective repository, API-039 ALLOW/DENY, S01-issued S03/S04 JWT và source SHA.
+- [x] Review Standards/Spec; các race revision tìm thấy đã sửa và có regression; rereview không còn blocker cụ thể.
+- [x] [Bàn giao luồng đầy đủ, lệnh tái chạy và giới hạn](Flow1-S01-S02-tich-hop-va-E2E.md), [evidence đã lọc bí mật](LIV-151-Flow1-E2E-evidence.json).
+- [ ] Browser consent thật LIV-151: App 5829464 hiện contents/PR read, thiếu checks/events; cần [áp dụng cấu hình đã chỉ rõ](LIV-151-cau-hinh-App-that-can-ap-dung.md) sau Owner duyệt thao tác ngoài repo.
+- [ ] Full S04 Document lifecycle/Golden Flow 1 và TLS production: chưa chạy, không thuộc evidence E2E local này.
+
+Các checklist QUEUED ở mục lịch sử đã được xử lý bằng đợt kiểm thử tổng nêu trên; browser/production gates vẫn mở đúng tình trạng. Lượt full đầu có một assertion schema cũ FAIL; sửa assertion và chạy lại toàn bộ PASS, không xóa evidence FAIL. Hai ca live legacy bị skipped trong JUnit được phân biệt với lượt E2E GitHub thật chạy riêng đã PASS.

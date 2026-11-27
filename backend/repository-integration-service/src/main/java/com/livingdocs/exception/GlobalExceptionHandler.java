@@ -57,6 +57,12 @@ public class GlobalExceptionHandler {
         return problem(SourceApiError.INTERNAL_ERROR, request);
     }
 
+    @ExceptionHandler({org.springframework.dao.DataAccessException.class,
+            org.springframework.transaction.TransactionException.class, jakarta.persistence.PersistenceException.class})
+    ResponseEntity<ProblemDetail> unavailable(Exception failure, HttpServletRequest request) {
+        return problem(SourceApiError.SOURCE_UNAVAILABLE, request);
+    }
+
     private ResponseEntity<ProblemDetail> problem(SourceApiError error, HttpServletRequest request) {
         return ResponseEntity.status(error.getStatus()).contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(problems.body(error, request));

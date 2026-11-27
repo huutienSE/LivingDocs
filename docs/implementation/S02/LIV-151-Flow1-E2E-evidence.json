@@ -1,0 +1,36 @@
+{
+  "environment": "isolated local HTTP, real S01/S02/Gateway/PG18/Redis; real GitHub read only",
+  "checks": {
+    "request_pending": "PASS",
+    "owner_verifies_via_real_s02_binding": "PASS",
+    "api038_effective_repository": "PASS",
+    "api039_live_grant_allow": "PASS",
+    "s01_issued_s03_s04_jwt_real_github_sha": "PASS",
+    "wrong_operation_user_token_scope_public_route_stale_sha": "PASS",
+    "disconnect_invalidates_grant": "PASS",
+    "restore_does_not_revive_old_verified_grant": "PASS",
+    "revoke_and_fresh_deny": "PASS"
+  },
+  "database": "livingdocs_liv151_flow1_1128023114",
+  "githubApp": {
+    "id": 5829464,
+    "slug": "livingdocs-s02-test-tientuiteen",
+    "name": "livingdocs-s02-test-tientuiteen",
+    "permissions": {
+      "contents": "read",
+      "metadata": "read",
+      "pull_requests": "read"
+    },
+    "events": []
+  },
+  "liv151ProfileMatches": false,
+  "resolvedSha": "351ee46328288729148635e218491be161767f77",
+  "result": "PASS",
+  "runDate": "2026-11-28",
+  "limits": [
+    "Local loopback HTTP only; production TLS not accepted by this run",
+    "S01 authority and S02 connection seeded only in isolated fixture DB",
+    "No S04 Document lifecycle/publish implementation exercised",
+    "GitHub App OAuth browser consent not exercised; registration differs from approved LIV-151 profile"
+  ]
+}

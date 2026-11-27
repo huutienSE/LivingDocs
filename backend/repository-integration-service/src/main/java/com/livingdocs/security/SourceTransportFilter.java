@@ -18,7 +18,8 @@ public final class SourceTransportFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (request.getServletPath().startsWith("/internal/v1/source/") && !allowInsecure && !request.isSecure()) {
+        if ((request.getServletPath().startsWith("/internal/v1/source/")
+                || request.getServletPath().equals("/internal/v1/repository-bindings/verify")) && !allowInsecure && !request.isSecure()) {
             throw new SourceApiException(SourceApiError.SOURCE_UNAVAILABLE);
         }
         chain.doFilter(request, response);

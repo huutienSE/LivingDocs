@@ -3235,6 +3235,55 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CandidateObject'
+  /internal/v1/repository-bindings/verify:
+    post:
+      operationId: repositoryBindingVerify
+      x-api-id: repositoryBindingVerify
+      x-contract-state: IN_PROGRESS
+      summary: Fresh authoritative connection binding for S01 Repository Grants
+      security:
+      - serviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryBindingRequest'
+      responses:
+        '200':
+          description: Active binding read freshly from tenant-scoped S02 storage
+          headers:
+            Cache-Control:
+              schema: {type: string, enum: [no-store]}
+            X-Correlation-ID:
+              schema: {type: string}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryBindingResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '405':
+          $ref: '#/components/responses/Problem'
+        '406':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '413':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3558,6 +3607,33 @@ components:
       x-error-codes:
       - UPSTREAM_TIMEOUT
   schemas:
+    RepositoryBindingRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, workspaceId, repositoryConnectionId]
+      properties:
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+    RepositoryBindingView:
+      type: object
+      additionalProperties: false
+      required: [tenantId, workspaceId, repositoryConnectionId, status, bindingRevision, observedAt]
+      properties:
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE]}
+        bindingRevision: {type: integer, format: int64, minimum: 1}
+        observedAt: {type: string, format: date-time}
+    RepositoryBindingResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data]
+      properties:
+        code: {type: string, enum: [REPOSITORY_BINDING_VERIFIED]}
+        message: {type: string, enum: [Repository binding verified]}
+        data: {$ref: '#/components/schemas/RepositoryBindingView'}
     Problem:
       type: object
       description: RFC 9457 Problem Details + extension code/correlationId.

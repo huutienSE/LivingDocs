@@ -38,6 +38,10 @@ livingdocs:
       cleanup-delay-ms: ${LIVINGDOCS_GITHUB_AUTHORIZATION_CLEANUP_DELAY_MS:30000}
       allow-local-http: ${LIVINGDOCS_GITHUB_AUTHORIZATION_ALLOW_LOCAL_HTTP:false}
   source:
+    s01:
+      enabled: ${LIVINGDOCS_SOURCE_S01_ENABLED:false}
+      jwk-set-uri: ${LIVINGDOCS_SOURCE_S01_JWK_SET_URI:}
+      allow-local-http: ${LIVINGDOCS_SOURCE_S01_ALLOW_LOCAL_HTTP:false}
     request-timeout: "${LIVINGDOCS_SOURCE_REQUEST_TIMEOUT_SECONDS:15}s"
     github:
       client-id: ${LIVINGDOCS_SOURCE_GITHUB_CLIENTID:}

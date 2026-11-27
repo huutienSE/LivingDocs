@@ -13,7 +13,7 @@ public class GitHubAuthorizationQuery {
     @Schema(format = "uuid")
     private String workspaceId;
     @Pattern(regexp = UUID_PATTERN)
-    @Schema(format = "uuid", description = "Owned context; reads fail closed until Slice 2 is available")
+    @Schema(format = "uuid", description = "Owned transient authorization context in the current workspace")
     private String authorizationContextId;
     @Pattern(regexp = "[1-9][0-9]{0,18}")
     @Schema(description = "Positive decimal BIGINT, at most 9223372036854775807; requires authorizationContextId")

@@ -11,6 +11,7 @@ public enum SuccessCode {
     GITHUB_INSTALLATIONS_LISTED("GITHUB_INSTALLATIONS_LISTED", "GitHub installations listed"),
     GITHUB_REPOSITORIES_LISTED("GITHUB_REPOSITORIES_LISTED", "GitHub repositories listed"),
     SOURCE_RESOLVED("SOURCE_RESOLVED", "Source resolved"),
+    REPOSITORY_BINDING_VERIFIED("REPOSITORY_BINDING_VERIFIED", "Repository binding verified"),
     SOURCE_VALIDATED("SOURCE_VALIDATED", "Source validated");
 
     private final String wireCode;

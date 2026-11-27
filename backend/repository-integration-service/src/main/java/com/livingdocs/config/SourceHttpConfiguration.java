@@ -20,7 +20,7 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 
 @Configuration(proxyBeanMethods = false)
 @SecurityScheme(name = "serviceAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT",
-        description = "Internal workload identity; production access denied until issuer/claim contract is configured")
+        description = "S01 service JWT: RS256, urn:livingdocs:s01, livingdocs-s02-internal; exact operation, method, path and resource scope")
 public class SourceHttpConfiguration {
     @Bean
     JsonMapperBuilderCustomizer sourceJsonContract() {
@@ -46,7 +46,7 @@ public class SourceHttpConfiguration {
             problem.setRequired(List.of("type", "title", "status", "detail", "instance", "code", "correlationId"));
             api.getComponents().addSchemas("Problem", problem);
             api.getPaths().values().forEach(path -> path.readOperations().forEach(operation -> {
-                if (!List.of("api069_post", "api070_post").contains(operation.getOperationId())) return;
+                if (!List.of("api069_post", "api070_post", "repositoryBindingVerify").contains(operation.getOperationId())) return;
                 operation.getResponses().get("200").setHeaders(sourceHeaders());
                 for (String status : List.of("400", "401", "403", "404", "405", "406", "409", "413", "415", "500", "503")) {
                     var headers = sourceHeaders();

@@ -16,7 +16,8 @@ public final class SourceBodyLimitFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         return !"POST".equals(request.getMethod()) ||
-                !("/internal/v1/source/resolve".equals(path) || "/internal/v1/source/validate".equals(path));
+                !("/internal/v1/source/resolve".equals(path) || "/internal/v1/source/validate".equals(path)
+                        || "/internal/v1/repository-bindings/verify".equals(path));
     }
 
     @Override
