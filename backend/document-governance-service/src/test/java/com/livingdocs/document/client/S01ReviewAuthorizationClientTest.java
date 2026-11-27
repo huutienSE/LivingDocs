@@ -66,7 +66,7 @@ class S01ReviewAuthorizationClientTest {
 
     Map<String, Object> envelope(Object data) { return Map.of("code", "ACCESS_CONTEXT_LOADED", "data", data); }
 
-    S01ReviewAuthorizationClient client() { return new S01ReviewAuthorizationClient(json, uri, true); }
+    S01ReviewAuthorizationClient client() { return new S01ReviewAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), uri, true); }
 
     @Test void identityOnlyTokenForwardsBearerAndLoadsScopedAuthorityOnEveryCall() {
         var client = client();
@@ -150,11 +150,11 @@ class S01ReviewAuthorizationClientTest {
 
     @Test void missingConfigOrPrincipalFailsClosedAndHttpRequiresExplicitLocalException() {
         assertThatThrownBy(() -> client().resolve(null)).isInstanceOf(ReviewAuthenticationRequiredException.class);
-        assertThatThrownBy(() -> new S01ReviewAuthorizationClient(json, "", false).resolve(jwt()))
+        assertThatThrownBy(() -> new S01ReviewAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), "", false).resolve(jwt()))
                 .isInstanceOf(ReviewAuthorizationUnavailableException.class);
         for (String endpoint : List.of(uri, "https://user:secret@example.org/context", "https://example.org/context?x=1",
                 "https://example.org/context#fragment", "/relative", "file:///context")) {
-            assertThatThrownBy(() -> new S01ReviewAuthorizationClient(json, endpoint, false)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> new S01ReviewAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), endpoint, false)).isInstanceOf(IllegalArgumentException.class);
         }
         assertThat(calls).isZero();
     }

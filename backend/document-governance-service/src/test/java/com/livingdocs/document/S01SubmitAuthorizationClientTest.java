@@ -69,7 +69,7 @@ class S01SubmitAuthorizationClientTest {
 
     Map<String, Object> envelope(Object data) { return Map.of("code", "ACCESS_CONTEXT_LOADED", "data", data); }
 
-    S01SubmitAuthorizationClient client() { return new S01SubmitAuthorizationClient(json, uri, true); }
+    S01SubmitAuthorizationClient client() { return new S01SubmitAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), uri, true); }
 
     @Test void identityOnlyTokenForwardsBearerAndLoadsScopedAuthorityOnEveryCall() {
         var client = client();
@@ -155,11 +155,11 @@ class S01SubmitAuthorizationClientTest {
 
     @Test void missingConfigOrPrincipalFailsClosedAndHttpRequiresExplicitLocalException() {
         assertThatThrownBy(() -> client().resolve(null)).isInstanceOf(SubmitException.class);
-        assertThatThrownBy(() -> new S01SubmitAuthorizationClient(json, "", false).resolve(jwt()))
+        assertThatThrownBy(() -> new S01SubmitAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), "", false).resolve(jwt()))
                 .isInstanceOf(SubmitException.class);
         for (String endpoint : List.of(uri, "https://user:secret@example.org/context", "https://example.org/context?x=1",
                 "https://example.org/context#fragment", "/relative", "file:///context")) {
-            assertThatThrownBy(() -> new S01SubmitAuthorizationClient(json, endpoint, false)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> new S01SubmitAuthorizationClient(new com.livingdocs.document.client.S01AccessContextClient(json), endpoint, false)).isInstanceOf(IllegalArgumentException.class);
         }
         assertThat(calls).isZero();
     }
