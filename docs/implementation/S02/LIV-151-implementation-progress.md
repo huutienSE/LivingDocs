@@ -111,7 +111,7 @@ Evidence đã có **trước thay đổi quy trình**: 13 context/persistence te
 | --- | --- | --- |
 | 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | CODE COMPLETE; final test checklist QUEUED |
 | 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | CODE COMPLETE; final test checklist QUEUED |
-| 4 | So sánh levels/permissions, sufficient/insufficient/suspended | NOT STARTED |
+| 4 | So sánh levels/permissions, sufficient/insufficient/suspended | CODE COMPLETE; final test checklist QUEUED |
 | 4A | Repository-specific verification trong API-046 | N/A theo contract |
 | 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | NOT STARTED; cần cấu hình thật |
 
@@ -129,3 +129,13 @@ Không báo Task Done dựa trên từng slice hoặc CI xanh; không chuyển s
 - [ ] Kiểm thử cuối task: provider faults, identity mismatch, proof ordering, source token regression và App thật.
 
 Slice 3 cung cấp inspection cho orchestration; Slice 4 nối evidence này vào sáu trạng thái public API-046 theo contract đã có.
+
+### Slice 4 — Kết quả đáp ứng quyền
+
+- [x] API-046 có selected installation chạy xuyên suốt S01 → user proof → App inspection → permission policy → MapStruct → HTTP DTO.
+- [x] So sánh theo category/name và thứ tự `read < write < admin`; quyền dư được công bố theo registry category, không thay thế quyền bắt buộc còn thiếu.
+- [x] Đủ quyền → VERIFIED_SUFFICIENT; thiếu quyền → VERIFIED_INSUFFICIENT với mức quyền bắt buộc; suspended luôn ưu tiên INSTALLATION_SUSPENDED.
+- [x] Verified branch có installation, granted/missing, checkedAt và `repositoryAccessVerified=false`; unverified branch chỉ có status, không có dữ liệu quyền giả.
+- [x] Không tạo connection/grant, không kiểm repository cụ thể trong API-046; API-047 phải xác minh lại tại lúc connect.
+- [x] Production compile PASS: `target/liv151-slice4-compile.log`. Tests được chạy chung sau khi code Slice 5 hoàn tất.
+- [ ] Kiểm thử cuối task: sáu trạng thái, mapping/schema, higher/lower levels, extra/unknown permissions và provider errors.

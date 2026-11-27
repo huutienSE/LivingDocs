@@ -16,7 +16,7 @@ public final class GitHubAuthorizationRequirements {
     private final List<Permission> permissions;
     private final List<String> events;
     private final GitHubAuthorizationContextSnapshot context;
-    private final String verificationStatus;
+    private final GitHubAuthorizationVerification verification;
 
     @Getter @RequiredArgsConstructor
     @Schema(name = "GitHubRequiredPermission", requiredProperties = {"category", "name", "level", "purpose"})

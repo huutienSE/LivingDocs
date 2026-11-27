@@ -14,8 +14,22 @@ public interface GitHubAuthorizationMapper {
     @Mapping(target = "requiredPermissions", expression = "java(source.getPermissions())")
     @Mapping(target = "requiredEvents", expression = "java(source.getEvents())")
     @Mapping(target = "context", expression = "java(source.getContext() == null ? new GitHubAuthorizationView.Context(\"NONE\", null, null) : new GitHubAuthorizationView.Context(source.getContext().getStatus(), source.getContext().getContextId(), source.getContext().getExpiresAt()))")
-    @Mapping(target = "verification", expression = "java(new GitHubAuthorizationView.Verification(source.getVerificationStatus()))")
+    @Mapping(target = "verification", expression = "java(toVerification(source.getVerification()))")
     GitHubAuthorizationView toView(GitHubAuthorizationRequirements source);
+
+    @Mapping(target = "status", expression = "java(source.getStatus())")
+    @Mapping(target = "installation", expression = "java(source.getInstallation() == null ? null : toVerifiedInstallation(source.getInstallation()))")
+    @Mapping(target = "grantedPermissions", expression = "java(source.getGrantedPermissions())")
+    @Mapping(target = "missingPermissions", expression = "java(source.getMissingPermissions())")
+    @Mapping(target = "checkedAt", expression = "java(source.getCheckedAt())")
+    @Mapping(target = "repositoryAccessVerified", expression = "java(source.getRepositoryAccessVerified())")
+    GitHubAuthorizationView.Verification toVerification(com.livingdocs.model.GitHubAuthorizationVerification source);
+
+    @Mapping(target = "installationId", expression = "java(source.getInstallationId())")
+    @Mapping(target = "accountId", expression = "java(source.getAccountId())")
+    @Mapping(target = "accountLogin", expression = "java(source.getAccountLogin())")
+    @Mapping(target = "repositorySelection", expression = "java(source.getRepositorySelection())")
+    GitHubAuthorizationView.Installation toVerifiedInstallation(com.livingdocs.model.GitHubAuthorizationDiscovery.Installation source);
 
     @Mapping(target = "contextId", expression = "java(source.getContextId())")
     @Mapping(target = "expiresAt", expression = "java(source.getExpiresAt())")
