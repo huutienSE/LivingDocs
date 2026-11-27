@@ -233,6 +233,11 @@
     "state": "IN_PROGRESS",
     "gatewayEnabled": false
   },
+  {"apiId":"LIV-162-GRANT-REQUEST","service":"S01","method":"POST","path":"/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants","business":"Request PENDING Repository Grant","state":"IN_PROGRESS","gatewayEnabled":true},
+  {"apiId":"LIV-162-GRANT-LIST","service":"S01","method":"GET","path":"/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants","business":"List scoped Repository Grants","state":"IN_PROGRESS","gatewayEnabled":true},
+  {"apiId":"LIV-162-GRANT-GET","service":"S01","method":"GET","path":"/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}","business":"Get scoped Repository Grant","state":"IN_PROGRESS","gatewayEnabled":true},
+  {"apiId":"LIV-162-GRANT-VERIFY","service":"S01","method":"POST","path":"/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/verify","business":"Verify Grant against S02","state":"IN_PROGRESS","gatewayEnabled":true},
+  {"apiId":"LIV-162-GRANT-REVOKE","service":"S01","method":"POST","path":"/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/revoke","business":"Revoke Repository Grant","state":"IN_PROGRESS","gatewayEnabled":true},
   {
     "apiId": "API-046",
     "service": "S02",

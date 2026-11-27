@@ -39,6 +39,16 @@ spring:
             predicates:
               - Path=/api/v1/users/me/access-context
               - Method=GET
+          - id: s01-get-liv-162-grants
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
+            predicates:
+              - Path=/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants,/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}
+              - Method=GET
+          - id: s01-post-liv-162-grants
+            uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
+            predicates:
+              - Path=/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants,/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/verify,/api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/revoke
+              - Method=POST
           - id: s01-post-api-001-034
             uri: ${S01_SERVICE_URI:http://127.0.0.1:8081}
             predicates:
