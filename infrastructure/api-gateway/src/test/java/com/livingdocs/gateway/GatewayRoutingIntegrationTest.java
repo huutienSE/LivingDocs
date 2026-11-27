@@ -99,6 +99,39 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
+    void onlyTheExactGitHubGetCallbackBypassesUserJwt() {
+        String callback="/api/v1/integrations/github/authorization/callback";
+        client.get().uri(callback+"?state=fixture&code=fixture")
+                .header("Authorization","Bearer callback-invalid").header("X-Correlation-ID","liv151-callback")
+                .exchange().expectStatus().isOk().expectHeader().valueEquals("Cache-Control","no-store")
+                .expectBody(String.class).isEqualTo("S02|GET|"+callback+"?state=fixture&code=fixture|liv151-callback");
+        org.mockito.Mockito.verify(jwtDecoder,org.mockito.Mockito.never()).decode("callback-invalid");
+        client.post().uri(callback).exchange().expectStatus().isUnauthorized();
+        client.get().uri(callback+"/nearby").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/api/v1/auth/github/callback").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void onboardingHelpersRequireJwtAndRouteOnlyTheirExactMethodAndPath() {
+        String base="/api/v1/integrations/github/authorization-contexts";
+        String id="15100000-0000-4000-8000-000000000009";
+        String[] paths={base,base+"/"+id+"/installations",base+"/"+id+"/installations/15110/repositories",base+"/"+id};
+        org.springframework.http.HttpMethod[] methods={org.springframework.http.HttpMethod.POST,org.springframework.http.HttpMethod.GET,
+                org.springframework.http.HttpMethod.GET,org.springframework.http.HttpMethod.DELETE};
+        for(int i=0;i<paths.length;i++) {
+            client.method(methods[i]).uri(paths[i]).exchange().expectStatus().isUnauthorized()
+                    .expectHeader().valueEquals("Cache-Control","no-store")
+                    .expectHeader().contentTypeCompatibleWith("application/problem+json")
+                    .expectBody().jsonPath("$.code").isEqualTo("UNAUTHENTICATED");
+            client.method(methods[i]).uri(paths[i]).header("Authorization","Bearer routing-token")
+                    .header("X-Correlation-ID","liv151-helper").exchange().expectStatus().isOk()
+                    .expectHeader().valueEquals("Cache-Control","no-store")
+                    .expectBody(String.class).isEqualTo("S02|"+methods[i]+"|"+paths[i]+"|liv151-helper");
+        }
+        client.put().uri(base+"/"+id).header("Authorization","Bearer routing-token").exchange().expectStatus().isNotFound();
+    }
+
+    @Test
     void routesRepositoryGrantLifecycleOnlyWithUserJwt() {
         String path = "/api/v1/tenants/t-1/workspaces/w-1/repository-grants";
         client.get().uri(path).exchange().expectStatus().isUnauthorized();

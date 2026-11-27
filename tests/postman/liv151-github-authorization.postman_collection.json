@@ -1,0 +1,321 @@
+{
+  "info": {
+    "_postman_id": "9d495c32-111b-4e24-bcde-844dc03a9361",
+    "name": "LIV-151 GitHub authorization",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Không lưu token vào collection. Chạy trước consent, hoàn thành authorizationUrl trong browser cùng origin, rồi chạy folder sau consent. Callback state/code/cookie chỉ đi qua browser, không in ra console."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:8443"
+    },
+    {
+      "key": "browserOrigin",
+      "value": "https://localhost:8443"
+    },
+    {
+      "key": "workspaceId",
+      "value": ""
+    },
+    {
+      "key": "installationId",
+      "value": ""
+    },
+    {
+      "key": "installationPage",
+      "value": "1"
+    },
+    {
+      "key": "contextId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Trước consent",
+      "item": [
+        {
+          "name": "Xem quyền bắt buộc",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization?workspaceId={{workspaceId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bắt đầu consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{browserOrigin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization-contexts",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"workspaceId\": \"{{workspaceId}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([201]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));",
+                  "if (pm.response.code === 201) pm.environment.set(\"contextId\", pm.response.json().data.contextId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Đọc context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization?workspaceId={{workspaceId}}&authorizationContextId={{contextId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sau consent browser",
+      "item": [
+        {
+          "name": "Installation người dùng truy cập",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization-contexts/{{contextId}}/installations?page={{installationPage}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Xác minh quyền installation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization?workspaceId={{workspaceId}}&authorizationContextId={{contextId}}&installationId={{installationId}}&installationPage={{installationPage}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repository người dùng truy cập",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization-contexts/{{contextId}}/installations/{{installationId}}/repositories?page=1",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hủy context",
+      "item": [
+        {
+          "name": "Hủy credential local",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/integrations/github/authorization-contexts/{{contextId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userJwt}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status theo contract\", () => pm.expect([204]).to.include(pm.response.code));",
+                  "pm.test(\"Không cache\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+                  "pm.test(\"Có correlation\", () => pm.expect(pm.response.headers.get(\"X-Correlation-ID\")).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

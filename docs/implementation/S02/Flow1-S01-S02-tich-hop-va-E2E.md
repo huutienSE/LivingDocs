@@ -62,7 +62,7 @@ Nếu key directory có nhiều `.pem`, thêm `--key-reference ten-key-hien-huu.
 | Full S02 PostgreSQL + HTTP + provider + JWT + RLS | **260 ca, 0 failures/errors, 2 skipped live legacy**; 258 ca thực thi PASS, `target/liv151-full-final.log` |
 | Receiver PR2/PR3 trust | **14/14 PASS**, gồm issuer URN thực, audience, thời hạn, claims và exact scope |
 | Binding concurrency | **3/3 PASS**, gồm snapshot miss và cấp revision sau khóa |
-| Gateway | **30/30 PASS**, `target/liv151-gateway-final.log` |
+| Gateway | **30/30 PASS** và **1/1 TCP whole-body deadline PASS**; `target/liv151-gateway-final.log`, `target/liv151-gateway-whole-body.log` |
 | OpenAPI/inventory/schema HTTP | **PASS**: 125 catalogued APIs, 101 exact public entries, 24 route groups; 6 operations LIV-151 khớp static/runtime và HTTP fixtures |
 | E2E S01/Gateway/S02/GitHub | **PASS** 9 nhóm checks trong evidence JSON |
 | Full Golden Flow 1 với S04 Document lifecycle | **NOT RUN**, không suy ra từ API-039/SHA PASS |
@@ -70,3 +70,5 @@ Nếu key directory có nhiều `.pem`, thêm `--key-reference ten-key-hien-huu.
 | Remote CI/deploy | **NOT RUN**, không push/deploy trong phiên |
 
 Code và tests có commit riêng. Không ghi Task Done cho browser acceptance khi App chưa khớp; không tạo thêm quy trình lát để che phần cấu hình còn thiếu.
+
+Collection LIV-151 đã có tại `tests/postman/liv151-github-authorization.postman_collection.json`; cú pháp JSON đã kiểm. Newman/browser consent **NOT RUN**, không được tính vào các ca PASS trên. Build bàn giao `tests/e2e/build-flow1-fixtures.ps1` đã chạy thành công cho cả ba service, log `target/liv151-final-fixture-build.log`.

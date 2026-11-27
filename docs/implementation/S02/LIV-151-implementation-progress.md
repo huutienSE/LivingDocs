@@ -156,7 +156,7 @@ Slice 3 cung cấp inspection cho orchestration; Slice 4 nối evidence này và
 - [x] Code toàn bộ LIV-151 đã hoàn thiện; test files tách commit riêng theo Owner.
 - [x] Nhận Service JWT đúng contract S01 PR2 cho S03 resolve/S04 validate, và PR3 cho repository binding verify.
 - [x] Receiver binding production + RLS + revision invalidation, xử lý race commit và INSERT/rebind/snapshot; không đọc chéo DB service.
-- [x] Full S02: 260 ca, 0 failures/errors, 2 skipped live legacy; Gateway 30/30 PASS.
+- [x] Full S02: 260 ca, 0 failures/errors, 2 skipped live legacy; Gateway 30/30 và TCP whole-body deadline 1/1 PASS.
 - [x] Runtime/static/HTTP schema và inventory PASS; 125 APIs, 101 exact Gateway entries, 24 groups.
 - [x] E2E S01 → Gateway → S02 → GitHub thật PASS: request/verify/revoke Grant, API-038 effective repository, API-039 ALLOW/DENY, S01-issued S03/S04 JWT và source SHA.
 - [x] Review Standards/Spec; các race revision tìm thấy đã sửa và có regression; rereview không còn blocker cụ thể.

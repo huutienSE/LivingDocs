@@ -39,7 +39,7 @@ def main():
     require([p['name'] for p in operation['parameters']] == [
         'workspaceId', 'authorizationContextId', 'installationId', 'installationPage'], 'query contract drift')
     require(operation['parameters'][0]['required'], 'workspaceId must be required')
-    require(set(operation['responses']) == {'200', '400', '401', '403', '404', '405', '406', '500', '503'},
+    require(set(operation['responses']) == {'401', '429', '409', '504', '200', '503', '500', '406', '403', '404', '400'},
             'response status contract drift')
     for status, response in operation['responses'].items():
         expected_media = 'application/json' if status == '200' else 'application/problem+json'
@@ -47,11 +47,28 @@ def main():
         require(response['headers']['Cache-Control']['schema']['enum'] == ['no-store'], 'missing no-store')
         require('X-Correlation-ID' in response['headers'], 'missing correlation header')
         require('CandidateObject' not in json.dumps(response['content']), 'untyped response')
+    normative = json.loads((ROOT / 'backend/repository-integration-service/src/main/resources/openapi/liv151-authorization.json').read_text(encoding='utf-8'))
+    for path, methods in normative['paths'].items():
+        for method, expected in methods.items():
+            actual = spec['paths'][path][method]
+            for field in ('operationId', 'parameters', 'requestBody', 'responses', 'security', 'x-contract-state'):
+                require(actual.get(field) == expected.get(field), 'normative/static drift: ' + path + ':' + field)
+            listed = next(r for r in inventory if r['apiId'] == expected['x-api-id'])
+            require(listed['gatewayEnabled'], 'operation missing Gateway route: ' + path)
     if args.evidence_dir:
         runtime = json.loads((args.evidence_dir / 'runtime-openapi.json').read_text(encoding='utf-8'))
         observed = runtime['paths'][ROUTE]['get']
         for field in ('operationId', 'parameters', 'responses', 'security', 'x-contract-state'):
             require(observed[field] == operation[field], 'Springdoc/static drift: ' + field)
+        for path, methods in normative['paths'].items():
+            for method, expected in methods.items():
+                for field in ('operationId', 'parameters', 'requestBody', 'responses', 'security', 'x-contract-state'):
+                    require(runtime['paths'][path][method].get(field) == expected.get(field), 'runtime drift: ' + path + ':' + field)
+        for mode in ('sufficient','insufficient','higher','extra','suspended'):
+            body = json.loads((args.evidence_dir / ('http-' + mode + '.json')).read_text(encoding='utf-8'))
+            validate_http_body(spec, operation, '200', 'application/json', body)
+            validate_http_body(runtime, observed, '200', 'application/json', body)
+            require(body['data']['verification']['repositoryAccessVerified'] is False, 'repository verification scope drift')
         for name in ('http-success.json', 'http-problem.json'):
             body = json.loads((args.evidence_dir / name).read_text(encoding='utf-8'))
             status, media = ('200', 'application/json') if name == 'http-success.json' else ('401', 'application/problem+json')
