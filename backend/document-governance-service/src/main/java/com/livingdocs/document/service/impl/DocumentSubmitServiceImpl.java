@@ -1,7 +1,7 @@
 package com.livingdocs.document.service.impl;
 
 import com.livingdocs.document.client.S01FreshSubmitAuthorizationClient;
-import com.livingdocs.document.model.ReviewAuthorizationDecision;
+import com.livingdocs.document.model.AuthorizationDecision;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Propagation;
@@ -86,7 +86,7 @@ public class DocumentSubmitServiceImpl implements DocumentSubmitService {
 
     private SubmitResult recordSubmission(UUID versionId, SubmitCommand command, long expectedRevision,
             String idempotencyKey, SubmitActorContext actor, String correlationId,
-            ReviewAuthorizationDecision authorization) {
+            AuthorizationDecision authorization) {
 
         // Đặt tenant cho RLS trước khi đọc DB; khóa version và scope tới cuối transaction.
         versions.setTenant(actor.tenantId());
@@ -205,7 +205,7 @@ public class DocumentSubmitServiceImpl implements DocumentSubmitService {
      */
     private void appendSubmissionAudit(DocumentVersion before, SubmitResult result,
             DocumentSubmissionEntity receipt, List<UUID> evidence, SubmitActorContext actor,
-            String correlationId, ReviewAuthorizationDecision authorization) {
+            String correlationId, AuthorizationDecision authorization) {
         var after = result.version();
         // LinkedHashMap giữ thứ tự field và cho phép giá trị null (stage cũ, binding, note).
         var metadata = new LinkedHashMap<String, Object>();

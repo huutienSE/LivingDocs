@@ -20,7 +20,7 @@ Lệnh chạy, cách tạo fixture DB tạm và các blocker Gateway/fresh nằm
 Cấu hình thêm `S01_SUBMIT_ACCESS_CONTEXT_URI` và `S04_SUBMIT_ALLOW_INSECURE_HTTP`
 (HTTP chỉ cho local). API-038 dùng chung transport/parser với Review; policy và mã lỗi vẫn riêng.
 Submit bắt buộc Service JWT/API-039 action DOCUMENT_AUTHOR, kể cả replay. Shared fresh client dùng
-cấu hình issuer URI/secret hiện có trong `livingdocs.review.*` cho cả hai action của cùng workload s04.
+`livingdocs.authorization.*` cho cả hai action của cùng workload s04, có fallback cấu hình Review cũ.
 Repository-free Submit trả 503 AUTHORIZATION_UNAVAILABLE vì S01 yêu cầu repository scope.
 Read transaction đóng trước HTTP; write transaction khóa/kiểm lại scope/revision/state, lưu audit authorization.
 Không có atomic revocation xuyên service. Submit chưa gọi current-SHA API-070.
@@ -127,12 +127,14 @@ Audit metadata ghi authorization decisionId/action/scope/authzRevision/evaluated
 S01 ALLOW không tạo atomic transaction với S04; chưa bảo đảm instant revocation xuyên service.
 
 Cấu hình issuer/JWKS/audience: S01_ISSUER_URI, S01_JWK_SET_URI, S04_TOKEN_AUDIENCE.
-Cấu hình client: S01_REVIEW_ACCESS_CONTEXT_URI, S01_REVIEW_SERVICE_TOKEN_URI,
-S01_REVIEW_AUTHORIZATION_URI và S04_REVIEW_WORKLOAD_SECRET_PATH. Workload ID là s04;
+Cấu hình API-038 Review: S01_REVIEW_ACCESS_CONTEXT_URI. Fresh authorization dùng chung:
+S01_AUTHORIZATION_SERVICE_TOKEN_URI, S01_AUTHORIZATION_EVALUATION_URI,
+S04_AUTHORIZATION_WORKLOAD_SECRET_PATH và S04_AUTHORIZATION_ALLOW_INSECURE_HTTP. Workload ID là s04;
 S01 giữ BCrypt hash và issuance policy, caller đọc secret riêng ngoài Git. Không mount private key S01.
 Compose dùng S04_WORKLOAD_SECRETS_DIR chứa s04.secret và mount read-only vào /run/secrets/s04.
 
-Mặc định HTTPS; HTTP local phải bật S04_REVIEW_ALLOW_INSECURE_HTTP=true.
+Mặc định HTTPS; fresh HTTP local phải bật S04_AUTHORIZATION_ALLOW_INSECURE_HTTP=true.
+API-038 Review vẫn dùng S04_REVIEW_ALLOW_INSECURE_HTTP; cấu hình Review cũ là fallback cho fresh khi chưa đặt cấu hình chung.
 Hai internal URI cùng trusted origin; không follow redirect. Mỗi response tối đa 256 KiB,
 connect timeout 2 giây, deadline toàn response 3 giây; decision timestamp có tolerance clock skew 5 giây.
 API-039 200 DENY trả 403 REVIEW_FORBIDDEN. Workload credential/assertion lỗi, thiếu config,

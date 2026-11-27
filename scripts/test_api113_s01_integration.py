@@ -234,10 +234,10 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
                   "S04_TOKEN_AUDIENCE": "livingdocs-api", "S01_SUBMIT_ACCESS_CONTEXT_URI": s01 + "/api/v1/users/me/access-context",
                   "S04_SUBMIT_ALLOW_INSECURE_HTTP": "true",
                   "S01_REVIEW_ACCESS_CONTEXT_URI": s01 + "/api/v1/users/me/access-context",
-                  "S01_REVIEW_SERVICE_TOKEN_URI": s01 + "/internal/v1/auth/service-tokens",
-                  "S01_REVIEW_AUTHORIZATION_URI": s01 + "/internal/v1/authorization/evaluate",
-                  "S04_REVIEW_WORKLOAD_SECRET_PATH": workload_secret,
-                  "S04_REVIEW_ALLOW_INSECURE_HTTP": "true"})
+                  "S01_AUTHORIZATION_SERVICE_TOKEN_URI": s01 + "/internal/v1/auth/service-tokens",
+                  "S01_AUTHORIZATION_EVALUATION_URI": s01 + "/internal/v1/authorization/evaluate",
+                  "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH": workload_secret,
+                  "S04_REVIEW_ALLOW_INSECURE_HTTP": "true", "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP": "true"})
         check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "4:13")
         if args.gateway_newman:
             start(2, {"server.port": gateway_port, "management.server.port": gateway_management_port,

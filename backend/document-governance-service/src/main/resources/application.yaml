@@ -30,6 +30,11 @@ springdoc:
   override-with-generic-response: false
 
 livingdocs:
+  authorization:
+    service-token-uri: ${S01_AUTHORIZATION_SERVICE_TOKEN_URI:${livingdocs.review.service-token-uri:}}
+    authorization-uri: ${S01_AUTHORIZATION_EVALUATION_URI:${livingdocs.review.authorization-uri:}}
+    workload-secret-path: ${S04_AUTHORIZATION_WORKLOAD_SECRET_PATH:${livingdocs.review.workload-secret-path:}}
+    allow-insecure-http: ${S04_AUTHORIZATION_ALLOW_INSECURE_HTTP:${livingdocs.review.allow-insecure-http:false}}
   review:
     access-context-uri: ${S01_REVIEW_ACCESS_CONTEXT_URI:}
     service-token-uri: ${S01_REVIEW_SERVICE_TOKEN_URI:}

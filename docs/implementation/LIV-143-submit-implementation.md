@@ -5,6 +5,9 @@
 **Phạm vi:** Submit/resubmit Draft, authority, persisted evidence/binding, ETag/idempotency và atomic state/receipt/audit.
 Fresh authorization được người dùng yêu cầu triển khai trực tiếp ngày 27/11. Chưa deploy hoặc sửa DB ứng dụng.
 
+Model kết quả fresh dùng tên trung lập `AuthorizationDecision` cho cả Submit và Review.
+Fresh client dùng namespace chung `livingdocs.authorization.*`; vẫn nhận alias Review cũ để tương thích.
+
 ## Kết quả triển khai
 
 1. User JWT được S04 xác minh issuer/JWKS/audience/expiry. API-038 lấy authority thật từ S01,
@@ -43,8 +46,10 @@ Scope hoặc revision thay đổi sau ALLOW bị chặn trước write. Source/e
 
 API-038 Submit tiếp tục dùng `S01_SUBMIT_ACCESS_CONTEXT_URI` và `S04_SUBMIT_ALLOW_INSECURE_HTTP`.
 Shared fresh client của workload s04 dùng các cấu hình đã có:
-`S01_REVIEW_SERVICE_TOKEN_URI`, `S01_REVIEW_AUTHORIZATION_URI`, `S04_REVIEW_WORKLOAD_SECRET_PATH`,
-`S04_REVIEW_ALLOW_INSECURE_HTTP`. Namespace cũ được giữ tương thích; cùng issuer/credential và operation authorization:evaluate.
+`S01_AUTHORIZATION_SERVICE_TOKEN_URI`, `S01_AUTHORIZATION_EVALUATION_URI`, `S04_AUTHORIZATION_WORKLOAD_SECRET_PATH`,
+`S04_AUTHORIZATION_ALLOW_INSECURE_HTTP`, được ánh xạ vào `livingdocs.authorization.*`.
+Các property/biến môi trường Review cũ vẫn là fallback; namespace mới được ưu tiên, kể cả explicit false cho HTTP.
+API-038 vẫn dùng cấu hình Review/Submit riêng. Cùng workload s04 và operation authorization:evaluate.
 Không cache ALLOW, không fallback sang API-038, không giữ private key S01 ở S04.
 Mặc định HTTPS; HTTP chỉ là ngoại lệ local tường minh. Không sửa migration V1–V4, Flyway history hoặc `.env` thật.
 
@@ -52,10 +57,10 @@ Mặc định HTTPS; HTTP chỉ là ngoại lệ local tường minh. Không s�
 
 | Kiểm tra local | Kết quả |
 |---|---|
-| Maven S04 cuối | **99/99 PASS**, 0 failures/errors/skips; 2026-11-27T17:27:41+07:00 |
-| Runner Gateway/S01/S04 | **36/36 checks PASS**; 2026-11-27T17:29:57+07:00 |
+| Maven S04 cuối | **102/102 PASS**, gồm 3 tests fallback/precedence cấu hình chung; 2026-11-27T17:55:24+07:00 |
+| Runner Gateway/S01/S04 | **36/36 checks PASS** với cấu hình chung mới; 2026-11-27T17:57:47+07:00 |
 | Newman API-113 | **34 requests / 60 assertions PASS**, 5 phase, 0 failures/skips |
-| Regression collection Review | **38 requests / 75 assertions PASS**, 32 runner checks PASS |
+| Regression collection Review | **38 requests / 75 assertions PASS**, 32 runner checks với alias cấu hình cũ |
 | Static contracts/config | **6 OpenAPI VALID**, 114 APIs/91 Gateway entries/19 groups; Compose valid, không deploy |
 
 Lượt này không chạy lại full Gateway Maven suite; không đổi source Gateway hoặc suy ra toàn bộ Gateway checks PASS.

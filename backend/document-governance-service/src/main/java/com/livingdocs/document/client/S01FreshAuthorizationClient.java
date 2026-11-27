@@ -2,7 +2,7 @@ package com.livingdocs.document.client;
 
 import com.livingdocs.document.exception.*;
 import com.livingdocs.document.model.DocumentVersion;
-import com.livingdocs.document.model.ReviewAuthorizationDecision;
+import com.livingdocs.document.model.AuthorizationDecision;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.*;
@@ -35,10 +35,10 @@ public class S01FreshAuthorizationClient {
             .followRedirects(HttpClient.Redirect.NEVER).build();
 
     public S01FreshAuthorizationClient(JsonMapper json,
-            @Value("${livingdocs.review.service-token-uri:}") String tokenUri,
-            @Value("${livingdocs.review.authorization-uri:}") String evaluationUri,
-            @Value("${livingdocs.review.workload-secret-path:}") String secret,
-            @Value("${livingdocs.review.allow-insecure-http:false}") boolean localHttp) {
+            @Value("${livingdocs.authorization.service-token-uri:${livingdocs.review.service-token-uri:}}") String tokenUri,
+            @Value("${livingdocs.authorization.authorization-uri:${livingdocs.review.authorization-uri:}}") String evaluationUri,
+            @Value("${livingdocs.authorization.workload-secret-path:${livingdocs.review.workload-secret-path:}}") String secret,
+            @Value("${livingdocs.authorization.allow-insecure-http:${livingdocs.review.allow-insecure-http:false}}") boolean localHttp) {
         this.json = json;
         tokenEndpoint = endpoint(tokenUri, localHttp);
         evaluationEndpoint = endpoint(evaluationUri, localHttp);
@@ -51,7 +51,7 @@ public class S01FreshAuthorizationClient {
     }
 
     @Transactional(propagation = Propagation.NEVER)
-    public ReviewAuthorizationDecision requireAllowed(DocumentVersion version, String userAccessToken,
+    public AuthorizationDecision requireAllowed(DocumentVersion version, String userAccessToken,
                                                        String correlationId, String action) {
         if (!Set.of("DOCUMENT_AUTHOR", "DOCUMENT_STAFF_REVIEW").contains(action)) throw unavailable();
         // PR2 DOCUMENT_* requires a repository. Do not invent one or bypass fresh authorization.
@@ -105,7 +105,7 @@ public class S01FreshAuthorizationClient {
             if (!"ALLOW".equals(decision) || !result.path("reasonCode").isNull()
                     || !result.path("authzRevision").isIntegralNumber()
                     || !result.path("authzRevision").canConvertToLong() || result.path("authzRevision").asLong() < 0) throw unavailable();
-            return new ReviewAuthorizationDecision(decisionId, action, version.tenantId(), version.workspaceId(),
+            return new AuthorizationDecision(decisionId, action, version.tenantId(), version.workspaceId(),
                     version.repositoryConnectionId(), result.path("authzRevision").asLong(), evaluated);
         } catch (S01AuthorityException ex) {
             throw ex;

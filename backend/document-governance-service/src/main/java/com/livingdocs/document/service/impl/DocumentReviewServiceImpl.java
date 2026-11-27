@@ -53,7 +53,7 @@ public class DocumentReviewServiceImpl implements DocumentReviewService {
 
     private StaffReviewResult record(UUID versionId, StaffDecisionCommand request, long expectedRevision,
                                      String key, ActorContext actor, String correlationId,
-                                     ReviewAuthorizationDecision authorization) {
+                                     AuthorizationDecision authorization) {
         versions.setTenant(actor.tenantId());
         // Serialize decisions for the same version, including retries and review-round allocation.
         // Scope rows stay share-locked so a concurrent move cannot invalidate authorization.

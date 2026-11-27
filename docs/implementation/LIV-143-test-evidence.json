@@ -1,9 +1,9 @@
 {
   "preparedBy": "Codex",
-  "recordedAt": "2026-11-27T17:31:59+07:00",
+  "recordedAt": "2026-11-27T18:00:16+07:00",
   "branch": "feature/LIV-143-s04-submit-draft-for-staff-review",
   "baseCommit": "9d38de552ea6f7175e06415b3d67fe1a4c827b03",
-  "worktreeChanges": "Verification snapshot captured before delivery: fresh API-113 consumer after shared API-038 refactor; user service helper/comment edits retained. Publication status is verified through Git refs.",
+  "worktreeChanges": "Neutral authorization model/shared namespace verification captured before delivery; no business/HTTP or audit JSON shape change",
   "sharedRefactor": {
     "commit": "9d38de552ea6f7175e06415b3d67fe1a4c827b03",
     "mavenTests": 91,
@@ -12,14 +12,14 @@
   },
   "sourceSha256": {
     ".github/workflows/backend-ci.yaml": "038976f83fcc46eb6945c2b82461631747140f94776cb829ad167266ea934abc",
-    "backend/document-governance-service/.env.example": "04fe76eb167e9199370dc3357078962cfdddbb2a8561971a13c85dbb3ef5bf24",
-    "backend/document-governance-service/README.md": "cc50288c718f52a7162156239b48ab7835616cfa8989780e1acac4e1f7acce7b",
+    "backend/document-governance-service/.env.example": "45a9b096d2bb38a5e3a4bc3e321d99b215ad314f9d98bb2648deaa4c27de483e",
+    "backend/document-governance-service/README.md": "7973a7713fd3c11761adbf4223a423fc8adfd33d2e06b10693cdf6ebca0fe806",
     "backend/document-governance-service/pom.xml": "b6371d7224655d0b875965111f6c430354f91b0ded76bbacb931f8b32f033c76",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/DocumentGovernanceServiceApplication.java": "8cb1cfcbb496525da4b06f593e7e4f1a91aee8798539a0d65397b7330b855d06",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01AccessContextClient.java": "86dbda09d654bc8281045958339cbde564bc5eabf6f09c9d3ffaf977ccd11212",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshAuthorizationClient.java": "c1cff5db5b9565026eb779b8eeedb15ae2891444267aa03ca4fd4455e0a205db",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshReviewAuthorizationClient.java": "040692607d285a6bac94eaf8c29ba3d65a276cd1d9b41481547678588f629141",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshSubmitAuthorizationClient.java": "ff9c18d094c01302ae5e95d651f4249d4786ba0a0b3a2ac00600e235b93c0943",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshAuthorizationClient.java": "a6f75dc73dbf1d58968b3f956974abaffb989cd158c1e9118f2bf7eaa0188871",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshReviewAuthorizationClient.java": "004816994412368fde9558b222da02a7a66f9244c46641a4585fb297e1460443",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshSubmitAuthorizationClient.java": "b8431ce530d613c96d429df1b65ebb3ce4b935a821757cacde270836034648ec",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01ReviewAuthorizationClient.java": "6606bbd38b9f7a967c9eb8cc7df273340495ed6f57f07b1a2431817ab1c6ec3f",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01SubmitAuthorizationClient.java": "1339c1ea732be979bda70a19fd2aa559dc67ea057c72491a6267cd409d93fd32",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/client/SourceReviewValidator.java": "f5d2f3f2d92a570a7dec32d0d7af9712af16b931076726c617cea77f171511aa",
@@ -69,11 +69,11 @@
     "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/ReviewPersistenceMapper.java": "8fb704b966eb407f27976f340b5e0ba25398e4966ab34fe04725f6e597b6aeed",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/StaffDecisionMapper.java": "0db8604e58004b90a23ff06b02b320c93bd9ed8a18d47f94e2459c498461b676",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/SubmitMapper.java": "12d9a097e688e33282029b58942a33956b1f15e251aa959cc237bbdbe9805fba",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentAudit.java": "100234b9d734c0bf598f1aec154b477edaeaaedd28fb28bb53e4b76779639ed5",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/AuthorizationDecision.java": "190948ead7cb2c84d5ee80b5e82817a052abdea9359e6df79ee9a04d02772f5b",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentAudit.java": "4fa66cc85827df81881874ff63536ce4560eb54f361f864224f7108424810089",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentState.java": "314fb6c472d9b183edcf5361bb39028a8306836fe67a0ae218e10e153c10acd6",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentVersion.java": "2487ce30099a199490c9be7768909e631aa30d0a79b8d8f124b8225abb38b5e9",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewAction.java": "7b314309b1997d217e7e1ceaf1d3d6997412c6809e938c5b977dd8116b60c90a",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewAuthorizationDecision.java": "0a2c8958e0e3f24153692f7cfb44a28c592dad05835a5a1a45ee66e713bcb235",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewDecision.java": "df85b8aa28cb4f6c3792421307ad59a23d3cda9ca991f74ffe61b40a47851a94",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewStage.java": "9811652c07653b29647286169528e4647a442f452081b68aef28d42d91937b95",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewTransitionPolicy.java": "e51a00eafc7a400e3b8278161f9a38eafefa10232cb86ad5359e4af68f5e583c",
@@ -102,12 +102,12 @@
     "backend/document-governance-service/src/main/java/com/livingdocs/document/service/ReviewSnapshotCodec.java": "0981525484e284b08904ecc4ba8be8f2a56a6bf83b6b73dfb6c630c5a8c9e1b7",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SourceReviewGuard.java": "13e2c4a28210bcb8237195dc4b2311d605b8a01f000e4f3b23e36e7b4ac77beb",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SubmitSnapshotCodec.java": "7ccf904fb861b223e87e4b679aeefdffd86aff097a35e79cee38f04cca3106fc",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentReviewServiceImpl.java": "78af032ddc252116d66101683f60ad9f824203d458f153dab1aec94a94b50b75",
-    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "48bc13dc74a15c56540c9597d92ee5bdf8411517845f1c2f594708e5920675ed",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentReviewServiceImpl.java": "a10d68628686291a21976437bb1b7b3cd3a83a4312872636dc3322289c87aff1",
+    "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "9d65cb046c0f1ab279c5e7f13f2d76f0c160f3cf8902b478be32c8b5ca6c752b",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefs.java": "060e6f6cf98fba9617db06b7712a5d4f352876e0facf1ab816917ce77a1502d7",
     "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefsValidator.java": "867d0fec117f8042f6397cbc7dcef8a376741e123d71b55700acb2f95a908a11",
     "backend/document-governance-service/src/main/resources/application-db.yaml": "01469c7b68dfca4cab0b623fb9d6b386bee5bdcfdfbb7adb82c964d2541f48c1",
-    "backend/document-governance-service/src/main/resources/application.yaml": "dd731ea29b6c1f24be92cd1a45fa6c3d6ef662eb598a847e4e387ace2146df58",
+    "backend/document-governance-service/src/main/resources/application.yaml": "dfb5f5bc58956ff43969deca01449eaeb04a985d5ffcab3c1d4e45f548b9e209",
     "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql": "7e32e3f87c242b815e22be58d42c8d689ba1f21d9b1bd582e9a056581b5cb7ed",
     "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql": "05210aa332abac4c9aaaa990ca95fe5494d1bf3da16a6e4c3907ea749fac5a14",
     "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql": "a1c48a5d91487fd3e1a0fab48cc7a87265012a53e9d22786c5ff7df2ca613185",
@@ -124,6 +124,7 @@
     "backend/document-governance-service/src/test/java/com/livingdocs/document/SourceReviewGuardTest.java": "fe4ce6bb322266e3bcbf09b0605c82d50b5ffb166d7423e4a8d3f8f8634c35e3",
     "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitApiIntegrationTest.java": "bf497e82003df8e5bc747fd465dc7cacab99195667ad04eacfeb2c4307f2cf0d",
     "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitRestartIntegrationTest.java": "904aea0f4ad09db97d5d2d9ae587580c4e2f753224e5820fea2cfed68219c984",
+    "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01AuthorizationConfigurationTest.java": "70ee03a51f8f73f10aad2e559cf0eae24d76cd0af609d91d6b5d3e8bae2b54dd",
     "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01FreshReviewAuthorizationClientTest.java": "3ab7c71eef399754edd7e6c83b7b06841aa6c7fdd7901a2dd2a5c363a181cc7a",
     "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01FreshSubmitAuthorizationClientTest.java": "778fcdf6f0691c786ef674d6095aae47fb9727562143aad08b84382cc0100b71",
     "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01ReviewAuthorizationClientTest.java": "b74ba0935152e07a5e19c7abe9daace5fdbe996bbc0c9ea44a0a5168738da367",
@@ -135,13 +136,13 @@
     "contracts/openapi/sprint3-route-inventory.json": "9839cce7219a48003a695fbc6ad9354693c081923b64d93449b88ceed5bc0d3f",
     "docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md": "52edf17f6f1204d82cb4a9b9659727d7a6eae3f717945b212fce835b4c9d547a",
     "docs/implementation/LIV-118-implementation-report.md": "ec2186271c9faf1a0ad76ecf3d2fe89f32a1afd817bc714587b028f12c6393b5",
-    "docs/implementation/LIV-143-submit-implementation.md": "3fb2c64b2c5c39ff83a100664a815b447ab3f9a5681a4a6682e3690eb3ae9224",
+    "docs/implementation/LIV-143-submit-implementation.md": "1a61a79b943c1a13046b434b3eddfc81824cd6caf58ffd5c11f4fc00d306e515",
     "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md": "055a3e828d1d6c673b251eab7609d87ca0b4d0bd0f9a566b0efb0d7f732e7c59",
     "docs/implementation/authorization/LIV-118-api120-s01-integration.md": "f8cda55ac6ad3846e4a3dda35800fecdc70c31caf26e28acc118f2f7d0eca5fe",
     "docs/implementation/authorization/LIV-138-s01-authority-and-testing.md": "460f5fb46dd859c74674835897c5fb1c805493838bf0ecf4cb09c60ce47a5046",
     "infrastructure/docker/.env.example": "bf89c35346679e1a060d161d005c1636d2c830c707f174e56eac9315e7002bf0",
-    "infrastructure/docker/compose.yaml": "9573ea16237e4415718f4d841d5a46b9b4c5fe1f8e2b1172b4eafe6cdcdcd1c2",
-    "scripts/test_api113_s01_integration.py": "0d5767e868bdfa88ef56359ad7659961274aed025d43a305b33a4486d19ec4b8",
+    "infrastructure/docker/compose.yaml": "c20ce9b23039679d90049c78ab36e84e1a1a294ac63c32e117c8e555a995680a",
+    "scripts/test_api113_s01_integration.py": "f9ef280c0ee90562a0c1352a953165f024fa24c53b92e25439ff1f12bd3d5301",
     "scripts/test_api120_s01_integration.py": "869af97b01c28ba7883bcb38a1a801616797001d6ec5ff3c8a76535fcdf8d2d4",
     "tests/postman/liv143-submit.postman_collection.json": "54476ea70a9ea087459f1f2e5df29c8d8417bf99b6abe8c9c45fea25b0a5a2a6"
   },
@@ -151,18 +152,27 @@
       "command": "mvn -B -ntp verify",
       "workingDirectory": "backend/document-governance-service",
       "result": "PASS",
-      "finishedAt": "2026-11-27T17:27:41+07:00",
+      "finishedAt": "2026-11-27T17:55:24+07:00",
       "totals": {
-        "tests": 99,
+        "tests": 102,
         "failures": 0,
         "errors": 0,
         "skipped": 0
       },
       "suites": [
         {
+          "name": "com.livingdocs.document.client.S01AuthorizationConfigurationTest",
+          "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01AuthorizationConfigurationTest.xml",
+          "sha256": "37f2c732af18c7163a47edb5a05404b8cc9fdeb3335abfae2d7b541849f06e36",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
           "name": "com.livingdocs.document.client.S01FreshReviewAuthorizationClientTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01FreshReviewAuthorizationClientTest.xml",
-          "sha256": "c2dabe060a2d9374186c5bc215999d639c520a0a71c8e1d9d1593678b4cc1b29",
+          "sha256": "d74e6eb473de88cde6f91b756f673b2436ecef1af51f8a721ff21816288bd2e1",
           "tests": 5,
           "failures": 0,
           "errors": 0,
@@ -171,7 +181,7 @@
         {
           "name": "com.livingdocs.document.client.S01FreshSubmitAuthorizationClientTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01FreshSubmitAuthorizationClientTest.xml",
-          "sha256": "2a305f4c150c378f32b3195795489aece4196bced5c54e928022d1bbd34fd91e",
+          "sha256": "6d448ac7bfae5e6e34a344adf67babec0164df12ec9e993cd5fecc5655ba317b",
           "tests": 5,
           "failures": 0,
           "errors": 0,
@@ -180,7 +190,7 @@
         {
           "name": "com.livingdocs.document.client.S01ReviewAuthorizationClientTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01ReviewAuthorizationClientTest.xml",
-          "sha256": "e0798e3feb8f13be4c89b2fe3750e0938d63b3a26c8cea979b7c69564b97afd9",
+          "sha256": "a1154cf71e98cead3530084bdd58e7dc6f2bffb0145ecdb0444872ab5f8414b7",
           "tests": 7,
           "failures": 0,
           "errors": 0,
@@ -189,7 +199,7 @@
         {
           "name": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.DocumentGovernanceServiceApplicationTests.xml",
-          "sha256": "a4c99b2b4233b57dea6f74b00b5acebe2646f62b0f5a6c402c1984497bb360f0",
+          "sha256": "ae67952be2ecdb9b7b9967fe0b1ac9149c27de33fe96854d79bd6aac9c67e293",
           "tests": 2,
           "failures": 0,
           "errors": 0,
@@ -198,7 +208,7 @@
         {
           "name": "com.livingdocs.document.ReviewApiIntegrationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewApiIntegrationTest.xml",
-          "sha256": "57b3f553712c5a18e63e736d69b13ed73aef636bcf0f13bbbfe40284bfaab2bb",
+          "sha256": "5457485562025b52908fa6b4695fb6d6470dabd21f22ac26ac3011b7303528ec",
           "tests": 31,
           "failures": 0,
           "errors": 0,
@@ -207,7 +217,7 @@
         {
           "name": "com.livingdocs.document.ReviewMigrationIntegrationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewMigrationIntegrationTest.xml",
-          "sha256": "8a073be4b36818e1fff01affb7b910a4c1206140dc84b0c3a5bf174de46a95e7",
+          "sha256": "2b146d07de0686de079039413a1604437e3d6d6b61429cbb4952cdcc43d93193",
           "tests": 1,
           "failures": 0,
           "errors": 0,
@@ -216,7 +226,7 @@
         {
           "name": "com.livingdocs.document.ReviewRestartIntegrationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewRestartIntegrationTest.xml",
-          "sha256": "4b202f218c8b1b8258f47a42985bf87a682da4f0cc09887e4d6bcbbf53b6da8a",
+          "sha256": "251d17ebef403917d29efadc2eee4c4fb4d1369ff631d4f823797622f221b689",
           "tests": 1,
           "failures": 0,
           "errors": 0,
@@ -225,7 +235,7 @@
         {
           "name": "com.livingdocs.document.ReviewTransitionPolicyTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewTransitionPolicyTest.xml",
-          "sha256": "40fd15e4b27c3f72180d72d26ad23724a0247a7c6ebb5782ada5d53cef7fe2c5",
+          "sha256": "d643509b7faaa22bac8eb95aec15f2fb0e52e91961b9e7a945f52b91c1d28178",
           "tests": 15,
           "failures": 0,
           "errors": 0,
@@ -234,7 +244,7 @@
         {
           "name": "com.livingdocs.document.S01SubmitAuthorizationClientTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.S01SubmitAuthorizationClientTest.xml",
-          "sha256": "718564005db98886ee96aa2c26392cdec09124ba91813025bda6e4abd6e449c3",
+          "sha256": "99a6735c9ba565d998b3722f2c6f2160a651e750864f72198a773f1bba97c734",
           "tests": 7,
           "failures": 0,
           "errors": 0,
@@ -243,7 +253,7 @@
         {
           "name": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.security.ReviewSecurityConfigurationTest.xml",
-          "sha256": "7db880128b09390b66d1a250afc45490dd5ad90448967439eba07bc7bf09f295",
+          "sha256": "04e9d82a663d381b6d3e7209eae5948bdf1f1c2b0c1e0c6f853c9c5585ec41a7",
           "tests": 1,
           "failures": 0,
           "errors": 0,
@@ -252,7 +262,7 @@
         {
           "name": "com.livingdocs.document.SourceReviewGuardTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SourceReviewGuardTest.xml",
-          "sha256": "b5a5e1a294219aa07b6204c52a78750ed35dceea4761d624bf1bfc431b53652d",
+          "sha256": "7964bba948d9574aa9defb59faaff14882b89916c980aa34e283e6249fac0d72",
           "tests": 5,
           "failures": 0,
           "errors": 0,
@@ -261,7 +271,7 @@
         {
           "name": "com.livingdocs.document.SubmitApiIntegrationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SubmitApiIntegrationTest.xml",
-          "sha256": "2beefda5f4fb15cf87666f468f42d0f0b52b28195c2bc7974172b4979a89d58b",
+          "sha256": "12531f54332e67e27c5306ed84c74754a81335969b1b81f24a5a35d897e55a9b",
           "tests": 18,
           "failures": 0,
           "errors": 0,
@@ -270,7 +280,7 @@
         {
           "name": "com.livingdocs.document.SubmitRestartIntegrationTest",
           "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SubmitRestartIntegrationTest.xml",
-          "sha256": "c646ce1d9c94b79539d91ec27077c423251e8f3eb8cb56e58bfac03be4fbac0c",
+          "sha256": "df945c592005cdcae5278895e13c994bd5249d27bcf28e5ada63aa9fa3007762",
           "tests": 1,
           "failures": 0,
           "errors": 0,
@@ -278,26 +288,26 @@
         }
       ],
       "log": {
-        "path": "backend/document-governance-service/target/submit-fresh-final-verify.log",
-        "sha256": "c689edec0bb6c8fde8409dab18d8563294ca14382a28fcacffff887139f4aeb3"
+        "path": "backend/document-governance-service/target/authorization-namespace-verify.log",
+        "sha256": "a4629bb8b61f62d8dde6f6756c102d10bd44d89d89c198dcd9fc8ac76fff2e71"
       },
       "jar": {
         "path": "backend/document-governance-service/target/document-governance-service-0.0.1-SNAPSHOT.jar",
-        "sha256": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9"
+        "sha256": "2abc36509c0ece06a299a7dfa5b062f3eb6e7b6cfea9209f1212a281f10df320"
       }
     },
     "runtime": {
       "path": "backend/document-governance-service/target/api113-s01-integration.json",
-      "sha256": "4221b0d06917f4c72da2aff77d23703dfa1be147ff0ad8381ff5efda88dace40",
+      "sha256": "658f79ffdeabdd45428729e94974708ccde0b664ae42e27cb01567c367459696",
       "preparedBy": "Codex",
-      "startedAt": "2026-11-27T10:28:01.244630+00:00",
+      "startedAt": "2026-11-27T10:55:43.262671+00:00",
       "scope": "Real Gateway/S01/S04 + API-113/API-120 Newman, Service JWT/API-039 for Staff Return; disposable authority/Draft/VERIFIED-grant fixtures; no S02.",
       "fixtureMode": "CONTROLLED SQL authority/VERIFIED-grant fixture, not production Grant lifecycle or S02 binding proof",
       "artifactsSha256": {
         "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "d4a79c7e0c2034035aff83c372d615232e7de817a41e2ffff57cc5bb9a5b3ca4",
-        "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9",
+        "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "2abc36509c0ece06a299a7dfa5b062f3eb6e7b6cfea9209f1212a281f10df320",
         "infrastructure\\api-gateway\\target\\api-gateway-0.0.1-SNAPSHOT.jar": "a1896028ba0aedc6bd57817f8cdd054dcf1fd52150518644b6b990053816d3a8",
-        "scripts\\test_api113_s01_integration.py": "2a80fac64c7674bf3f823d3b4ee1ddbf7827d07f720a1371bf705f3eaeffad19",
+        "scripts\\test_api113_s01_integration.py": "1ee8a3f145c823135926cf085f4e9caf8a3c2d86e59a5d0d6624a421f2610507",
         "tests\\postman\\liv143-submit.postman_collection.json": "520bac55181594e3cd975b415d46872a3e501020a9508a089982fb6f9755c5a5"
       },
       "checks": [
@@ -506,7 +516,7 @@
         }
       ],
       "result": "PASS",
-      "finishedAt": "2026-11-27T10:29:57.549014+00:00"
+      "finishedAt": "2026-11-27T10:57:47.587745+00:00"
     },
     "newman": {
       "requests": 34,
@@ -558,14 +568,14 @@
     },
     "reviewRegression": {
       "path": "backend/document-governance-service/target/api120-s01-integration.json",
-      "sha256": "171c6d7039824c50dd69fd2cd981bab7c070c1442b09a4deab7b40299af22764",
+      "sha256": "cc8b48d89ba1eee65bebe0d9499af0eca8ad4927f39b90c999bb18839253b7e7",
       "preparedBy": "Codex",
-      "startedAt": "2026-11-27T10:30:11.137425+00:00",
+      "startedAt": "2026-11-27T10:58:11.017133+00:00",
       "scope": "Real S01 Identity JWT + API-038 + Service JWT + API-039; S04 API-120. No S02/Gateway.",
       "fixtureMode": "CONTROLLED SQL authority/VERIFIED-grant fixture, not production Grant lifecycle or S02 binding proof",
       "artifactsSha256": {
         "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "d4a79c7e0c2034035aff83c372d615232e7de817a41e2ffff57cc5bb9a5b3ca4",
-        "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9",
+        "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "2abc36509c0ece06a299a7dfa5b062f3eb6e7b6cfea9209f1212a281f10df320",
         "scripts\\test_api120_s01_integration.py": "f2ff78ffa3f32a421560e33c788c5349e7db79468a08c373ac82a95f5b0fcfa4",
         "tests\\postman\\liv118-review.postman_collection.json": "d2f8be6fa49c4dd84bfcf624b48661f38c11ca49c900e0f52970a961e1c13aee"
       },
@@ -742,16 +752,16 @@
         }
       ],
       "result": "PASS",
-      "finishedAt": "2026-11-27T10:31:36.484238+00:00"
+      "finishedAt": "2026-11-27T10:59:59.799840+00:00"
     },
     "static": {
-      "path": "backend/document-governance-service/target/api113-fresh-static.json",
-      "sha256": "d60cd9c0700f07a9b2065782a0f682782dc372c84ad9840ea234387f523ba7ec",
+      "path": "backend/document-governance-service/target/authorization-namespace-static.json",
+      "sha256": "e7a8db719a565f4f0a7bb30e90722c3da5df949e2b63a481bc681ff5fce22c58",
       "result": "PASS",
-      "completedAt": "2026-11-27T10:27:45.304586+00:00",
       "openapiFiles": 6,
-      "gateway": "PASS: 114 catalogued APIs; 91 exact Gateway method+path entries; 19 route groups; no internal exposure.\nNOTE: STATIC validation only; domain JWT/E2E is not verified.",
-      "compose": "VALIDATED_ONLY_NOT_DEPLOYED"
+      "compose": "VALIDATED_ONLY_NOT_DEPLOYED",
+      "sharedFreshEnvironmentKeys": "PASS",
+      "completedAt": "2026-11-27T10:54:39.436664+00:00"
     }
   },
   "limits": [
@@ -759,7 +769,7 @@
     "Controlled SQL VERIFIED grants do not prove production onboarding or S02 trusted binding.",
     "Submit checks persisted evidence/source provenance only; no live S02 current-SHA validation.",
     "No atomic cross-service revocation guarantee.",
-    "Shared fresh endpoints/credential use existing livingdocs.review configuration for workload s04.",
+    "Fresh endpoints/credential use livingdocs.authorization; old Review settings remain fallback for workload s04.",
     "Gateway global anonymous RFC9457 remains a dependency; full Gateway verify not rerun.",
     "No remote CI, QA approval, deploy or full Golden Flow acceptance."
   ],
@@ -2176,6 +2186,785 @@
       },
       "documentationRefresh": "Shared source/README/report fingerprints refreshed; no new execution claimed for this historical runner result",
       "coverage": "Historical snapshot; local target artifact paths may be overwritten"
+    },
+    "beforeNeutralNamesAndSharedConfig20261127": {
+      "preparedBy": "Codex",
+      "recordedAt": "2026-11-27T17:31:59+07:00",
+      "branch": "feature/LIV-143-s04-submit-draft-for-staff-review",
+      "baseCommit": "9d38de552ea6f7175e06415b3d67fe1a4c827b03",
+      "worktreeChanges": "Verification snapshot captured before delivery: fresh API-113 consumer after shared API-038 refactor; user service helper/comment edits retained. Publication status is verified through Git refs.",
+      "sharedRefactor": {
+        "commit": "9d38de552ea6f7175e06415b3d67fe1a4c827b03",
+        "mavenTests": 91,
+        "localBranchesReceiveSameCommit": true,
+        "publication": "See branch refs; this evidence snapshot was captured before push"
+      },
+      "sourceSha256": {
+        ".github/workflows/backend-ci.yaml": "038976f83fcc46eb6945c2b82461631747140f94776cb829ad167266ea934abc",
+        "backend/document-governance-service/.env.example": "04fe76eb167e9199370dc3357078962cfdddbb2a8561971a13c85dbb3ef5bf24",
+        "backend/document-governance-service/README.md": "cc50288c718f52a7162156239b48ab7835616cfa8989780e1acac4e1f7acce7b",
+        "backend/document-governance-service/pom.xml": "b6371d7224655d0b875965111f6c430354f91b0ded76bbacb931f8b32f033c76",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/DocumentGovernanceServiceApplication.java": "8cb1cfcbb496525da4b06f593e7e4f1a91aee8798539a0d65397b7330b855d06",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01AccessContextClient.java": "86dbda09d654bc8281045958339cbde564bc5eabf6f09c9d3ffaf977ccd11212",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshAuthorizationClient.java": "c1cff5db5b9565026eb779b8eeedb15ae2891444267aa03ca4fd4455e0a205db",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshReviewAuthorizationClient.java": "040692607d285a6bac94eaf8c29ba3d65a276cd1d9b41481547678588f629141",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01FreshSubmitAuthorizationClient.java": "ff9c18d094c01302ae5e95d651f4249d4786ba0a0b3a2ac00600e235b93c0943",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01ReviewAuthorizationClient.java": "6606bbd38b9f7a967c9eb8cc7df273340495ed6f57f07b1a2431817ab1c6ec3f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/S01SubmitAuthorizationClient.java": "1339c1ea732be979bda70a19fd2aa559dc67ea057c72491a6267cd409d93fd32",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/client/SourceReviewValidator.java": "f5d2f3f2d92a570a7dec32d0d7af9712af16b931076726c617cea77f171511aa",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/config/OpenApiConfiguration.java": "05e7a0bd1c12e5660f8f6bf75058c5dd0fc867f960909d51c221346100d10309",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/config/RequestCorrelationFilter.java": "fb39a1d1e8a0a5ea1b00e0eecf4d5ec72327106b8eeb0558ce966939d31deff7",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentReviewController.java": "27b429752d1e93525f293d317ddfb8147e948f17bca443fa9c1ab51fdef0ca62",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/DocumentSubmitController.java": "a1aa56846ac3a34d1e078cba4fd764bf91329913238e33b4f5f0a0334028a32a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/controller/VersionEtags.java": "f7e149e78c994afe959047cea5718e7b33efaceee6f4a0d4f1e5ee46442df7e2",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/ReviewRequest.java": "688ab5bada058036390cd0d33a69bd129e5e33a221505990b6b7f2a720364f8c",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/request/SubmitReviewRequest.java": "dc8fbb516f4dd049e9d7b82cac4074253793d16cc2681a7e0af496b8c5dc4efb",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/ReviewProblem.java": "cf8c12c480805d32348658c6f554631d7c3658c37f9f7f0b28d4b4994aba0aa5",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/ReviewResponse.java": "a8c13cc4f9c4bda11046579125fe72c738f77448825a0f6c6a83beaaaa7bd112",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SubmitProblem.java": "8c09bf68ec781b10e09e303c7ecd8df19533036b2efaff607319b12fa7cbd1c4",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/dto/response/SuccessResponse.java": "f61a95ff296331b6bc9f8d28aacc7fff156524c734bd605f145ca0d81b93d0ca",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentAuditEntity.java": "84fec5e2f459af9c996c9543f98714a0327d26a5f670a09898dda62e1ea10ac9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentEvidenceEntity.java": "f731a367ebf126dec61877859bd443f9b3d020929e68f2704e6cf12d67fe8835",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentSubmissionEntity.java": "22bb96bbb039871b58d9166b275b9da2cf3ff72f0334601e007e2da4dbdd9600",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/DocumentVersionEntity.java": "8298d3668c7c16b510ad487425b60290cbe2ae053b2bf2bb9a9fba569a36cc8f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/entity/ReviewDecisionEntity.java": "877cf66a4d9ea395ef91e5cc8d87959daeeddcc046a288ea0881d4c9205c58f6",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ApiProblems.java": "c5946f740c60d008980ab85f786a3d8f2b97ca29d3e54f23f54f18e03e212f53",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/DocumentVersionNotFoundException.java": "1a3bcbf5a7698d14465bf3960320e4a93414a875321cc6fabb278b87772f094e",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/DuplicateReviewEvidenceException.java": "0700aab9e0af43388df9d6ce7fdbe0533195731a23febe61309b4fc07bdbdb39",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/InsufficientReviewScopeException.java": "0e809f64062e0918a6fa2a389abd2cc22bb15adb9a2c88dedd5b100e72ecf1ce",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/InvalidReviewTransitionException.java": "a7296af629d20f71b2e77465cb0bf17e1c64736cc855350bf7ffcea9a850ce78",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReturnFeedbackRequiredException.java": "c1caeab6537a2ffd1666f4a29e528a25489c0bfc5c7418533baa0f128fd0e40c",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewAuthenticationRequiredException.java": "77a3feac1552e2d355e5ccce87a336e9547bea958052001af8c08bdfbca8ca3c",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewAuthorizationUnavailableException.java": "962cf1745efb66f169c529c832f8d0951306ed6943dc1127e5f513d191c1d961",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewErrorCode.java": "46d2b1c436ffdcd3741ffb73219586d20e12b3e003a6e16c40f675b1133f9394",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceInvalidException.java": "efafb836c9365055ef67880d506e9454a9fb0bce826456d136c516afc5e07d46",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceLimitExceededException.java": "591136d91cd409a94f4f8e2b3c4e0b2da09c0aaaa690566a1a3c714b06a9b499",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewEvidenceRequiredException.java": "670aed0fc87ed0400f09dc5e55d4b53ab040ae7558dda23fabf9462655181883",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewException.java": "a18fdc1b792b23b4a38dea131ca93a8f27c0ac278a47e8f02fb3a59621fc130f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewExceptionHandler.java": "b8cdf22283a6d60a3e4a14b89274669d5842b1e00ec46c606863421e968ba4cd",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewIdempotencyConflictException.java": "5274c48f52c5de2dfe6e2ceaa45ae702a9fb43c4ec32750451f4afc26a893b18",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewReplaySnapshotUnavailableException.java": "dde9e1a106d5a1cbcac9912276830b7db68079f3137cb0f0b04009ea51bd1eb9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewRequestException.java": "7ec5cfe0be7a96d21353fa7aea6ef383467500ce0de78267c5b6c9542b49d063",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewRevisionConflictException.java": "b933d792e8ead15af3b52fe2871af90615befe158ae4dc651ea7c710021de6f9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/ReviewSnapshotSerializationException.java": "f8d7cecc463e5ba9bbb9c69ffacd0dac7c81c66baa84e9556f2e15ca8cbac7b4",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/S01AuthorityException.java": "e6c59754728bfdd1b362df8609cb6cd6da6f894044ba71696e5a23e78474294a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceChangedException.java": "284dce1a4548fd6e6589a81dfa2832e765e82945adbd7f6e808fa10a4e3582b9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceEvidenceInsufficientException.java": "57ef6a1978362bc39265c555085eb44dbca3be53c73788b1fe776aa6af6fb9e9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SourceValidationUnavailableException.java": "cbd84e1c3f5470e998499c9305bcc99e3eeeace7fa044b5ed43bf4b2693972a2",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitException.java": "d5331b8063b3a35ff79cb6504f4b019c398355712b55741567a0c13e0989eb2b",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/exception/SubmitExceptionHandler.java": "4a4d5710c5d498a66856ffb029dfd5f7f8995734de7b46add45db751004e52d1",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonReviewSnapshotCodec.java": "43089da2c3c39862835970060df0d3e968b74966c9907c87b7dd807176f78cfd",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/JacksonSubmitSnapshotCodec.java": "c6389eec16013448e170da62d6a34aa266e1b80e8e44c24ebce052fac54ac61a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/ReviewPersistenceMapper.java": "8fb704b966eb407f27976f340b5e0ba25398e4966ab34fe04725f6e597b6aeed",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/StaffDecisionMapper.java": "0db8604e58004b90a23ff06b02b320c93bd9ed8a18d47f94e2459c498461b676",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/mapper/SubmitMapper.java": "12d9a097e688e33282029b58942a33956b1f15e251aa959cc237bbdbe9805fba",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentAudit.java": "100234b9d734c0bf598f1aec154b477edaeaaedd28fb28bb53e4b76779639ed5",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentState.java": "314fb6c472d9b183edcf5361bb39028a8306836fe67a0ae218e10e153c10acd6",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/DocumentVersion.java": "2487ce30099a199490c9be7768909e631aa30d0a79b8d8f124b8225abb38b5e9",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewAction.java": "7b314309b1997d217e7e1ceaf1d3d6997412c6809e938c5b977dd8116b60c90a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewAuthorizationDecision.java": "0a2c8958e0e3f24153692f7cfb44a28c592dad05835a5a1a45ee66e713bcb235",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewDecision.java": "df85b8aa28cb4f6c3792421307ad59a23d3cda9ca991f74ffe61b40a47851a94",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewStage.java": "9811652c07653b29647286169528e4647a442f452081b68aef28d42d91937b95",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/ReviewTransitionPolicy.java": "e51a00eafc7a400e3b8278161f9a38eafefa10232cb86ad5359e4af68f5e583c",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/S01AccessContext.java": "2fde3435c3cee480189c9f51dd54f15b87077f50c6b6045c7a94a61452895209",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SourceReviewValidation.java": "8309baed7d0410b533343a01c8a25f930c101afe96d56be43a54a0d49e1f6406",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/StaffDecisionCommand.java": "fde16bce22c3b0e89d46648c19a7d460c3f7d538990a69b3eb511d27fce77322",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/StaffReviewResult.java": "7294d43f4fe66b141c8478390de7f2e5873116e28a948b5e1cb11d84ccf9cc62",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitActorContext.java": "399852592addbb0d94a3c285390123cac39ef653c78696e37f66e13c8786be6f",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitCommand.java": "fbd6228d76067fa68f72806ae414fea33641ccd0ebf316831aa592d44a24d1c1",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SubmitResult.java": "94db7e529a4631295533de5cf5742c0138be558431b02ff03a5aefd62f6224ed",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/model/SuccessCode.java": "db9163dedaa0467f41dab8895ba1f7aeb3c6385dfa03acc0d291f2ed4370c59a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentAuditJpaRepository.java": "66db94c34d24dc067ab93e97c72f1b932037a80cdd19b4b1b578d0f36685add8",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentAuditRepository.java": "71fe740841352c901c60ce3d5c56f8fbd41eac02f16cfcd4e6f1890bb01baf60",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentEvidenceJpaRepository.java": "bab0c0a028f173cd6cb38b4fa73cba1b6125096cd2c6c5f68f1e59c9989a35e5",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentSubmissionJpaRepository.java": "4dceb35574d2c5005bf1a6afa97b5813fcd19bfdee58e1ba3a1f1cdea956827a",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentSubmitRepository.java": "3c01350f2925b281656ba8e2f48411d7e2f0e2e9920813bd96e6c318b5512cdd",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentVersionJpaRepository.java": "ad5869248bde1c432c20bf0699c400677740ea9054c8fb91c7bcb990d21033d4",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/DocumentVersionRepository.java": "6881638448f823e56259376fcab770c820e7a0c3657402282553426450d22edd",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/ReviewDecisionJpaRepository.java": "ea9cd2fdca6338d256887320bce54ed53794556b92a8b0e69fb0e1426c94d476",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/repository/ReviewDecisionRepository.java": "33eb7f17be9663712df520759ed1d09f6e3d88b8071eeba1541b9e7b69bbea06",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ActorContext.java": "19037853a8ce1613e03f83e0e85ed61d5e464009c86f547bfb290531360d19a6",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ActorContextResolver.java": "84b97edf58b7737ebebb2d69517d89d153724b24fad868773754915f122b0a2e",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/security/ReviewSecurityConfiguration.java": "bf209eee0edd7e132e21c50aa3ec3e6196c89bbf3e19fb1e132b1323f10e1283",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentReviewService.java": "23912d795a1d20aa80124ea6aeac5e18bf2e836889fc381e8b892ac0c8aeefe3",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/DocumentSubmitService.java": "b729ba33b886de2ebf280826251320f7e7f057f1bcc2d80e9ae04265579ee708",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/ReviewSnapshotCodec.java": "0981525484e284b08904ecc4ba8be8f2a56a6bf83b6b73dfb6c630c5a8c9e1b7",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SourceReviewGuard.java": "13e2c4a28210bcb8237195dc4b2311d605b8a01f000e4f3b23e36e7b4ac77beb",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/SubmitSnapshotCodec.java": "7ccf904fb861b223e87e4b679aeefdffd86aff097a35e79cee38f04cca3106fc",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentReviewServiceImpl.java": "78af032ddc252116d66101683f60ad9f824203d458f153dab1aec94a94b50b75",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/service/impl/DocumentSubmitServiceImpl.java": "48bc13dc74a15c56540c9597d92ee5bdf8411517845f1c2f594708e5920675ed",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefs.java": "060e6f6cf98fba9617db06b7712a5d4f352876e0facf1ab816917ce77a1502d7",
+        "backend/document-governance-service/src/main/java/com/livingdocs/document/validation/UniqueEvidenceRefsValidator.java": "867d0fec117f8042f6397cbc7dcef8a376741e123d71b55700acb2f95a908a11",
+        "backend/document-governance-service/src/main/resources/application-db.yaml": "01469c7b68dfca4cab0b623fb9d6b386bee5bdcfdfbb7adb82c964d2541f48c1",
+        "backend/document-governance-service/src/main/resources/application.yaml": "dd731ea29b6c1f24be92cd1a45fa6c3d6ef662eb598a847e4e387ace2146df58",
+        "backend/document-governance-service/src/main/resources/db/migration/V1__create_document_governance_tables.sql": "7e32e3f87c242b815e22be58d42c8d689ba1f21d9b1bd582e9a056581b5cb7ed",
+        "backend/document-governance-service/src/main/resources/db/migration/V2__review_revision_and_idempotency.sql": "05210aa332abac4c9aaaa990ca95fe5494d1bf3da16a6e4c3907ea749fac5a14",
+        "backend/document-governance-service/src/main/resources/db/migration/V3__review_response_snapshot.sql": "a1c48a5d91487fd3e1a0fab48cc7a87265012a53e9d22786c5ff7df2ca613185",
+        "backend/document-governance-service/src/main/resources/db/migration/V4__document_submit.sql": "d16872f10c4268f968ab25bde9692cbd17417ec5defaf152576b9025c23e4614",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/DocumentGovernanceServiceApplicationTests.java": "61cfe2a34b296e0898d00dfd596ced60cba37f0d5fcaca86c2e5264a667c984b",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/PostgresTestSupport.java": "d66ae4d013af9e3e1b376097701354b35574d4de4d7fcaf9619b07378a2921f4",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewApiIntegrationTest.java": "68d93c7897422e2be3b17b54f454b742ba020c98098d523c45b5599737988111",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewAuthorityTestServer.java": "aa2d1d223b2816d9e791952b5e0bc9785c2c70a0c075795599b14e8f1c241d08",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewMigrationIntegrationTest.java": "9bc1c00d00aa27c05f9150961e8c55eb29fe19e47171139aafdd9ea9a9b83ad0",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewRestartIntegrationTest.java": "6c62d2bc181f893119923008f1da716043548a29f82156c70e205dba159c0542",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewSourceValidationTestConfiguration.java": "cc90043fcd652c8c3bff1458c1809cd528517aa38051df45320f0fe5ca83f9c9",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/ReviewTransitionPolicyTest.java": "dc64a45eecedc21a2e8fb608dcd043234fcd972b8f7a9a4d21dd32cf9676c19a",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/S01SubmitAuthorizationClientTest.java": "4164db6759df36da3999500fc13f0e7cbcc474611df03cc595599b6399105825",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/SourceReviewGuardTest.java": "fe4ce6bb322266e3bcbf09b0605c82d50b5ffb166d7423e4a8d3f8f8634c35e3",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitApiIntegrationTest.java": "bf497e82003df8e5bc747fd465dc7cacab99195667ad04eacfeb2c4307f2cf0d",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/SubmitRestartIntegrationTest.java": "904aea0f4ad09db97d5d2d9ae587580c4e2f753224e5820fea2cfed68219c984",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01FreshReviewAuthorizationClientTest.java": "3ab7c71eef399754edd7e6c83b7b06841aa6c7fdd7901a2dd2a5c363a181cc7a",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01FreshSubmitAuthorizationClientTest.java": "778fcdf6f0691c786ef674d6095aae47fb9727562143aad08b84382cc0100b71",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/client/S01ReviewAuthorizationClientTest.java": "b74ba0935152e07a5e19c7abe9daace5fdbe996bbc0c9ea44a0a5168738da367",
+        "backend/document-governance-service/src/test/java/com/livingdocs/document/security/ReviewSecurityConfigurationTest.java": "cc66701f02724b7fbcab4b15fa9217aa0589cd232dc115e0c4dbaf8da8dcbc79",
+        "backend/document-governance-service/src/test/resources/db/bootstrap.sql": "52ad1c8655b95308df25218c674e19a9e701cce5f9499f2e97c9d4a56e3b13ba",
+        "contracts/openapi/s04-document-review.yaml": "ed0727df452fbbab94f17316a298a2298a4c14a2b285b797c9b00003fbd52844",
+        "contracts/openapi/s04-document.yaml": "5115ca113d583e248f3bd0c5b6990bea2bb5961656d649f172624a717fe9df16",
+        "contracts/openapi/sprint3-inventory.md": "1b86eb4dfae39450f3c8a37093349fa4d0c9d2dcbe583a38a58b76e7a4751b73",
+        "contracts/openapi/sprint3-route-inventory.json": "9839cce7219a48003a695fbc6ad9354693c081923b64d93449b88ceed5bc0d3f",
+        "docs/engineering/LivingDocs_Master_Decisions_Technical_Rules_Team_Agent_Handoff_2026-11-13.md": "52edf17f6f1204d82cb4a9b9659727d7a6eae3f717945b212fce835b4c9d547a",
+        "docs/implementation/LIV-118-implementation-report.md": "ec2186271c9faf1a0ad76ecf3d2fe89f32a1afd817bc714587b028f12c6393b5",
+        "docs/implementation/LIV-143-submit-implementation.md": "3fb2c64b2c5c39ff83a100664a815b447ab3f9a5681a4a6682e3690eb3ae9224",
+        "docs/implementation/LivingDocs_Backend_Coding_Standards_Amendment_2026-11-13.md": "055a3e828d1d6c673b251eab7609d87ca0b4d0bd0f9a566b0efb0d7f732e7c59",
+        "docs/implementation/authorization/LIV-118-api120-s01-integration.md": "f8cda55ac6ad3846e4a3dda35800fecdc70c31caf26e28acc118f2f7d0eca5fe",
+        "docs/implementation/authorization/LIV-138-s01-authority-and-testing.md": "460f5fb46dd859c74674835897c5fb1c805493838bf0ecf4cb09c60ce47a5046",
+        "infrastructure/docker/.env.example": "bf89c35346679e1a060d161d005c1636d2c830c707f174e56eac9315e7002bf0",
+        "infrastructure/docker/compose.yaml": "9573ea16237e4415718f4d841d5a46b9b4c5fe1f8e2b1172b4eafe6cdcdcd1c2",
+        "scripts/test_api113_s01_integration.py": "0d5767e868bdfa88ef56359ad7659961274aed025d43a305b33a4486d19ec4b8",
+        "scripts/test_api120_s01_integration.py": "869af97b01c28ba7883bcb38a1a801616797001d6ec5ff3c8a76535fcdf8d2d4",
+        "tests/postman/liv143-submit.postman_collection.json": "54476ea70a9ea087459f1f2e5df29c8d8417bf99b6abe8c9c45fea25b0a5a2a6"
+      },
+      "sourceHashNormalization": "UTF-8 LF-normalized; evidence manifests excluded",
+      "verification": {
+        "maven": {
+          "command": "mvn -B -ntp verify",
+          "workingDirectory": "backend/document-governance-service",
+          "result": "PASS",
+          "finishedAt": "2026-11-27T17:27:41+07:00",
+          "totals": {
+            "tests": 99,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "suites": [
+            {
+              "name": "com.livingdocs.document.client.S01FreshReviewAuthorizationClientTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01FreshReviewAuthorizationClientTest.xml",
+              "sha256": "c2dabe060a2d9374186c5bc215999d639c520a0a71c8e1d9d1593678b4cc1b29",
+              "tests": 5,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.client.S01FreshSubmitAuthorizationClientTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01FreshSubmitAuthorizationClientTest.xml",
+              "sha256": "2a305f4c150c378f32b3195795489aece4196bced5c54e928022d1bbd34fd91e",
+              "tests": 5,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.client.S01ReviewAuthorizationClientTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.client.S01ReviewAuthorizationClientTest.xml",
+              "sha256": "e0798e3feb8f13be4c89b2fe3750e0938d63b3a26c8cea979b7c69564b97afd9",
+              "tests": 7,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.DocumentGovernanceServiceApplicationTests",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.DocumentGovernanceServiceApplicationTests.xml",
+              "sha256": "a4c99b2b4233b57dea6f74b00b5acebe2646f62b0f5a6c402c1984497bb360f0",
+              "tests": 2,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.ReviewApiIntegrationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewApiIntegrationTest.xml",
+              "sha256": "57b3f553712c5a18e63e736d69b13ed73aef636bcf0f13bbbfe40284bfaab2bb",
+              "tests": 31,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.ReviewMigrationIntegrationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewMigrationIntegrationTest.xml",
+              "sha256": "8a073be4b36818e1fff01affb7b910a4c1206140dc84b0c3a5bf174de46a95e7",
+              "tests": 1,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.ReviewRestartIntegrationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewRestartIntegrationTest.xml",
+              "sha256": "4b202f218c8b1b8258f47a42985bf87a682da4f0cc09887e4d6bcbbf53b6da8a",
+              "tests": 1,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.ReviewTransitionPolicyTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.ReviewTransitionPolicyTest.xml",
+              "sha256": "40fd15e4b27c3f72180d72d26ad23724a0247a7c6ebb5782ada5d53cef7fe2c5",
+              "tests": 15,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.S01SubmitAuthorizationClientTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.S01SubmitAuthorizationClientTest.xml",
+              "sha256": "718564005db98886ee96aa2c26392cdec09124ba91813025bda6e4abd6e449c3",
+              "tests": 7,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.security.ReviewSecurityConfigurationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.security.ReviewSecurityConfigurationTest.xml",
+              "sha256": "7db880128b09390b66d1a250afc45490dd5ad90448967439eba07bc7bf09f295",
+              "tests": 1,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.SourceReviewGuardTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SourceReviewGuardTest.xml",
+              "sha256": "b5a5e1a294219aa07b6204c52a78750ed35dceea4761d624bf1bfc431b53652d",
+              "tests": 5,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.SubmitApiIntegrationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SubmitApiIntegrationTest.xml",
+              "sha256": "2beefda5f4fb15cf87666f468f42d0f0b52b28195c2bc7974172b4979a89d58b",
+              "tests": 18,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            {
+              "name": "com.livingdocs.document.SubmitRestartIntegrationTest",
+              "path": "backend/document-governance-service/target/surefire-reports/TEST-com.livingdocs.document.SubmitRestartIntegrationTest.xml",
+              "sha256": "c646ce1d9c94b79539d91ec27077c423251e8f3eb8cb56e58bfac03be4fbac0c",
+              "tests": 1,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            }
+          ],
+          "log": {
+            "path": "backend/document-governance-service/target/submit-fresh-final-verify.log",
+            "sha256": "c689edec0bb6c8fde8409dab18d8563294ca14382a28fcacffff887139f4aeb3"
+          },
+          "jar": {
+            "path": "backend/document-governance-service/target/document-governance-service-0.0.1-SNAPSHOT.jar",
+            "sha256": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9"
+          }
+        },
+        "runtime": {
+          "path": "backend/document-governance-service/target/api113-s01-integration.json",
+          "sha256": "4221b0d06917f4c72da2aff77d23703dfa1be147ff0ad8381ff5efda88dace40",
+          "preparedBy": "Codex",
+          "startedAt": "2026-11-27T10:28:01.244630+00:00",
+          "scope": "Real Gateway/S01/S04 + API-113/API-120 Newman, Service JWT/API-039 for Staff Return; disposable authority/Draft/VERIFIED-grant fixtures; no S02.",
+          "fixtureMode": "CONTROLLED SQL authority/VERIFIED-grant fixture, not production Grant lifecycle or S02 binding proof",
+          "artifactsSha256": {
+            "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "d4a79c7e0c2034035aff83c372d615232e7de817a41e2ffff57cc5bb9a5b3ca4",
+            "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9",
+            "infrastructure\\api-gateway\\target\\api-gateway-0.0.1-SNAPSHOT.jar": "a1896028ba0aedc6bd57817f8cdd054dcf1fd52150518644b6b990053816d3a8",
+            "scripts\\test_api113_s01_integration.py": "2a80fac64c7674bf3f823d3b4ee1ddbf7827d07f720a1371bf705f3eaeffad19",
+            "tests\\postman\\liv143-submit.postman_collection.json": "520bac55181594e3cd975b415d46872a3e501020a9508a089982fb6f9755c5a5"
+          },
+          "checks": [
+            {
+              "name": "S04 Flyway and CI migration/RLS counts agree",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 real HTTP registration",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 real HTTP login with Redis limiter",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 JWT carries Identity, no tenant/workspace authority",
+              "result": "PASS"
+            },
+            {
+              "name": "Unprovisioned Identity denied (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "API-038 returns real DB Developer permission, excludes PENDING repository",
+              "result": "PASS"
+            },
+            {
+              "name": "PENDING grant denies fresh Submit (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "API-113 Submit with real S01 JWT/context (HTTP 200, DOCUMENT_SUBMITTED)",
+              "result": "PASS"
+            },
+            {
+              "name": "Submit advances Staff Review with ETag",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay preserves response",
+              "result": "PASS"
+            },
+            {
+              "name": "Repository-free Submit fails closed under API-039 contract (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-tenant version hidden by RLS (HTTP 404, DOCUMENT_VERSION_NOT_FOUND)",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-workspace denied (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "PENDING repository grant cannot authorize Submit (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Invalid bearer denied locally (HTTP 401, UNAUTHENTICATED)",
+              "result": "PASS"
+            },
+            {
+              "name": "Newman Gateway positive/replay/negative phase",
+              "result": "PASS"
+            },
+            {
+              "name": "Gateway Submit persists exactly one receipt and audit",
+              "result": "PASS"
+            },
+            {
+              "name": "Gateway denied Draft remains unchanged",
+              "result": "PASS"
+            },
+            {
+              "name": "Newman Gateway Return/resubmit preserves workflow and receipts",
+              "result": "PASS"
+            },
+            {
+              "name": "Gateway Staff Return records real fresh authorization",
+              "result": "PASS"
+            },
+            {
+              "name": "Repository-free denial preserves Draft",
+              "result": "PASS"
+            },
+            {
+              "name": "Newman workload authentication failure denies new review and replay",
+              "result": "PASS"
+            },
+            {
+              "name": "Bad workload denies new Submit (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Bad workload denies Submit replay (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Submit audit records real DOCUMENT_AUTHOR fresh decision",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay denied after Developer role revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Newman Gateway revoked role denies mutation and replay",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after tenant membership revoke (HTTP 403, FORBIDDEN_SCOPE)",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down fails closed (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down also denies replay (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Newman Gateway S01 outage denies mutation and replay",
+              "result": "PASS"
+            },
+            {
+              "name": "Gateway replay never creates extra receipt/audit",
+              "result": "PASS"
+            },
+            {
+              "name": "Denied requests leave version/submission/audit unchanged",
+              "result": "PASS"
+            },
+            {
+              "name": "Replay writes exactly one submission and audit",
+              "result": "PASS"
+            },
+            {
+              "name": "Submission and audit record actual S01 Identity",
+              "result": "PASS"
+            }
+          ],
+          "newman": [
+            {
+              "folder": "01 Scoped submit",
+              "requests": 16,
+              "assertions": 29,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "02 Return and resubmit",
+              "requests": 6,
+              "assertions": 11,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "05 Review workload unavailable",
+              "requests": 4,
+              "assertions": 8,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "03 Revoked role",
+              "requests": 4,
+              "assertions": 6,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "04 S01 unavailable",
+              "requests": 4,
+              "assertions": 6,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            }
+          ],
+          "dependencies": [
+            {
+              "id": "Gateway LD-D11",
+              "status": "BLOCKED",
+              "scope": "Global Gateway security error body; anonymous collection check verifies 401/challenge only, not RFC 9457 conformance"
+            },
+            {
+              "id": "S01 API-039",
+              "status": "VERIFIED_FOR_API_113_AND_API_120",
+              "scope": "Real Service JWT/fresh decision for Submit and repository-bound Staff Return; fresh API-039 is required for Submit with DOCUMENT_AUTHOR"
+            },
+            {
+              "id": "Production repository grants",
+              "status": "NOT_VERIFIED",
+              "scope": "Controlled SQL fixture, not Request/Verify/Activate or trusted S02 binding"
+            }
+          ],
+          "result": "PASS",
+          "finishedAt": "2026-11-27T10:29:57.549014+00:00"
+        },
+        "newman": {
+          "requests": 34,
+          "assertions": 60,
+          "failedAssertions": 0,
+          "skippedAssertions": 0,
+          "phases": [
+            {
+              "folder": "01 Scoped submit",
+              "requests": 16,
+              "assertions": 29,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "02 Return and resubmit",
+              "requests": 6,
+              "assertions": 11,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "05 Review workload unavailable",
+              "requests": 4,
+              "assertions": 8,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "03 Revoked role",
+              "requests": 4,
+              "assertions": 6,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "04 S01 unavailable",
+              "requests": 4,
+              "assertions": 6,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            }
+          ]
+        },
+        "reviewRegression": {
+          "path": "backend/document-governance-service/target/api120-s01-integration.json",
+          "sha256": "171c6d7039824c50dd69fd2cd981bab7c070c1442b09a4deab7b40299af22764",
+          "preparedBy": "Codex",
+          "startedAt": "2026-11-27T10:30:11.137425+00:00",
+          "scope": "Real S01 Identity JWT + API-038 + Service JWT + API-039; S04 API-120. No S02/Gateway.",
+          "fixtureMode": "CONTROLLED SQL authority/VERIFIED-grant fixture, not production Grant lifecycle or S02 binding proof",
+          "artifactsSha256": {
+            "backend\\identity-organization-service\\target\\identity-organization-service-0.0.1-SNAPSHOT.jar": "d4a79c7e0c2034035aff83c372d615232e7de817a41e2ffff57cc5bb9a5b3ca4",
+            "backend\\document-governance-service\\target\\document-governance-service-0.0.1-SNAPSHOT.jar": "1ea6058ebb0f283dd104b5eef9118c4d0b0212b2577ed0c9dea70ec04b349ae9",
+            "scripts\\test_api120_s01_integration.py": "f2ff78ffa3f32a421560e33c788c5349e7db79468a08c373ac82a95f5b0fcfa4",
+            "tests\\postman\\liv118-review.postman_collection.json": "d2f8be6fa49c4dd84bfcf624b48661f38c11ca49c900e0f52970a961e1c13aee"
+          },
+          "checks": [
+            {
+              "name": "S01 real HTTP registration",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 real HTTP login with Redis limiter",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 JWT carries Identity, no tenant/workspace authority",
+              "result": "PASS"
+            },
+            {
+              "name": "Unprovisioned Identity denied (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "API-038 returns real DB Staff permission, excludes PENDING repository",
+              "result": "PASS"
+            },
+            {
+              "name": "PENDING repository grant cannot authorize RETURN (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "API-120 RETURN with real S01 JWT, Service JWT and fresh API-039 (HTTP 200, STAFF_REVIEW_RECORDED)",
+              "result": "PASS"
+            },
+            {
+              "name": "RETURN persists Draft with ETag",
+              "result": "PASS"
+            },
+            {
+              "name": "Audit records real S01 fresh decision",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay preserves response",
+              "result": "PASS"
+            },
+            {
+              "name": "Fresh ALLOW cannot bypass missing S02 source adapter (HTTP 503, SOURCE_VALIDATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Missing S02 leaves bound version and audit unchanged",
+              "result": "PASS"
+            },
+            {
+              "name": "Repository-free RETURN fails closed under current API-039 contract (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-tenant version hidden by RLS (HTTP 404, DOCUMENT_VERSION_NOT_FOUND)",
+              "result": "PASS"
+            },
+            {
+              "name": "Cross-workspace denied (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "Unknown repository grant cannot authorize RETURN (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "Invalid bearer denied locally (HTTP 401, UNAUTHENTICATED)",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman validates RETURN/replay, headers, evidence, scope and source failures",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman RETURN audit binds real actor and fresh decision",
+              "result": "PASS"
+            },
+            {
+              "name": "Invalid S04 workload credential fails closed (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman bad workload denies new request and replay without writes",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after Staff role revoke (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "Exact replay denied after Staff role revoke (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman revoked Staff denies new request and replay without writes",
+              "result": "PASS"
+            },
+            {
+              "name": "Same JWT denied after tenant membership revoke (HTTP 403, REVIEW_FORBIDDEN)",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman revoked tenant denies new request and replay without writes",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down fails closed (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "S01 down also denies replay (HTTP 503, AUTHORIZATION_UNAVAILABLE)",
+              "result": "PASS"
+            },
+            {
+              "name": "LIV-118 Newman S01 outage denies new request and replay without writes",
+              "result": "PASS"
+            },
+            {
+              "name": "Denied requests leave version/decision/audit unchanged",
+              "result": "PASS"
+            },
+            {
+              "name": "Replay writes exactly one decision and audit",
+              "result": "PASS"
+            },
+            {
+              "name": "Decision and audit record actual S01 Identity",
+              "result": "PASS"
+            }
+          ],
+          "newman": [
+            {
+              "folder": "01 Staff review",
+              "requests": 30,
+              "assertions": 59,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "02 Workload unavailable",
+              "requests": 2,
+              "assertions": 4,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "03 Revoked Staff",
+              "requests": 2,
+              "assertions": 4,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "04 Revoked tenant",
+              "requests": 2,
+              "assertions": 4,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            },
+            {
+              "folder": "05 S01 unavailable",
+              "requests": 2,
+              "assertions": 4,
+              "failedAssertions": 0,
+              "skippedAssertions": 0,
+              "result": "PASS"
+            }
+          ],
+          "result": "PASS",
+          "finishedAt": "2026-11-27T10:31:36.484238+00:00"
+        },
+        "static": {
+          "path": "backend/document-governance-service/target/api113-fresh-static.json",
+          "sha256": "d60cd9c0700f07a9b2065782a0f682782dc372c84ad9840ea234387f523ba7ec",
+          "result": "PASS",
+          "completedAt": "2026-11-27T10:27:45.304586+00:00",
+          "openapiFiles": 6,
+          "gateway": "PASS: 114 catalogued APIs; 91 exact Gateway method+path entries; 19 route groups; no internal exposure.\nNOTE: STATIC validation only; domain JWT/E2E is not verified.",
+          "compose": "VALIDATED_ONLY_NOT_DEPLOYED"
+        }
+      },
+      "limits": [
+        "Repository-free Submit/replay 503 under current S01 DOCUMENT_AUTHOR scope contract.",
+        "Controlled SQL VERIFIED grants do not prove production onboarding or S02 trusted binding.",
+        "Submit checks persisted evidence/source provenance only; no live S02 current-SHA validation.",
+        "No atomic cross-service revocation guarantee.",
+        "Shared fresh endpoints/credential use existing livingdocs.review configuration for workload s04.",
+        "Gateway global anonymous RFC9457 remains a dependency; full Gateway verify not rerun.",
+        "No remote CI, QA approval, deploy or full Golden Flow acceptance."
+      ]
     }
+  },
+  "namespaceCleanup": {
+    "model": "AuthorizationDecision",
+    "properties": "livingdocs.authorization.*",
+    "environment": [
+      "S01_AUTHORIZATION_SERVICE_TOKEN_URI",
+      "S01_AUTHORIZATION_EVALUATION_URI",
+      "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH",
+      "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP"
+    ],
+    "compatibility": "Legacy livingdocs.review fresh properties/environment remain fallback; new namespace takes precedence including explicit false",
+    "verification": "Submit runtime uses new environment; Review runtime uses old aliases; configuration tests cover fallback/precedence/HTTPS",
+    "scope": "LIV-143 naming/config verification snapshot; LIV-118 unchanged; publication state is verified through Git refs"
   }
 }
