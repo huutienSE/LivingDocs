@@ -26,7 +26,7 @@ springdoc:
     enabled: ${S04_OPENAPI_ENABLED:false}
     version: OPENAPI_3_0
   packages-to-scan: com.livingdocs.document.controller
-  paths-to-match: /api/v1/document-versions/*/staff-decisions,/api/v1/document-versions/*/submit
+  paths-to-match: /api/v1/document-versions/**,/api/v1/documents/**,/api/v1/workspaces/*/documents
   override-with-generic-response: false
 
 livingdocs:

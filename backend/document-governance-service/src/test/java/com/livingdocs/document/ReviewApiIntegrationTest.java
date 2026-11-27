@@ -192,8 +192,12 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 Files.readString(Path.of("../../contracts/openapi/s04-document-review.yaml")))));
         String path = "/api/v1/document-versions/{versionId}/staff-decisions";
         assertThat(runtime.path("openapi").asString()).startsWith("3.0.");
-        assertThat(runtime.path("info").path("version").asString()).isEqualTo(reviewed.path("info").path("version").asString());
-        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path, "/api/v1/document-versions/{versionId}/submit");
+        assertThat(runtime.path("info").path("version").asString()).isEqualTo("0.4.0");
+        assertThat(runtime.path("paths").propertyNames()).containsExactlyInAnyOrder(path,
+                "/api/v1/document-versions/{versionId}/submit", "/api/v1/workspaces/{workspaceId}/documents",
+                "/api/v1/documents/{documentId}", "/api/v1/documents/{documentId}/versions",
+                "/api/v1/document-versions/{versionId}", "/api/v1/document-versions/{versionId}/content",
+                "/api/v1/document-versions/{versionId}/evidence");
         var actual = runtime.path("paths").path(path).path("post");
         var expected = reviewed.path("paths").path(path).path("post");
         assertThat(actual.path("operationId").asString()).isEqualTo(expected.path("operationId").asString());
@@ -816,10 +820,12 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
     void databaseConstraintsRlsAndAppendOnlyPrivileges_shouldHold() throws Exception {
         var versionColumn = com.livingdocs.document.entity.DocumentAuditEntity.class.getDeclaredField("versionId")
                 .getAnnotation(jakarta.persistence.Column.class);
-        assertThat(versionColumn.nullable()).isFalse();
+        assertThat(versionColumn.nullable()).isTrue();
         assertThat(scalar("SELECT is_nullable FROM information_schema.columns WHERE table_schema='document' AND table_name='document_audits' AND column_name='document_version_id'"))
-                .isEqualTo("NO");
+                .isEqualTo("YES");
         var f = fixture();
+        assertThatThrownBy(() -> execute("INSERT INTO document.document_audits(tenant_id,document_id,workspace_id,actor_ref,action,new_state) VALUES (?,?,?,'test','STAFF_REVIEW_PASS','DRAFT')",
+                f.tenant, f.document, f.workspace)).isInstanceOf(SQLException.class);
         assertThatThrownBy(() -> execute("UPDATE document.document_versions SET review_stage=NULL WHERE document_version_id=?", f.version))
                 .isInstanceOf(SQLException.class);
         assertThatThrownBy(() -> execute("INSERT INTO document.review_decisions(tenant_id,document_version_id,reviewer_identity_id,decision,round_no) VALUES (?,?,?,'RETURN_FOR_REVISION',1)",
@@ -848,7 +854,7 @@ class ReviewApiIntegrationTest extends PostgresTestSupport {
                 connection.rollback();
             }
         }
-        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(4L);
+        assertThat(scalar("SELECT count(*) FROM document.flyway_schema_history WHERE success")).isEqualTo(5L);
         assertThat(scalar("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity")).isEqualTo(13L);
     }
 }

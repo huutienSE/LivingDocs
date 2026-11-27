@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LivingDocs S04 — Sprint 3 Contract Candidates
-  version: 0.3.0
+  version: 0.4.0
   description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
     thái. Domain owner phải duyệt request/response còn để CandidateObject. API-120 được quản lý tại s04-document-review.yaml
     của PR LIV-118 và không lặp lại ở đây.
@@ -58,77 +58,179 @@ paths:
           description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
     post:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api100_post
       summary: Tạo document
-      description: 'LD-API-001 API-100. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
       x-api-id: API-100
-      x-contract-state: CANDIDATE
       x-gateway-exposure: public
-      responses:
-        '201':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DocumentView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: workspaceId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      - name: workspaceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DocumentCreateRequest'
-  /api/v1/documents/{documentId}:
-    get:
-      tags:
-        - S04 Public
-      operationId: api101_get
-      summary: Đọc document canonical
-      description: 'LD-API-001 API-101. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
-      x-api-id: API-101
-      x-contract-state: CANDIDATE
-      x-gateway-exposure: public
       responses:
-        '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+        '201':
+          description: Successful result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/DocumentApiResponse'
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+  /api/v1/documents/{documentId}:
+    get:
+      tags:
+      - S04 Public
+      operationId: api101_get
+      summary: Đọc document canonical
+      x-api-id: API-101
+      x-gateway-exposure: public
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentApiResponse'
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
   /api/v1/documents/{documentId}/metadata:
     patch:
       tags:
@@ -206,211 +308,473 @@ paths:
   /api/v1/documents/{documentId}/versions:
     get:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api104_get
       summary: Danh sách document versions
-      description: 'LD-API-001 API-104. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
       x-api-id: API-104
-      x-contract-state: CANDIDATE
       x-gateway-exposure: public
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Successful result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateObject'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
-        - name: page
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 0
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
-        - name: size
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+                $ref: '#/components/schemas/DocumentVersionsApiResponse'
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
     post:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api105_post
       summary: Tạo version draft
-      description: 'LD-API-001 API-105. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
       x-api-id: API-105
-      x-contract-state: CANDIDATE
       x-gateway-exposure: public
-      responses:
-        '201':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DocumentVersionView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateObject'
+              $ref: '#/components/schemas/DraftCreateRequest'
+      responses:
+        '201':
+          description: Successful result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthoringVersionApiResponse'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Strong version ETag.
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
   /api/v1/document-versions/{versionId}:
     get:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api106_get
       summary: Đọc exact document version
-      description: 'LD-API-001 API-106. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
       x-api-id: API-106
-      x-contract-state: CANDIDATE
       x-gateway-exposure: public
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Successful result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentVersionView'
+                $ref: '#/components/schemas/AuthoringVersionApiResponse'
           headers:
             ETag:
-              description: Strong ETag từ đúng document version, bắt buộc cho protected mutation.
               schema:
                 type: string
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: versionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+              description: Strong version ETag.
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
   /api/v1/document-versions/{versionId}/content:
     patch:
       tags:
-        - S04 Public
+      - S04 Public
       operationId: api107_patch
       summary: Sửa nội dung Draft
-      description: 'LD-API-001 API-107. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
       x-api-id: API-107
-      x-contract-state: CANDIDATE
       x-gateway-exposure: public
-      responses:
-        '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateObject'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '412': *id001
-        '422': *id001
-        '428': *id001
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: versionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
-        - name: If-Match
-          in: header
-          required: true
-          schema:
-            type: string
-          description: 'Strong ETag của chính document version. Missing: 428; stale: 412.'
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+        description: Exact strong ETag from API-106.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateObject'
-  /api/v1/document-versions/{versionId}/evidence:
-    get:
-      tags:
-        - S04 Public
-      operationId: api108_get
-      summary: Đọc version evidence
-      description: 'LD-API-001 API-108. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
-      x-api-id: API-108
-      x-contract-state: CANDIDATE
-      x-gateway-exposure: public
+              $ref: '#/components/schemas/DraftContentRequest'
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Successful result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DocumentEvidenceView'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                $ref: '#/components/schemas/AuthoringVersionApiResponse'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Strong version ETag.
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+  /api/v1/document-versions/{versionId}/evidence:
+    get:
+      tags:
+      - S04 Public
+      operationId: api108_get
+      summary: Đọc version evidence
+      x-api-id: API-108
+      x-gateway-exposure: public
+      description: LIV-164. S04 implementation with API-038 scope, fresh DOCUMENT_AUTHOR for mutations, PostgreSQL/RLS.
+        API-105 requires a trusted snapshot provider; the demo fixture provider is test-only.
+      x-contract-state: IN_PROGRESS
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: versionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEvidenceApiResponse'
+        '400':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '401':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+        '403':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '404':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '409':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '412':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '428':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '500':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
+        '503':
+          description: RFC 9457 Problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/AuthoringProblem'
   /api/v1/document-versions/{versionId}/changes:
     get:
       tags:
@@ -2093,28 +2457,40 @@ components:
           type: string
     DocumentCreateRequest:
       type: object
-      description: 'CANDIDATE S04: membership và collection ownership server-side.'
       properties:
-        title:
-          type: string
         collectionId:
           type: string
           format: uuid
-        templateId:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        repositoryConnectionId:
           type: string
           format: uuid
-          nullable: true
+      required:
+      - collectionId
+      - title
+      - repositoryConnectionId
+      additionalProperties: false
     DocumentView:
       type: object
-      description: CANDIDATE S04; document version là tài nguyên riêng.
       properties:
         documentId:
+          type: string
+          format: uuid
+        collectionId:
           type: string
           format: uuid
         workspaceId:
           type: string
           format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
         title:
+          type: string
+        status:
           type: string
         currentVersionId:
           type: string
@@ -2138,8 +2514,6 @@ components:
           minimum: 0
     DocumentEvidenceView:
       type: object
-      description: CANDIDATE S04 evidence refs must be UUID backed by tenant/version; source binding is immutable
-        evidence.
       properties:
         versionId:
           type: string
@@ -2149,7 +2523,7 @@ components:
         evidence:
           type: array
           items:
-            $ref: '#/components/schemas/EvidenceView'
+            $ref: '#/components/schemas/AuthoringEvidenceItem'
     SubmitReviewRequest:
       type: object
       description: 'LIV-143: action transition is server-determined; client cannot choose target state.'
@@ -2183,3 +2557,196 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/DocumentVersionView"
+
+    DraftCreateRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 100000
+        sourceSnapshotId:
+          type: string
+          format: uuid
+      required:
+      - content
+      - sourceSnapshotId
+      additionalProperties: false
+
+    DraftContentRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 100000
+      required:
+      - content
+      additionalProperties: false
+
+    AuthoringVersionView:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - IN_REVIEW
+          - APPROVED
+          - PUBLISHED
+          - NEEDS_REVALIDATION
+          - REJECTED
+          - SUPERSEDED
+        reviewStage:
+          type: string
+          nullable: true
+          enum:
+          - STAFF_REVIEW
+          - MANAGER_APPROVAL
+        revision:
+          type: integer
+          format: int64
+        creatorActorRef:
+          type: string
+        initiatedByIdentityId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          nullable: true
+          maxLength: 100000
+        contentRef:
+          type: string
+          nullable: true
+        contentAvailable:
+          type: boolean
+        contentFormat:
+          type: string
+          nullable: true
+        sourceBinding:
+          $ref: '#/components/schemas/SourceBinding'
+
+    DocumentVersionsView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthoringVersionView'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+
+    AuthoringEvidenceItem:
+      type: object
+      properties:
+        evidenceId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        sourceRef:
+          type: string
+          nullable: true
+        artifactRef:
+          type: string
+          nullable: true
+
+    AuthoringProblem:
+      type: object
+      description: RFC 9457 Problem Details + extension code/correlationId.
+      required:
+      - type
+      - title
+      - status
+      - detail
+      - instance
+      - code
+      - correlationId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+        correlationId:
+          type: string
+
+    DocumentApiResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/DocumentView'
+      required:
+      - code
+      - message
+      - data
+      additionalProperties: false
+
+    AuthoringVersionApiResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuthoringVersionView'
+      required:
+      - code
+      - message
+      - data
+      additionalProperties: false
+
+    DocumentVersionsApiResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/DocumentVersionsView'
+      required:
+      - code
+      - message
+      - data
+      additionalProperties: false
+
+    DocumentEvidenceApiResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/DocumentEvidenceView'
+      required:
+      - code
+      - message
+      - data
+      additionalProperties: false

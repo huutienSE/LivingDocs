@@ -320,3 +320,7 @@ Spring application vẫn ở root `com.livingdocs.document` để scan các comp
 Các mốc đọc nguồn trong bảng là lịch sử đối chiếu, không phải trạng thái remote mới nhất.
 Tài liệu dự án cung cấp scope/contract; source/report/log chỉ xác nhận phiên bản và môi trường
 được ghi rõ. Local PASS không thay peer approval hoặc nghiệm thu parent Story.
+
+## LIV-164 Developer authoring
+
+API-100/101/104/105/106/107/108 bổ sung Document/Draft authoring với Markdown, creator/editor history, ETag và fresh authorization. API-113 tiếp tục dùng implementation LIV-143. Hướng dẫn contract, V5, fixture provider và runner Gateway/Newman ở [LIV-164 implementation report](../../docs/implementation/LIV-164-developer-authoring.md).

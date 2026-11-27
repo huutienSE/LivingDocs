@@ -51,7 +51,7 @@ class ReviewMigrationIntegrationTest extends PostgresTestSupport {
             UUID decision = UUID.randomUUID();
             sql.execute("INSERT INTO document.review_decisions(review_decision_id,tenant_id,document_version_id,reviewer_identity_id,decision,round_no,idempotency_key,expected_revision,resulting_revision,resulting_state,resulting_stage) VALUES ('" + decision + "','" + tenant + "','" + version + "','" + actor + "','PASS',2,'v2-key',0,1,'IN_REVIEW','MANAGER_APPROVAL')");
             sql.execute("INSERT INTO document.document_audits(tenant_id,document_id,document_version_id,workspace_id,actor_ref,action,new_state,metadata) VALUES ('" + tenant + "','" + document + "','" + version + "','" + workspace + "','legacy','STAFF_REVIEW_PASS','IN_REVIEW','{\"decisionId\":\"" + decision + "\"}')");
-            assertThat(config.target("latest").load().migrate().migrationsExecuted).isEqualTo(2);
+            assertThat(config.target("latest").load().migrate().migrationsExecuted).isEqualTo(3);
             try (var rows = sql.executeQuery("SELECT response_snapshot->>'documentId',response_snapshot->>'revision' FROM document.review_decisions WHERE idempotency_key='v2-key'")) {
                 rows.next(); assertThat(rows.getString(1)).isEqualTo(document.toString()); assertThat(rows.getString(2)).isEqualTo("1");
             }

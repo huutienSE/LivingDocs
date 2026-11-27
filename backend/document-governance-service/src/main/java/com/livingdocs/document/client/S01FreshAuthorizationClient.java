@@ -2,6 +2,7 @@ package com.livingdocs.document.client;
 
 import com.livingdocs.document.exception.*;
 import com.livingdocs.document.model.DocumentVersion;
+import com.livingdocs.document.model.AuthorizationScope;
 import com.livingdocs.document.model.AuthorizationDecision;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -53,6 +54,12 @@ public class S01FreshAuthorizationClient {
     @Transactional(propagation = Propagation.NEVER)
     public AuthorizationDecision requireAllowed(DocumentVersion version, String userAccessToken,
                                                        String correlationId, String action) {
+        return requireAllowed(AuthorizationScope.of(version), userAccessToken, correlationId, action);
+    }
+
+    @Transactional(propagation = Propagation.NEVER)
+    public AuthorizationDecision requireAllowed(AuthorizationScope version, String userAccessToken,
+                                                String correlationId, String action) {
         if (!Set.of("DOCUMENT_AUTHOR", "DOCUMENT_STAFF_REVIEW").contains(action)) throw unavailable();
         // PR2 DOCUMENT_* requires a repository. Do not invent one or bypass fresh authorization.
         if (version.repositoryConnectionId() == null || tokenEndpoint == null || evaluationEndpoint == null

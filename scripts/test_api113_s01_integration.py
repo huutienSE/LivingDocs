@@ -110,11 +110,17 @@ def run_newman(folder, variables, cli, temporary):
 
 
 def main():
+    global COLLECTION
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=S04 / "target/api113-s01-integration.json")
     parser.add_argument("--gateway-newman", action="store_true", help="Also run the real Gateway and all API-113 Newman phases")
     parser.add_argument("--newman-cli", type=Path, help="Path to node_modules/newman/bin/newman.js (Newman 6.2.3)")
+    parser.add_argument("--authoring-newman", action="store_true", help="LIV-164: launch the test-classpath snapshot provider and run the authoring API demo")
     args = parser.parse_args()
+    if args.authoring_newman:
+        if not args.gateway_newman:
+            parser.error("--authoring-newman requires --gateway-newman")
+        COLLECTION = ROOT / "tests/postman/liv164-authoring.postman_collection.json"
     jars = [service / f"target/{service.name}-0.0.1-SNAPSHOT.jar" for service in (S01, S04)]
     if args.gateway_newman:
         jars.append(GATEWAY / "target/api-gateway-0.0.1-SNAPSHOT.jar")
@@ -122,6 +128,9 @@ def main():
             raise SystemExit("--gateway-newman requires Node and --newman-cli pointing to Newman 6.2.3 bin/newman.js")
     if not all(path.is_file() for path in jars):
         raise SystemExit("Build both services with mvn -B -ntp package first.")
+    fixture_launcher = S04 / "target/test-classes/com/livingdocs/document/AuthoringFixtureApplication.class"
+    if args.authoring_newman and not fixture_launcher.is_file():
+        raise SystemExit("Build S04 test classes before running the LIV-164 fixture launcher.")
     report = {"preparedBy": "Codex", "startedAt": datetime.now(timezone.utc).isoformat(),
               "scope": "Real S01 Identity JWT + API-038; S04 API-113. Disposable authority fixtures; no S02/Gateway.",
               "fixtureMode": "CONTROLLED SQL authority/VERIFIED-grant fixture, not production Grant lifecycle or S02 binding proof",
@@ -132,6 +141,8 @@ def main():
         report["scope"] = "Real Gateway/S01/S04 + API-113/API-120 Newman, Service JWT/API-039 for Staff Return; disposable authority/Draft/VERIFIED-grant fixtures; no S02."
         report["newman"] = []
         report["artifactsSha256"][str(COLLECTION.relative_to(ROOT))] = hashlib.sha256(COLLECTION.read_bytes()).hexdigest()
+    if args.authoring_newman:
+        report["artifactsSha256"][str(fixture_launcher.relative_to(ROOT))] = hashlib.sha256(fixture_launcher.read_bytes()).hexdigest()
     containers, processes, logs = [], [], []
     run_id = uuid4().hex[:12]
     args.output = args.output.resolve()
@@ -143,7 +154,7 @@ def main():
         report["checks"].append({"name": name, "result": "PASS"})
         print("PASS " + name, flush=True)
 
-    temporary = tempfile.TemporaryDirectory(prefix="ld-api113-")
+    temporary = tempfile.TemporaryDirectory(prefix="ld-api113-", dir=args.output.parent)
     pg_password = secrets.token_hex(24)
     try:
         java = java_executable()
@@ -191,6 +202,8 @@ Files.writeString(Path.of(a[1]), "-----BEGIN PUBLIC KEY-----\\n"+Base64.getMimeE
 class HashWorkload { public static void main(String[] a) throws Exception {
 Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), BCrypt.gensalt())); }}''', encoding="utf-8")
         command(java, "--class-path", str(crypto), str(hasher), str(workload_secret), str(workload_hash))
+        tenant, workspace, member, workspace_member, repository = [str(uuid4()) for _ in range(5)]
+        snapshot_id = str(uuid4())
         s01_port, s04_port, gateway_port, gateway_management_port = [free_port() for _ in range(4)]
         s01, s04 = f"http://127.0.0.1:{s01_port}", f"http://127.0.0.1:{s04_port}"
         gateway = f"http://127.0.0.1:{gateway_port}"
@@ -204,7 +217,14 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
             logs.append(stream)
             environment = {key: value for key, value in os.environ.items()
                            if not key.startswith(("DB_", "FLYWAY_", "SPRING_", "S01_", "S04_", "JWT_", "REDIS_", "LOGIN_RATE_"))}
-            proc = subprocess.Popen([java, "-jar", str(jars[index]), *[f"--{key}={value}" for key, value in {**common, **options}.items()]],
+            launch = [java, "-Duser.timezone=UTC", "-jar", str(jars[index])]
+            if index == 1 and args.authoring_newman:
+                launch = [java, "-Duser.timezone=UTC", "-Dloader.main=com.livingdocs.document.AuthoringFixtureApplication",
+                          "-Dloader.path=" + str(S04 / "target/test-classes"), "-cp", str(jars[index]),
+                          "org.springframework.boot.loader.launch.PropertiesLauncher"]
+                options = {**options, "liv164.fixture.tenant": tenant, "liv164.fixture.workspace": workspace,
+                           "liv164.fixture.repository": repository, "liv164.fixture.snapshot": snapshot_id}
+            proc = subprocess.Popen([*launch, *[f"--{key}={value}" for key, value in {**common, **options}.items()]],
                                     cwd=temp, env=environment, stdout=stream, stderr=subprocess.STDOUT)
             processes.append(proc)
             base = [s01, s04, gateway][index]
@@ -238,7 +258,7 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
                   "S01_AUTHORIZATION_EVALUATION_URI": s01 + "/internal/v1/authorization/evaluate",
                   "S04_AUTHORIZATION_WORKLOAD_SECRET_PATH": workload_secret,
                   "S04_REVIEW_ALLOW_INSECURE_HTTP": "true", "S04_AUTHORIZATION_ALLOW_INSECURE_HTTP": "true"})
-        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "4:13")
+        check("S04 Flyway and CI migration/RLS counts agree", sql("SELECT (SELECT count(*) FROM document.flyway_schema_history WHERE success) || ':' || (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='document' AND c.relkind='r' AND c.relrowsecurity);") == "5:13")
         if args.gateway_newman:
             start(2, {"server.port": gateway_port, "management.server.port": gateway_management_port,
                       "spring.profiles.active": "", "JWT_ISSUER_URI": "urn:livingdocs:s01",
@@ -256,7 +276,6 @@ Files.writeString(Path.of(a[1]), BCrypt.hashpw(Files.readString(Path.of(a[0])), 
         claims = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
         check("S01 JWT carries Identity, no tenant/workspace authority", claims["sub"] == actor and
               not {"tenant_id", "workspace_grants", "tenant_active"}.intersection(claims))
-        tenant, workspace, member, workspace_member, repository = [str(uuid4()) for _ in range(5)]
         registry.write_text(json.dumps([{"id": "s04", "secretHash": workload_hash.read_text(encoding="utf-8"),
                                         "audiences": ["livingdocs-s01-internal"], "operations": ["authorization:evaluate"],
                                         "tenantIds": [tenant]}]), encoding="utf-8")
@@ -270,7 +289,7 @@ INSERT INTO document.document_versions(document_version_id,tenant_id,document_id
 INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,document_version_id,evidence_type,source_ref) VALUES ('{evidence}','{tenant_id}','{version}','SOURCE','test://isolated');""")
             return version, evidence
 
-        first, evidence = fixture(repo=repository)
+        first, evidence = (None, None) if args.authoring_newman else fixture(repo=repository)
         payload = {}
 
         def submit(version, body=payload, jwt=token, key="integration"):
@@ -280,7 +299,8 @@ INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,docum
         def expected(name, result, status, code):
             check(f"{name} (HTTP {result[0]}, {result[2].get('code')})", result[0] == status and result[2].get("code") == code)
 
-        expected("Unprovisioned Identity denied", submit(first), 403, "FORBIDDEN_SCOPE")
+        if not args.authoring_newman:
+            expected("Unprovisioned Identity denied", submit(first), 403, "FORBIDDEN_SCOPE")
         sql(f"""INSERT INTO identity.tenants(tenant_id,name) VALUES ('{tenant}','API-113 isolated test');
 INSERT INTO identity.tenant_memberships(membership_id,tenant_id,identity_id) VALUES ('{member}','{tenant}','{actor}');
 INSERT INTO identity.workspaces(workspace_id,tenant_id,name) VALUES ('{workspace}','{tenant}','Developer workspace');
@@ -290,8 +310,27 @@ INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membersh
         context = request(s01, "/api/v1/users/me/access-context", token)[2]["data"]
         check("API-038 returns real DB Developer permission, excludes PENDING repository", context["tenantId"] == tenant and
               "DOCUMENT_AUTHOR" in context["workspaceGrants"][0]["permissions"] and not context["workspaceGrants"][0]["repositoryIds"])
-        expected("PENDING grant denies fresh Submit", submit(first), 403, "FORBIDDEN_SCOPE")
+        if not args.authoring_newman:
+            expected("PENDING grant denies fresh Submit", submit(first), 403, "FORBIDDEN_SCOPE")
         sql(f"UPDATE identity.repository_grants SET verification_status='VERIFIED', verification_source='OPERATOR_ATTESTED', verified_at=now(), provenance='CONTROLLED SQL TEST FIXTURE: no operator or S02 binding workflow executed' WHERE repository_connection_id='{repository}';")
+        if args.authoring_newman:
+            collection = str(uuid4())
+            sql(f"INSERT INTO document.document_collections(collection_id,tenant_id,workspace_id,name) VALUES ('{collection}','{tenant}','{workspace}','LIV164 controlled fixture');")
+            variables = {"baseUrl": gateway, "accessToken": token, "workspaceId": workspace,
+                         "collectionId": collection, "repositoryId": repository, "snapshotId": snapshot_id}
+            report["scope"] = "LIV-164 real Gateway/S01/S04, authoring/reads/Submit; controlled upstream grant and source fixtures"
+            report["fixtureMode"] = "Collection and VERIFIED grant are SQL test fixtures; source snapshot is test-classpath only; Document/Draft/content use APIs"
+            report["newman"].append(run_newman("Developer authoring demo", variables, args.newman_cli, temp))
+            document = sql(f"SELECT document_id FROM document.documents WHERE tenant_id='{tenant}' AND collection_id='{collection}';")
+            version = sql(f"SELECT document_version_id FROM document.document_versions WHERE document_id='{document}';")
+            check("API-created version persists Staff Review", sql(f"SELECT state || ':' || review_stage || ':' || revision FROM document.document_versions WHERE document_version_id='{version}';") == "IN_REVIEW:STAFF_REVIEW:2")
+            check("Both content revisions preserve the real Identity", sql(f"SELECT count(*) FROM document.content_revisions WHERE document_version_id='{version}' AND editor_identity_id='{actor}';") == "2")
+            check("Replay and denied edits add no writes", sql(f"SELECT (SELECT count(*) FROM document.submit_requests WHERE document_version_id='{version}') || ':' || (SELECT count(*) FROM document.document_audits WHERE document_id='{document}');") == "1:4")
+            check("Create audit precedes version", sql(f"SELECT count(*) FROM document.document_audits WHERE document_id='{document}' AND action='DOCUMENT_CREATED' AND document_version_id IS NULL;") == "1")
+            report["resourceIds"] = {"documentId": document, "versionId": version}
+            report["artifactsSha256"][str(COLLECTION.relative_to(ROOT))] = hashlib.sha256(COLLECTION.read_bytes()).hexdigest()
+            report["result"] = "PASS"
+            return
         original = submit(first)
         expected("API-113 Submit with real S01 JWT/context", original, 200, "DOCUMENT_SUBMITTED")
         check("Submit advances Staff Review with ETag", original[2]["data"]["reviewStage"] == "STAFF_REVIEW" and

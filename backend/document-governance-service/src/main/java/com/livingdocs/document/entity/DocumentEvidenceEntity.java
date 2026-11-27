@@ -21,8 +21,20 @@ public class DocumentEvidenceEntity {
     private UUID tenantId;
     @Column(name = "document_version_id", nullable = false, updatable = false)
     private UUID versionId;
+    @Column(name = "evidence_type", nullable = false, updatable = false)
+    private String type;
     @Column(name = "source_ref", columnDefinition = "text", updatable = false)
     private String sourceRef;
     @Column(name = "artifact_ref", columnDefinition = "text", updatable = false)
     private String artifactRef;
+
+    public DocumentEvidenceEntity(UUID tenantId, UUID versionId,
+            com.livingdocs.document.model.SourceSnapshot.Evidence evidence) {
+        this.id = UUID.randomUUID();
+        this.tenantId = tenantId;
+        this.versionId = versionId;
+        this.type = evidence.type();
+        this.sourceRef = evidence.sourceRef();
+        this.artifactRef = evidence.artifactRef();
+    }
 }
