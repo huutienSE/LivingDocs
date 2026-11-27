@@ -965,29 +965,18 @@ paths:
   /api/v1/approval-queue:
     get:
       tags:
-        - S04 Public
-      operationId: api122_get
+      - S04 Public
+      operationId: getApprovalQueue
       summary: Hàng chờ Manager
-      description: 'LD-API-001 API-122. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
+      description: 'LD-API-001 API-122 (branch LIV-98). Read-only. Versions at IN_REVIEW / MANAGER_APPROVAL in the
+        caller tenant whose workspace, and repository when the document has one, is covered by one S01 API-038
+        workspace grant holding both MANAGER and DOCUMENT_FINAL_APPROVE; grants are never combined across
+        workspaces. Sorted by latest Staff PASS (oldest first), then created time and version id. No Manager grant
+        returns 403 APPROVAL_FORBIDDEN; S01 401/403/unavailable map to 401/403/503. Does not evaluate No Self
+        Final Approval or API-039 fresh authorization; API-124 enforces those.'
       x-api-id: API-122
-      x-contract-state: CANDIDATE
+      x-contract-state: IN_PROGRESS
       x-gateway-exposure: public
-      responses:
-        '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateObject'
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
-      security:
-        - bearerAuth: []
       parameters:
         - name: page
           in: query
@@ -995,45 +984,74 @@ paths:
           schema:
             type: integer
             minimum: 0
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
+            default: 0
         - name: size
           in: query
           required: false
+          description: 1 to the configured maximum (S04_APPROVAL_QUEUE_MAX_PAGE_SIZE, default 100); outside returns 400.
           schema:
             type: integer
             minimum: 1
-          description: Giới hạn tối đa theo cấu hình server; không suy ra hard cap từ contract.
-  /api/v1/document-versions/{versionId}/approval-context:
-    get:
-      tags:
-        - S04 Public
-      operationId: api123_get
-      summary: Approval context và ETag
-      description: 'LD-API-001 API-123. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
-        và xác nhận owner.'
-      x-api-id: API-123
-      x-contract-state: CANDIDATE
-      x-gateway-exposure: public
+            default: 20
+        - name: X-Correlation-ID
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 1-64 ASCII letters, digits, dots, underscores or hyphens, starting with a letter or digit; otherwise a UUID is generated.
       responses:
         '200':
-          description: Kết quả dự kiến từ LD-API-001; DTO candidate phải được owner xác nhận.
+          description: Queue page
+          headers:
+            X-Correlation-ID:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateObject'
+                $ref: '#/components/schemas/ApprovalQueueApiResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          description: Invalid token or upstream S01 authentication failure
           headers:
-            ETag:
-              description: Strong ETag từ đúng document version, bắt buộc cho protected mutation.
+            WWW-Authenticate:
               schema:
                 type: string
-        '400': *id001
-        '401': *id001
-        '403': *id001
-        '404': *id001
-        '409': *id001
-        '422': *id001
+                enum: [Bearer]
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '406':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
       security:
         - bearerAuth: []
+  /api/v1/document-versions/{versionId}/approval-context:
+    get:
+      tags:
+      - S04 Public
+      operationId: getApprovalContext
+      summary: Approval context và ETag
+      description: 'LD-API-001 API-123 (branch LIV-98). Read-only. Version (DocumentVersionView), title, current content
+        reference, Staff and Manager decision history and evidence. Absent from the caller tenant returns 404 (RLS +
+        explicit tenant filter); in tenant but outside the Manager workspace/repository grant returns 403
+        APPROVAL_FORBIDDEN. Any state is readable; awaitingManagerDecision is true only at IN_REVIEW /
+        MANAGER_APPROVAL. ETag is the If-Match value for API-124.'
+      x-api-id: API-123
+      x-contract-state: IN_PROGRESS
+      x-gateway-exposure: public
       parameters:
         - name: versionId
           in: path
@@ -1041,7 +1059,57 @@ paths:
           schema:
             type: string
             format: uuid
-            description: 'CANDIDATE: xác nhận format với owner từng service.'
+        - name: X-Correlation-ID
+          in: header
+          required: false
+          schema:
+            type: string
+          description: 1-64 ASCII letters, digits, dots, underscores or hyphens, starting with a letter or digit; otherwise a UUID is generated.
+      responses:
+        '200':
+          description: Approval context
+          headers:
+            ETag:
+              description: Strong version-bound ETag; use as If-Match for API-124.
+              schema:
+                type: string
+            X-Correlation-ID:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalContextApiResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          description: Invalid token or upstream S01 authentication failure
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+                enum: [Bearer]
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '406':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+      security:
+        - bearerAuth: []
   /api/v1/document-versions/{versionId}/manager-decisions:
     post:
       tags:
@@ -2182,3 +2250,204 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/DocumentVersionView"
+    ApprovalQueueApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data]
+      properties:
+        code:
+          type: string
+          enum: [APPROVAL_QUEUE_LOADED]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ApprovalQueueView"
+    ApprovalQueueView:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalQueueItem"
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    ApprovalQueueItem:
+      type: object
+      additionalProperties: false
+      required: [documentId, versionId, documentTitle, versionNo, workspaceId, repositoryConnectionId, sourceSha, revision, state, reviewStage, staffPassedAt]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        documentTitle:
+          type: string
+        versionNo:
+          type: integer
+          minimum: 1
+        workspaceId:
+          type: string
+          format: uuid
+        repositoryConnectionId:
+          type: string
+          format: uuid
+          nullable: true
+        sourceSha:
+          type: string
+          nullable: true
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        state:
+          type: string
+          enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, NEEDS_REVALIDATION, REJECTED, SUPERSEDED]
+        reviewStage:
+          type: string
+          enum: [STAFF_REVIEW, MANAGER_APPROVAL]
+        staffPassedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Latest Staff PASS time; null for legacy rows without a PASS decision.
+    ApprovalContextApiResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data]
+      properties:
+        code:
+          type: string
+          enum: [APPROVAL_CONTEXT_LOADED]
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ApprovalContextView"
+    ApprovalContextView:
+      type: object
+      additionalProperties: false
+      required: [version, documentTitle, versionNo, workspaceId, awaitingManagerDecision, currentContent, staffDecisions, approvalDecisions, evidence]
+      properties:
+        version:
+          $ref: "#/components/schemas/DocumentVersionView"
+        documentTitle:
+          type: string
+        versionNo:
+          type: integer
+          minimum: 1
+        workspaceId:
+          type: string
+          format: uuid
+        awaitingManagerDecision:
+          type: boolean
+          description: True only at IN_REVIEW / MANAGER_APPROVAL. Does not evaluate No Self Final Approval or fresh authorization (API-124 does).
+        currentContent:
+          $ref: "#/components/schemas/ApprovalContent"
+        staffDecisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalStaffDecision"
+        approvalDecisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalManagerDecision"
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalEvidence"
+    ApprovalContent:
+      type: object
+      nullable: true
+      additionalProperties: false
+      required: [revisionNo, contentRef, editorIdentityId, createdAt]
+      properties:
+        revisionNo:
+          type: integer
+          minimum: 1
+        contentRef:
+          type: string
+        editorIdentityId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    ApprovalStaffDecision:
+      type: object
+      additionalProperties: false
+      required: [decisionId, roundNo, decision, reviewerIdentityId, reason, decidedAt]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+        roundNo:
+          type: integer
+          minimum: 1
+        decision:
+          type: string
+          enum: [PASS, RETURN_FOR_REVISION]
+        reviewerIdentityId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+    ApprovalManagerDecision:
+      type: object
+      additionalProperties: false
+      required: [decisionId, roundNo, decision, approverIdentityId, reason, decidedAt]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+        roundNo:
+          type: integer
+          minimum: 1
+        decision:
+          type: string
+          enum: [FINAL_APPROVE, RETURN_TO_STAFF, RETURN_TO_DEVELOPER, REJECT]
+        approverIdentityId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+    ApprovalEvidence:
+      type: object
+      additionalProperties: false
+      required: [evidenceId, evidenceType, sourceRef, artifactRef, attachedAt]
+      properties:
+        evidenceId:
+          type: string
+          format: uuid
+        evidenceType:
+          type: string
+        sourceRef:
+          type: string
+          nullable: true
+        artifactRef:
+          type: string
+          nullable: true
+        attachedAt:
+          type: string
+          format: date-time
