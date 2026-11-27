@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service @RequiredArgsConstructor
 public class GitHubAuthorizationServiceImpl implements GitHubAuthorizationService {
     private final S01AccessContextClient authority;
-    private final GitHubAuthorizationProperties config;
+    private final com.livingdocs.client.GitHubAuthorizationAppCatalog catalog;
     private final com.livingdocs.service.GitHubAuthorizationContextService contexts;
 
     @Override public GitHubAuthorizationRequirements read(GitHubAuthorizationUser actor, GitHubAuthorizationQuery query, String correlation) {
@@ -24,13 +24,9 @@ public class GitHubAuthorizationServiceImpl implements GitHubAuthorizationServic
         if (query.getAuthorizationContextId() == null) GitHubAuthorizationPolicy.workspace(authority.read(actor, correlation), workspace);
         else context = contexts.inspect(actor, workspace, UUID.fromString(query.getAuthorizationContextId()), correlation);
         if (query.getInstallationId() != null) throw new GitHubAuthorizationException(GitHubAuthorizationError.GITHUB_AUTHORIZATION_UNAVAILABLE);
-        try {
-            if (!config.getAppId().matches("[1-9][0-9]{0,18}") || Long.parseLong(config.getAppId())<=0
-                    || !config.getAppSlug().matches("[a-z0-9][a-z0-9-]{0,99}")
-                    || config.getAppName().isBlank() || config.getAppName().length()>200) throw new IllegalArgumentException();
-        } catch (RuntimeException e) { throw new GitHubAuthorizationException(GitHubAuthorizationError.GITHUB_AUTHORIZATION_CONFIG_UNAVAILABLE); }
+        var profile = catalog.read(correlation);
         // Versioned, reviewed whole-App manifest. These are requirements, never installation grants.
-        return new GitHubAuthorizationRequirements(workspace,config.getAppId(),config.getAppSlug(),config.getAppName(),
+        return new GitHubAuthorizationRequirements(workspace,profile.getAppId(),profile.getSlug(),profile.getName(),
                 "github-app-profile-v1",
                 List.of(new Permission("REPOSITORY","metadata","read","Repository identity and access metadata"),
                         new Permission("REPOSITORY","contents","write","Read source and controlled published-document export"),

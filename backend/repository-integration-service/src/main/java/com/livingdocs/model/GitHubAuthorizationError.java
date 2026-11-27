@@ -19,6 +19,7 @@ public enum GitHubAuthorizationError {
     OAUTH_STATE_INVALID(400, "User authorization state is missing, invalid or expired"),
     GITHUB_REAUTHORIZATION_REQUIRED(409, "GitHub user authorization must be started again"),
     GITHUB_ACCESS_DENIED(403, "GitHub denied access for this authorization"),
+    INSTALLATION_SELECTION_CHANGED(409, "Selected installation is no longer on the current user-scoped page"),
     GITHUB_AUTHORIZATION_UNAVAILABLE(503, "GitHub authorization cannot currently be verified"),
     AUTHORIZATION_CONTEXT_UNAVAILABLE(503, "Authorization context cannot currently be verified"),
     GITHUB_AUTHORIZATION_CONFIG_UNAVAILABLE(503, "GitHub authorization configuration is unavailable"),

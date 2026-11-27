@@ -38,8 +38,12 @@ public class GitHubAuthorizationClient implements AutoCloseable {
     }
 
     public GitHubUserAuthorization exchange(String code, String verifier, String correlation) {
+        return exchange(properties.getClientId(), code, verifier, correlation);
+    }
+
+    public GitHubUserAuthorization exchange(String clientId, String code, String verifier, String correlation) {
         var form = new LinkedMultiValueMap<String, String>();
-        form.add("client_id", properties.getClientId()); form.add("client_secret", clientSecret());
+        form.add("client_id", clientId); form.add("client_secret", clientSecret());
         form.add("code", code); form.add("code_verifier", verifier); form.add("redirect_uri", properties.getCallbackUri());
         JsonNode token = read(http.post().uri(origin(false).resolve("/login/oauth/access_token"))
                 .header("Accept", "application/json").header("X-Correlation-ID", correlation)
@@ -98,6 +102,10 @@ public class GitHubAuthorizationClient implements AutoCloseable {
     }
 
     public GitHubAuthorizationDiscovery.Page<GitHubAuthorizationDiscovery.Installation> installations(String token, int page, String correlation) {
+        return installations(token, properties.getAppId(), page, correlation);
+    }
+
+    public GitHubAuthorizationDiscovery.Page<GitHubAuthorizationDiscovery.Installation> installations(String token, String expectedApp, int page, String correlation) {
         String path = "/user/installations";
         Response response = userPage(path, token, page, correlation);
         JsonNode items = pageItems(response.body, "installations");
@@ -106,7 +114,7 @@ public class GitHubAuthorizationClient implements AutoCloseable {
         try {
             for (JsonNode item : items) {
                 String id = positiveId(item.path("id"));
-                if (!seen.add(id) || !properties.getAppId().equals(positiveId(item.path("app_id")))) throw unavailable();
+                if (!seen.add(id) || !expectedApp.equals(positiveId(item.path("app_id")))) throw unavailable();
                 String accountId = positiveId(item.path("account").path("id"));
                 String login = text(item.path("account").path("login"), 100);
                 String selection = item.path("repository_selection").asString("");
@@ -160,6 +168,53 @@ public class GitHubAuthorizationClient implements AutoCloseable {
                     || Long.parseLong(body.path("total_count").toString()) < items.size()) throw unavailable();
             return items;
         } catch (RuntimeException malformed) { throw unavailable(); }
+    }
+
+    public com.livingdocs.model.GitHubAppProfile application(String appJwt, String correlation) {
+        JsonNode body = appRead("/app", appJwt, correlation);
+        String slug = text(body.path("slug"), 100), clientId = text(body.path("client_id"), 128);
+        if (!slug.matches("[a-z0-9][a-z0-9-]{0,99}") || !clientId.matches("[A-Za-z0-9_.-]{6,128}")) throw unavailable();
+        var events = new java.util.HashSet<String>();
+        if (!body.path("events").isArray() || body.path("events").size() > 100) throw unavailable();
+        for (JsonNode event : body.path("events")) {
+            String name = text(event, 64);
+            if (!name.matches("[a-z][a-z0-9_]{0,63}") || !events.add(name)) throw unavailable();
+        }
+        return new com.livingdocs.model.GitHubAppProfile(positiveId(body.path("id")), slug, text(body.path("name"),200),
+                clientId, permissions(body.path("permissions")), events);
+    }
+
+    public com.livingdocs.model.GitHubInstallationPermissions installation(String appJwt, com.livingdocs.model.GitHubAppProfile app,
+            String installationId, String correlation) {
+        validateInstallationId(installationId);
+        JsonNode body = appRead("/app/installations/" + installationId, appJwt, correlation);
+        if (!installationId.equals(positiveId(body.path("id"))) || !app.getAppId().equals(positiveId(body.path("app_id")))
+                || !app.getSlug().equals(text(body.path("app_slug"),100))) throw unavailable();
+        String selection = text(body.path("repository_selection"),16);
+        if (!java.util.Set.of("all","selected").contains(selection)) throw unavailable();
+        JsonNode suspended = body.path("suspended_at");
+        if (!suspended.isNull()) {
+            try { Instant.parse(text(suspended,100)); } catch (RuntimeException malformed) { throw unavailable(); }
+        }
+        var installation = new GitHubAuthorizationDiscovery.Installation(installationId, positiveId(body.path("account").path("id")),
+                text(body.path("account").path("login"),100), selection, !suspended.isNull());
+        return new com.livingdocs.model.GitHubInstallationPermissions(installation, permissions(body.path("permissions")));
+    }
+
+    private JsonNode appRead(String path, String jwt, String correlation) {
+        return read(http.get().uri(origin(true).resolve(path)).headers(h -> h.setBearerAuth(jwt))
+                .header("Accept","application/vnd.github+json").header("X-Correlation-ID",correlation),false);
+    }
+
+    private static java.util.Map<String,String> permissions(JsonNode node) {
+        if (!node.isObject() || node.size() > 128) throw unavailable();
+        var result = new java.util.HashMap<String,String>();
+        for (var entry : node.properties()) {
+            if (!entry.getKey().matches("[a-z][a-z0-9_]{0,63}") || !entry.getValue().isString()
+                    || !java.util.Set.of("read","write","admin").contains(entry.getValue().asString())) throw unavailable();
+            result.put(entry.getKey(),entry.getValue().asString());
+        }
+        return java.util.Map.copyOf(result);
     }
 
     private boolean hasNext(Response response, String path, int page) {

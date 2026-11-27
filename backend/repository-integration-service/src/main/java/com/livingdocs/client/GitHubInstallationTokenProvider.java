@@ -57,6 +57,7 @@ public final class GitHubInstallationTokenProvider {
     private final ObjectMapper json;
     private final RestClient client;
     private final Clock clock;
+    private final GitHubAppJwtSigner appSigner;
     private final Map<TokenKey, InstallationToken> tokens = new LinkedHashMap<>(16, 0.75f, true);
 
     @Autowired
@@ -69,6 +70,7 @@ public final class GitHubInstallationTokenProvider {
         this.properties = properties;
         this.json = json;
         this.clock = clock;
+        this.appSigner = new GitHubAppJwtSigner(properties, json, clock);
         this.client = builder.baseUrl(GitHubHttp.BASE_URL)
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
                 .defaultHeader("X-GitHub-Api-Version", "2026-03-10")
@@ -181,75 +183,8 @@ public final class GitHubInstallationTokenProvider {
     }
 
     private String signAppJwt(String credentialRef) {
-        String clientId = properties.getClientId();
-        String keyDirectory = properties.getKeyDirectory();
-        if (clientId == null || clientId.isBlank() || keyDirectory == null || keyDirectory.isBlank()) {
-            throw unavailable();
-        }
-        try {
-            Path root = Path.of(keyDirectory).toRealPath();
-            Path keyFile = root.resolve(credentialRef).toRealPath();
-            if (!keyFile.startsWith(root) || !Files.isRegularFile(keyFile)) {
-                throw unavailable();
-            }
-            Instant now = clock.instant();
-            byte[] header = json.writeValueAsBytes(Map.of("alg", "RS256", "typ", "JWT"));
-            byte[] claims = json.writeValueAsBytes(Map.of("iss", clientId, "iat", now.minusSeconds(60).getEpochSecond(),
-                    "exp", now.plusSeconds(240).getEpochSecond()));
-            String signingInput = JWT_ENCODER.encodeToString(header) + "." + JWT_ENCODER.encodeToString(claims);
-            Signature signer = Signature.getInstance("SHA256withRSA");
-            signer.initSign(readPrivateKey(keyFile));
-            signer.update(signingInput.getBytes(StandardCharsets.US_ASCII));
-            return signingInput + "." + JWT_ENCODER.encodeToString(signer.sign());
-        } catch (IOException | GeneralSecurityException | IllegalArgumentException | JacksonException failure) {
-            throw unavailable();
-        }
-    }
-
-    private static PrivateKey readPrivateKey(Path keyFile) throws IOException, GeneralSecurityException {
-        try (var input = Files.newInputStream(keyFile)) {
-            byte[] bytes = input.readNBytes(MAX_KEY_BYTES + 1);
-            if (bytes.length > MAX_KEY_BYTES) {
-                throw unavailable();
-            }
-            String pem = new String(bytes, StandardCharsets.US_ASCII).strip();
-            boolean pkcs1 = pem.startsWith("-----BEGIN RSA PRIVATE KEY-----");
-            String label = pkcs1 ? "RSA PRIVATE KEY" : "PRIVATE KEY";
-            String begin = "-----BEGIN " + label + "-----";
-            String end = "-----END " + label + "-----";
-            if (!pem.startsWith(begin) || !pem.endsWith(end)) {
-                throw unavailable();
-            }
-            String encoded = pem.substring(begin.length(), pem.length() - end.length()).replaceAll("\\s", "");
-            byte[] der = Base64.getDecoder().decode(encoded);
-            return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(pkcs1 ? wrapPkcs1(der) : der));
-        }
-    }
-
-    private static byte[] wrapPkcs1(byte[] rsaKey) {
-        // PKCS#8 PrivateKeyInfo: phiên bản 0, định danh rsaEncryption, rồi OCTET STRING chứa PKCS#1.
-        ByteArrayOutputStream body = new ByteArrayOutputStream();
-        body.writeBytes(HexFormat.of().parseHex("020100300d06092a864886f70d0101010500"));
-        writeDer(body, 0x04, rsaKey);
-        ByteArrayOutputStream key = new ByteArrayOutputStream();
-        writeDer(key, 0x30, body.toByteArray());
-        return key.toByteArray();
-    }
-
-    private static void writeDer(ByteArrayOutputStream output, int tag, byte[] value) {
-        int length = value.length;
-        output.write(tag);
-        if (length < 128) {
-            output.write(length);
-        } else if (length < 256) {
-            output.write(0x81);
-            output.write(length);
-        } else {
-            output.write(0x82);
-            output.write(length >>> 8);
-            output.write(length);
-        }
-        output.writeBytes(value);
+        try { return appSigner.sign(credentialRef); }
+        catch (RuntimeException failure) { throw unavailable(); }
     }
 
     private static long parseId(String id) {

@@ -16,4 +16,6 @@ public interface GitHubAuthorizationContextService {
         installations(GitHubAuthorizationUser actor, UUID contextId, int page, String correlation);
     com.livingdocs.model.GitHubAuthorizationDiscovery.Page<com.livingdocs.model.GitHubAuthorizationDiscovery.Repository>
         repositories(GitHubAuthorizationUser actor, UUID contextId, String installationId, int page, String correlation);
+    com.livingdocs.model.GitHubAuthorizationSelection select(GitHubAuthorizationUser actor, UUID workspace, UUID contextId,
+            String installationId, int page, String correlation);
 }

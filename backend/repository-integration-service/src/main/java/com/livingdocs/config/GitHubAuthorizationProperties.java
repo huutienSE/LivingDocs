@@ -28,6 +28,7 @@ public class GitHubAuthorizationProperties {
     private java.time.Duration contextTtl = java.time.Duration.ofMinutes(15);
     private String apiBaseUri = "https://api.github.com";
     private String oauthBaseUri = "https://github.com";
+    private String appKeyReference = "";
 
     public URI trustedUri(String value) {
         URI uri = URI.create(value);

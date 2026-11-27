@@ -38,6 +38,7 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
     private final S01AccessContextClient authority;
     private final GitHubAuthorizationContextCodec codec;
     private final GitHubAuthorizationClient github;
+    private final com.livingdocs.client.GitHubAuthorizationAppCatalog catalog;
     private final GitHubAuthorizationContextRepository contexts;
     private final EntityManager entities;
     private final PlatformTransactionManager transactionManager;
@@ -46,11 +47,12 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
     public GitHubAuthorizationContextStart start(GitHubAuthorizationUser actor, UUID workspace, String origin, String correlation) {
         var access = authority.read(actor, correlation);
         UUID tenant = GitHubAuthorizationPolicy.workspace(access, workspace);
-        String configuration = configurationVersion();
+        var profile = catalog.read(correlation);
+        String configuration = configurationVersion(profile.getAppId());
         if (!Objects.equals(origin, properties.getBrowserOrigin())) throw failure(GitHubAuthorizationError.FORBIDDEN_SCOPE);
         Instant expires = Instant.now().plus(properties.getContextTtl()).truncatedTo(ChronoUnit.SECONDS);
         var binding = new GitHubAuthorizationContextBinding(UUID.randomUUID(), tenant, workspace, actor.getIdentityId(),
-                properties.getAppId(), configuration, expires);
+                profile.getAppId(), configuration, expires);
         var prepared = codec.prepare(binding);
         inTransaction(tenant, false, () -> {
             entities.createNativeQuery("select pg_advisory_xact_lock(hashtextextended(:scope, 0))")
@@ -63,11 +65,11 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
                     prepared.getStateKeyVersion(), prepared.getCredentialKeyVersion()));
             return null;
         });
-        String authorization = "https://github.com/login/oauth/authorize?client_id=" + query(properties.getClientId())
+        String authorization = "https://github.com/login/oauth/authorize?client_id=" + query(profile.getClientId())
                 + "&redirect_uri=" + query(properties.getCallbackUri()) + "&state=" + query(prepared.getState())
                 + "&code_challenge=" + prepared.getChallenge() + "&code_challenge_method=S256";
         return new GitHubAuthorizationContextStart(binding.getContextId(), expires, authorization,
-                "https://github.com/apps/" + properties.getAppSlug() + "/installations/new", prepared.getCookieNonce());
+                "https://github.com/apps/" + profile.getSlug() + "/installations/new", prepared.getCookieNonce());
     }
 
     @Override
@@ -78,7 +80,7 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
             var context = owned(tenant, actor.getIdentityId(), contextId);
             if (!workspace.equals(context.getWorkspaceId())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_NOT_FOUND);
             if (!Instant.now().isBefore(context.getExpiresAt())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_EXPIRED);
-            if (!configurationVersion().equals(context.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
+            if (!configurationVersion(context.getAppId()).equals(context.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
             if (!java.util.Set.of("PENDING", "EXCHANGING", "AUTHORIZED").contains(context.getStatus()))
                 throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_CONSUMED);
             return context;
@@ -123,7 +125,7 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
                 || (error != null && !error.matches("[a-z_]{1,64}"))) throw failure(GitHubAuthorizationError.OAUTH_STATE_INVALID);
         var verified = codec.verifyState(state, cookies);
         var binding = verified.getBinding();
-        if (!configurationVersion().equals(binding.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
+        if (!configurationVersion(binding.getAppId()).equals(binding.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
         var claimed = inTransaction(binding.getTenantId(), false, () -> {
             var row = owned(binding.getTenantId(), binding.getActorIdentityId(), binding.getContextId());
             if (!row.getWorkspaceId().equals(binding.getWorkspaceId()) || !row.getAppId().equals(binding.getAppId())
@@ -144,8 +146,10 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
             String verifier = codec.openCredential(binding, claimed.getCredentialKeyVersion(), claimed.getSecretPayload())
                     .path("verifier").asString("");
             if (!verifier.matches("[A-Za-z0-9_-]{43}")) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_UNAVAILABLE);
-            var authorization = github.exchange(code, verifier, correlation);
-            if (!configurationVersion().equals(binding.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
+            var profile = catalog.read(correlation);
+            if (!profile.getAppId().equals(binding.getAppId())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
+            var authorization = github.exchange(profile.getClientId(), code, verifier, correlation);
+            if (!configurationVersion(binding.getAppId()).equals(binding.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
             if (!Instant.now().isBefore(authorization.getExpiresAt())) throw failure(GitHubAuthorizationError.GITHUB_REAUTHORIZATION_REQUIRED);
             String payload = codec.sealCredential(binding, claimed.getCredentialKeyVersion(), java.util.Map.of(
                     "accessToken", authorization.getAccessToken(), "githubUserId", authorization.getGithubUserId(),
@@ -188,8 +192,9 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
     public GitHubAuthorizationDiscovery.Page<GitHubAuthorizationDiscovery.Installation> installations(
             GitHubAuthorizationUser actor, UUID contextId, int page, String correlation) {
         if (page <= 0) throw failure(GitHubAuthorizationError.INVALID_REQUEST);
-        var credential = discoveryCredential(actor, contextId, correlation);
-        var result = github.installations(credential.getAccessToken(), page, correlation);
+        var row = discoveryContext(actor, null, contextId, correlation);
+        var credential = authorization(row);
+        var result = github.installations(credential.getAccessToken(), row.getAppId(), page, correlation);
         if (!Instant.now().isBefore(credential.getExpiresAt())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_EXPIRED);
         return result;
     }
@@ -199,25 +204,41 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
             GitHubAuthorizationUser actor, UUID contextId, String installationId, int page, String correlation) {
         if (page <= 0) throw failure(GitHubAuthorizationError.INVALID_REQUEST);
         GitHubAuthorizationClient.validateInstallationId(installationId);
-        var credential = discoveryCredential(actor, contextId, correlation);
+        var credential = authorization(discoveryContext(actor, null, contextId, correlation));
         var result = github.repositories(credential.getAccessToken(), installationId, page, correlation);
         if (!Instant.now().isBefore(credential.getExpiresAt())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_EXPIRED);
         return result;
     }
 
-    private com.livingdocs.model.GitHubUserAuthorization discoveryCredential(GitHubAuthorizationUser actor, UUID contextId, String correlation) {
+    private GitHubAuthorizationContextEntity discoveryContext(GitHubAuthorizationUser actor, UUID workspace, UUID contextId, String correlation) {
         var access = authority.read(actor, correlation);
         UUID tenant = GitHubAuthorizationPolicy.tenant(access);
         var row = inTransaction(tenant, true, () -> {
             var context = owned(tenant, actor.getIdentityId(), contextId);
+            if (workspace != null && !workspace.equals(context.getWorkspaceId())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_NOT_FOUND);
             GitHubAuthorizationPolicy.workspace(access, context.getWorkspaceId());
             if (!Instant.now().isBefore(context.getExpiresAt())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_EXPIRED);
-            if (!configurationVersion().equals(context.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
+            if (!configurationVersion(context.getAppId()).equals(context.getAppConfigVersion())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONFIGURATION_CHANGED);
             if (java.util.Set.of("PENDING", "EXCHANGING").contains(context.getStatus())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_NOT_READY);
             if (!"AUTHORIZED".equals(context.getStatus())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_CONSUMED);
             return context;
         });
-        return authorization(row);
+        return row;
+    }
+
+    @Override
+    public com.livingdocs.model.GitHubAuthorizationSelection select(GitHubAuthorizationUser actor, UUID workspace, UUID contextId,
+            String installationId, int page, String correlation) {
+        GitHubAuthorizationClient.validateInstallationId(installationId);
+        if (page <= 0) throw failure(GitHubAuthorizationError.INVALID_REQUEST);
+        var row = discoveryContext(actor, workspace, contextId, correlation);
+        var credential = authorization(row);
+        var candidates = github.installations(credential.getAccessToken(), row.getAppId(), page, correlation);
+        var proof = candidates.getItems().stream().filter(i -> i.getInstallationId().equals(installationId)).findFirst()
+                .orElseThrow(() -> failure(GitHubAuthorizationError.INSTALLATION_SELECTION_CHANGED));
+        if (!Instant.now().isBefore(credential.getExpiresAt())) throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_EXPIRED);
+        return new com.livingdocs.model.GitHubAuthorizationSelection(new GitHubAuthorizationContextSnapshot(contextId,row.getExpiresAt(),"AUTHORIZED"),
+                proof, row.getAppId(), credential.getExpiresAt());
     }
 
     private GitHubAuthorizationContextEntity owned(UUID tenant, UUID actor, UUID context) {
@@ -247,12 +268,10 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
         catch (RuntimeException failed) { throw failure(GitHubAuthorizationError.AUTHORIZATION_CONTEXT_UNAVAILABLE); }
     }
 
-    private String configurationVersion() {
+    private String configurationVersion(String appId) {
         try {
-            if (!properties.getAppId().matches("[1-9][0-9]{0,18}") || Long.parseLong(properties.getAppId()) <= 0
-                    || !properties.getAppSlug().matches("[a-z0-9][a-z0-9-]{0,99}")
-                    || properties.getAppName().isBlank() || properties.getAppName().length() > 200
-                    || !properties.getClientId().matches("[A-Za-z0-9_.-]{6,128}")
+            if (!appId.matches("[1-9][0-9]{0,18}") || Long.parseLong(appId) <= 0
+                    || !catalog.configuredClientId().matches("[A-Za-z0-9_.-]{1,128}")
                     || properties.getContextTtl().compareTo(java.time.Duration.ofSeconds(1)) < 0
                     || properties.getContextTtl().compareTo(java.time.Duration.ofMinutes(15)) > 0) throw new IllegalArgumentException();
             URI origin = properties.trustedUri(properties.getBrowserOrigin());
@@ -260,8 +279,9 @@ public class GitHubAuthorizationContextServiceImpl implements GitHubAuthorizatio
             URI completion = properties.trustedUri(properties.getCompletionUri());
             if (!origin.getPath().isEmpty() || !"/api/v1/integrations/github/authorization/callback".equals(callback.getPath())
                     || !sameOrigin(origin, callback) || !sameOrigin(origin, completion)) throw new IllegalArgumentException();
-            return GitHubAuthorizationContextCodec.digest(String.join("\n", "github-app-profile-v1", properties.getAppId(),
-                    properties.getAppSlug(), properties.getClientId(), origin.toString(), callback.toString(), completion.toString()));
+            return GitHubAuthorizationContextCodec.digest(String.join("\n", "github-app-profile-v1", appId,
+                    properties.getAppId(), properties.getAppSlug(), properties.getAppName(), catalog.configuredClientId(),
+                    origin.toString(), callback.toString(), completion.toString()));
         } catch (RuntimeException failed) { throw failure(GitHubAuthorizationError.GITHUB_AUTHORIZATION_CONFIG_UNAVAILABLE); }
     }
 

@@ -110,9 +110,22 @@ Evidence đã có **trước thay đổi quy trình**: 13 context/persistence te
 | Slice | Hành vi | Trạng thái |
 | --- | --- | --- |
 | 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | CODE COMPLETE; final test checklist QUEUED |
-| 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | NOT STARTED |
+| 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | CODE COMPLETE; final test checklist QUEUED |
 | 4 | So sánh levels/permissions, sufficient/insufficient/suspended | NOT STARTED |
 | 4A | Repository-specific verification trong API-046 | N/A theo contract |
 | 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | NOT STARTED; cần cấu hình thật |
 
 Không báo Task Done dựa trên từng slice hoặc CI xanh; không chuyển slice nếu gate tương ứng còn FAIL/BLOCKED.
+
+### Slice 3 — Đọc bằng chứng quyền từ GitHub
+
+- [x] Tái sử dụng App signer của LIV-122; giữ token nguồn chỉ `contents:read`, `pull_requests:read` và đúng một repository.
+- [x] Đọc `GET /app` có chữ ký, đối chiếu App/client identity và profile 4 quyền + 2 events đã duyệt; cache metadata tối đa 30 giây.
+- [x] Tái sử dụng key directory hiện hữu, cho phép chọn tên file key qua reference; không cần tạo App mới. Pin App ID/slug/name là kiểm tra bổ sung nếu cấu hình.
+- [x] Fresh S01/owner/workspace/context → trang `/user/installations` → chọn ID đúng trang → `GET /app/installations/{id}` bằng App JWT → đối chiếu App/account/installation.
+- [x] Thiếu selection trả 409 trước App probe; không suy diễn provider 404 thành chưa cài. Không cache quyền installation hoặc cấp quyền người dùng.
+- [x] Kiểm lại context, quyền workspace, hạn credential sau provider; không có token/key trong kết quả inspection.
+- [x] Production compile PASS: `target/liv151-slice3-compile.log`; chưa chạy test theo yêu cầu kiểm thử một đợt cuối.
+- [ ] Kiểm thử cuối task: provider faults, identity mismatch, proof ordering, source token regression và App thật.
+
+Slice 3 cung cấp inspection cho orchestration; Slice 4 nối evidence này vào sáu trạng thái public API-046 theo contract đã có.
