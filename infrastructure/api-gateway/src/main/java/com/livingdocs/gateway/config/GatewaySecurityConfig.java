@@ -8,6 +8,12 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
+import org.springframework.security.oauth2.server.resource.web.server.BearerTokenServerAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.server.BearerTokenServerAccessDeniedHandler;
+import com.livingdocs.gateway.filter.GitHubAuthorizationGatewayPolicy;
+import org.springframework.http.HttpStatus;
 
 // ===========
 // thuộc tầng SPRING SECURITY SecurityWebFilterChain,
@@ -19,8 +25,17 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 @EnableWebFluxSecurity
 public class GatewaySecurityConfig {
 
+    @Bean @Order(0)
+    public SecurityWebFilterChain githubAuthorizationCallbackChain(ServerHttpSecurity http) {
+        return http.securityMatcher(ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET,
+                        "/api/v1/integrations/github/authorization/callback"))
+                .csrf(ServerHttpSecurity.CsrfSpec::disable).httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .authorizeExchange(rules -> rules.anyExchange().permitAll()).build();
+    }
+
     // chay webflux
-    @Bean
+    @Bean @Order(1)
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, UrlBasedCorsConfigurationSource corsConfigurationSource){
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
@@ -50,7 +65,17 @@ public class GatewaySecurityConfig {
 
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(Customizer.withDefaults())
+                                .authenticationEntryPoint((exchange, error) -> GitHubAuthorizationGatewayPolicy.applies(exchange)
+                                        ? GitHubAuthorizationGatewayPolicy.problem(exchange, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED")
+                                        : new BearerTokenServerAuthenticationEntryPoint().commence(exchange, error))
+                                .accessDeniedHandler((exchange, error) -> GitHubAuthorizationGatewayPolicy.applies(exchange)
+                                        ? GitHubAuthorizationGatewayPolicy.problem(exchange, HttpStatus.FORBIDDEN, "FORBIDDEN_SCOPE")
+                                        : new BearerTokenServerAccessDeniedHandler().handle(exchange, error))
                 )
+                .exceptionHandling(errors -> errors.authenticationEntryPoint((exchange, error) ->
+                        GitHubAuthorizationGatewayPolicy.applies(exchange)
+                                ? GitHubAuthorizationGatewayPolicy.problem(exchange, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED")
+                                : new BearerTokenServerAuthenticationEntryPoint().commence(exchange, error)))
                 .build();
     }
 }

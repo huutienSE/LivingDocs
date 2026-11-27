@@ -113,7 +113,7 @@ Evidence đã có **trước thay đổi quy trình**: 13 context/persistence te
 | 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | CODE COMPLETE; final test checklist QUEUED |
 | 4 | So sánh levels/permissions, sufficient/insufficient/suspended | CODE COMPLETE; final test checklist QUEUED |
 | 4A | Repository-specific verification trong API-046 | N/A theo contract |
-| 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | NOT STARTED; cần cấu hình thật |
+| 5 | Real integration, Gateway, browser/GitHub acceptance, no-mutation/no-secret | CODE COMPLETE; kiểm thử tổng và E2E acceptance đang thực hiện |
 
 Không báo Task Done dựa trên từng slice hoặc CI xanh; không chuyển slice nếu gate tương ứng còn FAIL/BLOCKED.
 
@@ -139,3 +139,13 @@ Slice 3 cung cấp inspection cho orchestration; Slice 4 nối evidence này và
 - [x] Không tạo connection/grant, không kiểm repository cụ thể trong API-046; API-047 phải xác minh lại tại lúc connect.
 - [x] Production compile PASS: `target/liv151-slice4-compile.log`. Tests được chạy chung sau khi code Slice 5 hoàn tất.
 - [ ] Kiểm thử cuối task: sáu trạng thái, mapping/schema, higher/lower levels, extra/unknown permissions và provider errors.
+
+### Slice 5 — Tích hợp Gateway và vận hành
+
+- [x] Gateway allowlist đúng 6 method/path; callback GET có security chain state/cookie riêng, không yêu cầu hoặc xác thực LivingDocs Bearer ở callback.
+- [x] Routes LIV-151 timeout 12s gồm cả body, giữ 5s cho routes khác; security failure dùng Problem + no-store + correlation; CORS credentials không mở rộng.
+- [x] Compose chỉ thêm secret references/mount read-only, không thay secret thật hoặc App settings; CI cập nhật Flyway 4 migrations / 11 RLS tables.
+- [x] Gateway production compile PASS: `target/liv151-slice5-gateway-compile.log`.
+- [x] [Runbook, sequence diagram và checklist nghiệm thu](LIV-151-van-hanh-va-nghiem-thu.md) đã bổ sung.
+- [ ] Kiểm thử tổng sau khi code nghiệp vụ hoàn tất: đang chuẩn bị fixtures/test suite và validators; file test commit riêng.
+- [ ] E2E thật trên App LIV-122: chỉ ghi PASS khi có evidence mới, không suy từ test fixtures.

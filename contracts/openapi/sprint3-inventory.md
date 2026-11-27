@@ -159,8 +159,8 @@ Catalog keys reuse the five approved operationIds; no new numeric API IDs are as
 
 | Catalog key | Method | Path | State | Gateway |
 | --- | --- | --- | --- | --- |
-| githubAuthorizationContextCreate | POST | `/api/v1/integrations/github/authorization-contexts` | IN_PROGRESS | Disabled |
-| githubAuthorizationCallback | GET | `/api/v1/integrations/github/authorization/callback` | IN_PROGRESS | Disabled |
-| githubAuthorizationInstallationsList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations` | IN_PROGRESS | Disabled |
-| githubAuthorizationRepositoriesList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations/{installationId}/repositories` | IN_PROGRESS | Disabled |
-| githubAuthorizationContextCancel | DELETE | `/api/v1/integrations/github/authorization-contexts/{contextId}` | IN_PROGRESS | Disabled |
+| githubAuthorizationContextCreate | POST | `/api/v1/integrations/github/authorization-contexts` | IN_PROGRESS | Allowlist (JWT; callback GET uses state + cookie) |
+| githubAuthorizationCallback | GET | `/api/v1/integrations/github/authorization/callback` | IN_PROGRESS | Allowlist (JWT; callback GET uses state + cookie) |
+| githubAuthorizationInstallationsList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations` | IN_PROGRESS | Allowlist (JWT; callback GET uses state + cookie) |
+| githubAuthorizationRepositoriesList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations/{installationId}/repositories` | IN_PROGRESS | Allowlist (JWT; callback GET uses state + cookie) |
+| githubAuthorizationContextCancel | DELETE | `/api/v1/integrations/github/authorization-contexts/{contextId}` | IN_PROGRESS | Allowlist (JWT; callback GET uses state + cookie) |

@@ -72,10 +72,31 @@ spring:
 
           #======================
           #s02
+          - id: s02-get-liv-151-authorization
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
+            metadata:
+              response-timeout: 12000
+            predicates:
+              - Path=/api/v1/integrations/github/authorization,/api/v1/integrations/github/authorization/callback,/api/v1/integrations/github/authorization-contexts/{contextId}/installations,/api/v1/integrations/github/authorization-contexts/{contextId}/installations/{installationId}/repositories
+              - Method=GET
+          - id: s02-post-liv-151-context
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
+            metadata:
+              response-timeout: 12000
+            predicates:
+              - Path=/api/v1/integrations/github/authorization-contexts
+              - Method=POST
+          - id: s02-delete-liv-151-context
+            uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
+            metadata:
+              response-timeout: 12000
+            predicates:
+              - Path=/api/v1/integrations/github/authorization-contexts/{contextId}
+              - Method=DELETE
           - id: s02-get-api-046-057
             uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}
             predicates:
-              - Path=/api/v1/integrations/github/authorization,/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/connection,/api/v1/repositories/{repositoryId}/pull-requests,/api/v1/repositories/{repositoryId}/pull-requests/{prNumber},/api/v1/repositories/{repositoryId}/commits,/api/v1/repositories/{repositoryId}/source-events,/api/v1/repositories/{repositoryId}/tracked-branches
+              - Path=/api/v1/workspaces/{workspaceId}/repository-connections,/api/v1/repositories/{repositoryId}/connection,/api/v1/repositories/{repositoryId}/pull-requests,/api/v1/repositories/{repositoryId}/pull-requests/{prNumber},/api/v1/repositories/{repositoryId}/commits,/api/v1/repositories/{repositoryId}/source-events,/api/v1/repositories/{repositoryId}/tracked-branches
               - Method=GET
           - id: s02-post-api-047-059
             uri: ${S02_SERVICE_URI:http://127.0.0.1:8082}

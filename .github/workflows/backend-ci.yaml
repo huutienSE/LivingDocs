@@ -35,8 +35,8 @@ jobs:
             db_schema: repository
             app_role: ld_s02_app
             migrator_role: ld_s02_migrator
-            expected_migrations: 3
-            expected_rls_tables: 10
+            expected_migrations: 4
+            expected_rls_tables: 11
 
           - name: S04 Document
             path: backend/document-governance-service
