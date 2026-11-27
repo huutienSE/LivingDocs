@@ -32,7 +32,7 @@ public class GitHubAuthorizationIo implements AutoCloseable {
     }
 
     public <T> T call(Duration budget, GitHubAuthorizationError unavailable, Supplier<T> operation) {
-        long deadline = System.nanoTime() + budget.toNanos();
+        long deadline = System.nanoTime() + com.livingdocs.model.GitHubAuthorizationDeadline.bound(budget);
         Permit permit = acquire(unavailable);
         var task = new FutureTask<>(operation::get);
         try {

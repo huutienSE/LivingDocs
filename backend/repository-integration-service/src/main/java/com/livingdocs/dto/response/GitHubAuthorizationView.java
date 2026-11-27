@@ -18,16 +18,17 @@ public class GitHubAuthorizationView {
     private final String requirementsRevision;
     private final List<Permission> requiredPermissions;
     private final List<String> requiredEvents;
-    private final Context context = new Context("NONE");
-    private final Verification verification = new Verification("USER_AUTHORIZATION_REQUIRED");
+    private final Context context;
+    private final Verification verification;
 
     public GitHubAuthorizationView(UUID workspaceId, App app, String requirementsRevision,
-                                   List<Permission> requiredPermissions, List<String> requiredEvents) {
+                                   List<Permission> requiredPermissions, List<String> requiredEvents, Context context, Verification verification) {
         this.workspaceId = workspaceId;
         this.app = app;
         this.requirementsRevision = requirementsRevision;
         this.requiredPermissions = List.copyOf(requiredPermissions);
         this.requiredEvents = List.copyOf(requiredEvents);
+        this.context = context; this.verification = verification;
     }
 
     @Getter @RequiredArgsConstructor
@@ -39,15 +40,18 @@ public class GitHubAuthorizationView {
         private final String installationUrl;
     }
     @Getter @RequiredArgsConstructor
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     @Schema(name = "GitHubAuthorizationContextView", requiredProperties = "status")
     public static final class Context {
-        @Schema(allowableValues = "NONE")
+        @Schema(allowableValues = {"NONE", "PENDING", "AUTHORIZED"})
         private final String status;
+        private final UUID contextId;
+        private final java.time.Instant expiresAt;
     }
     @Getter @RequiredArgsConstructor
     @Schema(name = "GitHubAuthorizationVerificationView", requiredProperties = "status")
     public static final class Verification {
-        @Schema(allowableValues = "USER_AUTHORIZATION_REQUIRED")
+        @Schema(allowableValues = {"USER_AUTHORIZATION_REQUIRED", "AUTHORIZATION_PENDING", "INSTALLATION_SELECTION_REQUIRED"})
         private final String status;
     }
 }

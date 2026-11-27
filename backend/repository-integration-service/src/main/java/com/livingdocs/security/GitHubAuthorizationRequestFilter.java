@@ -26,6 +26,9 @@ public final class GitHubAuthorizationRequestFilter extends OncePerRequestFilter
         this.body = new GitHubAuthorizationBodyGuard(problems, io);
     }
     @Override protected boolean shouldNotFilterAsyncDispatch() { return false; }
+    @Override protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !"/api/v1/integrations/github/authorization".equals(request.getRequestURI());
+    }
     @Override protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
         try {

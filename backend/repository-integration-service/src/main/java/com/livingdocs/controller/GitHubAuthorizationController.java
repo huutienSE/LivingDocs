@@ -24,14 +24,17 @@ import org.springframework.web.bind.annotation.*;
 public class GitHubAuthorizationController {
     private final GitHubAuthorizationService service;
     private final GitHubAuthorizationMapper mapper;
+    private final com.livingdocs.service.impl.GitHubAuthorizationRequestExecutor requests;
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(operationId = "api046_get", summary = "GitHub authorization requirements and scoped context")
     public ResponseEntity<SuccessResponse<GitHubAuthorizationView>> read(
             @Valid @ModelAttribute @ParameterObject GitHubAuthorizationQuery query, @AuthenticationPrincipal Jwt jwt,
             HttpServletRequest request) {
-        var result = service.read(new GitHubAuthorizationUser(UUID.fromString(jwt.getSubject()),jwt.getTokenValue()),
-                query,(String)request.getAttribute(SourceCorrelationFilter.ATTRIBUTE));
+        var actor = new GitHubAuthorizationUser(UUID.fromString(jwt.getSubject()), jwt.getTokenValue());
+        String correlation = (String)request.getAttribute(SourceCorrelationFilter.ATTRIBUTE);
+        var result = requests.execute(com.livingdocs.security.GitHubAuthorizationDeadlineFilter.deadline(request),
+                () -> service.read(actor, query, correlation));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(SuccessResponse.of(SuccessCode.GITHUB_AUTHORIZATION_CONTEXT_READ,mapper.toView(result)));
     }

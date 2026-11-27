@@ -16,6 +16,18 @@ public class GitHubAuthorizationProperties {
     private String appSlug = "";
     private String appName = "";
     private boolean allowLocalHttp;
+    private String clientId = "";
+    private String clientSecretPath = "";
+    private String browserOrigin = "";
+    private String callbackUri = "";
+    private String completionUri = "";
+    private String stateKeyDirectory = "";
+    private String credentialKeyDirectory = "";
+    private String stateKeyVersion = "v1";
+    private String credentialKeyVersion = "v1";
+    private java.time.Duration contextTtl = java.time.Duration.ofMinutes(15);
+    private String apiBaseUri = "https://api.github.com";
+    private String oauthBaseUri = "https://github.com";
 
     public URI trustedUri(String value) {
         URI uri = URI.create(value);

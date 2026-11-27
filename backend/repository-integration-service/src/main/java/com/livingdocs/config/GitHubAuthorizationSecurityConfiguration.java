@@ -29,7 +29,7 @@ public class GitHubAuthorizationSecurityConfiguration {
     SecurityFilterChain githubAuthorizationSecurity(HttpSecurity http, GitHubAuthorizationProperties p,
                                                    GitHubAuthorizationProblems problems, GitHubAuthorizationIo io) throws Exception {
         var requestSecurityContext = new org.springframework.security.web.context.RequestAttributeSecurityContextRepository();
-        http.securityMatcher("/api/v1/integrations/github/authorization")
+        http.securityMatcher("/api/v1/integrations/github/authorization", "/api/v1/integrations/github/authorization-contexts", "/api/v1/integrations/github/authorization-contexts/**")
                 .csrf(c -> c.disable()).requestCache(c -> c.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .securityContext(s -> s.securityContextRepository(requestSecurityContext))
@@ -48,7 +48,21 @@ public class GitHubAuthorizationSecurityConfiguration {
                         })
                         .authenticationEntryPoint((r,s,x) -> problems.write(GitHubAuthorizationError.UNAUTHENTICATED,r,s)));
         http.addFilterAfter(new GitHubAuthorizationRequestFilter(problems,p,io), AuthorizationFilter.class);
+        http.addFilterAfter(new com.livingdocs.security.GitHubAuthorizationContextRequestFilter(problems,p,io,false), AuthorizationFilter.class);
+        http.addFilterBefore(new com.livingdocs.security.GitHubAuthorizationDeadlineFilter(problems), BearerTokenAuthenticationFilter.class);
         return http.build();
+    }
+
+    @Bean @Order(-1)
+    SecurityFilterChain githubAuthorizationCallback(HttpSecurity http, GitHubAuthorizationProperties p,
+                                                   GitHubAuthorizationProblems problems, GitHubAuthorizationIo io) throws Exception {
+        return http.securityMatcher("/api/v1/integrations/github/authorization/callback")
+                .csrf(c -> c.disable()).requestCache(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+                .addFilterBefore(new com.livingdocs.security.GitHubAuthorizationDeadlineFilter(problems), AuthorizationFilter.class)
+                .addFilterAfter(new com.livingdocs.security.GitHubAuthorizationContextRequestFilter(problems,p,io,true), AuthorizationFilter.class)
+                .build();
     }
 
     /** Deliberately NOT a JwtDecoder bean: source workload trust must remain untouched. */

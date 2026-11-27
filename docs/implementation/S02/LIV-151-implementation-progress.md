@@ -2,6 +2,8 @@
 
 Ngày bắt đầu: 27/11/2026, Asia/Saigon. Nhánh do Owner chuẩn bị: `feature/LIV-151-GitHub-authorization-scopes-permissions`; mốc review `46c18b7`. Owner giao triển khai và commit từng lát trong chat. Không tạo/cập nhật Jira, không push/merge/deploy. Giữ nguyên staged deletions của hai package-info, worktree deletions của hai tài liệu Gateway và thư mục secrets chưa được theo dõi.
 
+**Điều chỉnh quy trình theo Owner ngày 28/11/2026:** hoàn thiện code toàn bộ nghiệp vụ LIV-151 rồi mới thực thi checklist kiểm thử tổng; không chạy test theo từng lát nữa. Commit production code/tài liệu theo lát; các thay đổi `src/test`, test runners/validators và test evidence được commit riêng. Quyết định mới này thay gate chạy tests ở mỗi lát trong kế hoạch cũ. Các kết quả chạy trước quyết định vẫn được giữ đúng thời điểm; không suy thành PASS cho code sửa sau đó.
+
 ## Slice 0 Contract và security freeze
 
 - [x] Đọc kế hoạch Vertical Slice Owner cung cấp; bản Downloads và workspace có cùng SHA-256 `0C9954DDEAFFE76D5E1607CEB9B000D597E718DB75D5E588B820D8A4289037D2`.
@@ -79,13 +81,35 @@ Full-suite command: `mvn -o -f backend/repository-integration-service/pom.xml -D
 
 Contract checks: `python scripts/validate_gateway_openapi.py`; `python scripts/validate_liv151_authorization.py --evidence-dir backend/repository-integration-service/target/liv151-build` (PyYAML/jsonschema); `openapi-spec-validator contracts/openapi/s02-repository.yaml`. Tool libraries có sẵn tại `target/python-tools` trong môi trường này; không thêm dependency runtime S02.
 
+### Tái sử dụng App thật của LIV-122 — Owner xác nhận 28/11/2026
+
+App thật **đã tồn tại và đã kiểm thử SHA**; không coi môi trường là chưa có App và không yêu cầu tạo App mới. Đã đối chiếu [evidence LIV-122](LIV-122-Kiem-thu-GitHub-that.md): kho `TienTuiTeen1405/livingdocs-s02-test`, repository ID `1463763176`, installation ID `183597993`, SHA PASS `351ee46328288729148635e218491be161767f77`. Các artifact local `target/liv122-https/evidence-final.json`, `target/liv122-test2/evidence.json` và `pr1-evidence.json` còn giữ evidence SHA nhánh/PR. Đây là bằng chứng chạy thật lịch sử, không phải lượt chạy lại trong LIV-151.
+
+LIV-151 tái sử dụng App/key references hiện hữu. Cần kiểm lại **cấu hình hiện hành** của chính App này cho user authorization/callback/PKCE, declared permissions/events và secret references mới của transient context; không suy rằng bằng chứng installation token đọc SHA đã bao phủ browser consent. Không tự thay App settings hoặc mở rộng source installation token. Ưu tiên đọc lại metadata bằng runtime giữ kín key, chỉ lưu evidence đã lọc. Các tests GitHub live bị skipped trong suite Slice 1 không phủ nhận evidence LIV-122 trước đó.
+
 Các lượt full suite trước FAIL do cấu hình test: lần đầu chưa có DB fixture; sau đó nested test configuration bị application scan và PostgreSQL initdb mặc định chỉ có 20 connections. Đã cô lập fixture bằng `@Configuration` + `@TestComponent`, tăng connections riêng cho test và chạy lại toàn suite PASS. Không xóa hoặc che log FAIL cũ. Các cảnh báo Mockito/Lombok/JDK không làm suite FAIL.
 
 ## Các lát tiếp theo
 
+### Slice 2 — Implementation checkpoint
+
+- [x] Transient context riêng, UUID/tenant/workspace/actor/App/config binding; cap 3 admission dùng advisory lock + count/insert trong cùng transaction.
+- [x] AES-256-GCM state và credential key rings riêng; nonce cookie host-only Secure/HttpOnly/SameSite=Lax; PKCE S256; không lưu LivingDocs Bearer hoặc refresh token.
+- [x] Callback protocol riêng không phát LivingDocs JWT/session; claim CAS trước GitHub, exchange và immutable GitHub user lookup ngoài transaction, completion CAS chống replay/cancel/expiry/config change.
+- [x] Owner-scoped pending/authorized read, cancel/purge, user installation/repository discovery một trang 100; không dò installation bằng App JWT trong helper.
+- [x] FORCE RLS + explicit actor/workspace filters; maintenance SECURITY DEFINER chỉ purge expired rows theo DB clock, fixed search_path, runtime không có BYPASSRLS/unscoped SELECT.
+- [x] Deadline tổng 8s không reset khi async dispatch, 16 network slots và bounded request workers; database acquisition/commit được kiểm deadline. Request stream chỉ do servlet callbacks đọc.
+- [x] Xử lý finding review: effective credential TTL = min(context, provider token); 429 có Retry-After từ expiry gần nhất trong transaction admission; pagination thiếu bằng chứng trang tiếp theo trả unavailable.
+- [x] Năm helper operations dùng đúng operationIds đã duyệt làm catalog keys, không tự cấp numeric API ID; Gateway helpers chưa bật trong lát này.
+- [x] Contract resource dùng chung cho runtime Springdoc và canonical S02; concrete schemas/headers cho 201/204/303 và lỗi, callback security exception chỉ đúng path.
+- [x] Production compile PASS (`liv151-slice2-compile.log`, 28/11/2026); không chạy test trong lần compile này.
+- [ ] Checklist kiểm thử tổng sau khi code tất cả nghiệp vụ hoàn thành — **QUEUED theo yêu cầu Owner**.
+
+Evidence đã có **trước thay đổi quy trình**: 13 context/persistence tests PASS; HTTP create/pending/cancel PASS; callback303 + discovery/cancel PASS; pool exhaustion với deadline8s PASS. Các lượt RED cho TTL/Retry-After/pagination/Springdoc đã phát hiện lỗi và code đã sửa; không ghi GREEN cho các bản sửa chưa chạy lại. Tests mới bổ sung và sửa tests hiện hữu được giữ cho commit test riêng ở cuối task.
+
 | Slice | Hành vi | Trạng thái |
 | --- | --- | --- |
-| 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | NOT STARTED |
+| 2 | Owner-bound encrypted onboarding context, callback/discovery/cancel; không bind bằng setup installation_id | CODE COMPLETE; final test checklist QUEUED |
 | 3 | Đọc actual installation permissions từ GitHub sau user-scoped proof | NOT STARTED |
 | 4 | So sánh levels/permissions, sufficient/insufficient/suspended | NOT STARTED |
 | 4A | Repository-specific verification trong API-046 | N/A theo contract |

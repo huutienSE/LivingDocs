@@ -16,10 +16,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import tools.jackson.databind.json.JsonMapper;
 
-@RestControllerAdvice(assignableTypes = GitHubAuthorizationController.class)
+@RestControllerAdvice(assignableTypes = {GitHubAuthorizationController.class, com.livingdocs.controller.GitHubAuthorizationContextController.class,
+        com.livingdocs.controller.GitHubAuthorizationCallbackController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class GitHubAuthorizationProblems {
+    public static final String ALLOW_ATTRIBUTE = GitHubAuthorizationProblems.class.getName() + ".allow";
     private final JsonMapper json;
 
     public ProblemDetail body(GitHubAuthorizationError error, HttpServletRequest request) {
@@ -37,7 +39,8 @@ public class GitHubAuthorizationProblems {
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         response.setHeader("Cache-Control", "no-store");
         if (error == GitHubAuthorizationError.UNAUTHENTICATED) response.setHeader("WWW-Authenticate", "Bearer");
-        if (error == GitHubAuthorizationError.METHOD_NOT_ALLOWED) response.setHeader("Allow", "GET, HEAD");
+        if (error == GitHubAuthorizationError.METHOD_NOT_ALLOWED) response.setHeader("Allow",
+                request.getAttribute(ALLOW_ATTRIBUTE) instanceof String allowed ? allowed : "GET, HEAD");
         json.writeValue(response.getOutputStream(), body(error, request));
     }
 
@@ -46,12 +49,18 @@ public class GitHubAuthorizationProblems {
         var response = ResponseEntity.status(e.getError().getStatus()).contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .cacheControl(CacheControl.noStore());
         if (e.getError() == GitHubAuthorizationError.UNAUTHENTICATED) response.header("WWW-Authenticate", "Bearer");
+        if (e.getError() == GitHubAuthorizationError.AUTHORIZATION_CONTEXT_LIMIT_REACHED && e.getRetryAfterSeconds() > 0)
+            response.header("Retry-After", Long.toString(e.getRetryAfterSeconds()));
         return response.body(body(e.getError(), request));
     }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ProblemDetail> invalid(HttpServletRequest request) {
         return rejection(new GitHubAuthorizationException(GitHubAuthorizationError.INVALID_REQUEST), request);
     }
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.ServletRequestBindingException.class})
+    ResponseEntity<ProblemDetail> malformed(HttpServletRequest request) { return invalid(request); }
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unexpected(HttpServletRequest request) {
         return rejection(new GitHubAuthorizationException(GitHubAuthorizationError.INTERNAL_ERROR), request);

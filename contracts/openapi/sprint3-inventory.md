@@ -152,3 +152,15 @@ Kiểm thử cục bộ: chạy Maven bằng JDK 21 trong `backend/identity-orga
 | Password Reset/Change | Identity proof, email delivery và credential lifecycle | S01 owner |
 | Email Verification | Mail delivery và verification state | S01 owner |
 | Domain JWT + 403 E2E | Protected S04 endpoint và quyền LIV-138/PR #26 | S04 owner cùng S01 owner |
+
+## LIV-151 onboarding helpers
+
+Catalog keys reuse the five approved operationIds; no new numeric API IDs are assigned. Gateway remains disabled for these helpers until the integration slice.
+
+| Catalog key | Method | Path | State | Gateway |
+| --- | --- | --- | --- | --- |
+| githubAuthorizationContextCreate | POST | `/api/v1/integrations/github/authorization-contexts` | IN_PROGRESS | Disabled |
+| githubAuthorizationCallback | GET | `/api/v1/integrations/github/authorization/callback` | IN_PROGRESS | Disabled |
+| githubAuthorizationInstallationsList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations` | IN_PROGRESS | Disabled |
+| githubAuthorizationRepositoriesList | GET | `/api/v1/integrations/github/authorization-contexts/{contextId}/installations/{installationId}/repositories` | IN_PROGRESS | Disabled |
+| githubAuthorizationContextCancel | DELETE | `/api/v1/integrations/github/authorization-contexts/{contextId}` | IN_PROGRESS | Disabled |
