@@ -63,6 +63,11 @@ public class S01SecurityConfig {
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/me",
                                 "/api/v1/users/me/access-context").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tenants/*/workspaces/*/repository-grants",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tenants/*/workspaces/*/repository-grants",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*/verify",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*/revoke").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, ignored) -> {

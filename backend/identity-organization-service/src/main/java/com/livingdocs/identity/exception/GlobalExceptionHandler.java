@@ -4,6 +4,7 @@ import com.livingdocs.identity.security.RedisLoginRateLimiter.LoginSecurityUnava
 import com.livingdocs.identity.security.WorkloadCredentialRegistry.InvalidWorkloadException;
 import com.livingdocs.identity.security.WorkloadCredentialRegistry.RegistryUnavailableException;
 import com.livingdocs.identity.service.impl.ServiceTokenServiceImpl.WorkloadScopeException;
+import com.livingdocs.identity.service.RepositoryBindingClient;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
@@ -20,6 +21,8 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -67,6 +70,17 @@ public class GlobalExceptionHandler {
                 "Current authority is unavailable for this identity", request);
     }
 
+    @ExceptionHandler(RepositoryBindingClient.Unavailable.class)
+    public ResponseEntity<ProblemDetail> bindingUnavailable(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "BINDING_UNAVAILABLE", "Service unavailable",
+                "Repository binding authority is temporarily unavailable", request);
+    }
+
+    @ExceptionHandler(GrantConflictException.class)
+    public ResponseEntity<ProblemDetail> grantConflict(Exception ex, HttpServletRequest request) {
+        return problem(HttpStatus.CONFLICT, "GRANT_CONFLICT", "Conflict", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ProblemDetail> invalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, InvalidCredentialsException.CODE,
@@ -98,11 +112,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class,
-            HttpMessageNotReadableException.class})
+            HttpMessageNotReadableException.class, MissingRequestHeaderException.class,
+            MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ProblemDetail> invalidRequest(Exception ex, HttpServletRequest request) {
         String detail = "/api/v1/auth/login".equals(request.getRequestURI())
                 ? "Login request is invalid" : request.getRequestURI().startsWith("/internal/v1/")
-                ? "Internal request is invalid" : "Registration request is invalid";
+                ? "Internal request is invalid" : "/api/v1/auth/register".equals(request.getRequestURI())
+                ? "Registration request is invalid" : "Request is invalid";
         return problem(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Invalid request", detail, request);
     }
 
