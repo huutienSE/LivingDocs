@@ -11,15 +11,19 @@ lấy từ canonical S04 DB, không nhận actor/scope/target state từ client.
 Submit đọc evidence bằng JPA/JPQL có tenant/version scope và provenance qua field
 read-only của Entity; không còn native SQL trong `DocumentSubmitRepository`.
 State, submit receipt và audit commit cùng transaction; exact replay kiểm quyền lại
-qua API-038 và trả response/ETag gốc. Chi tiết, kiểm chứng và giới hạn:
+qua API-038 và fresh API-039 rồi trả response/ETag gốc. Chi tiết, kiểm chứng và giới hạn:
 [LIV-143 report](../../docs/implementation/LIV-143-submit-implementation.md).
 Collection [LIV-143 Newman](../../tests/postman/liv143-submit.postman_collection.json)
 kiểm Submit/replay/Return/resubmit/revoke/outage qua Gateway thật bằng runner local.
 Lệnh chạy, cách tạo fixture DB tạm và các blocker Gateway/fresh nằm trong report.
 
 Cấu hình thêm `S01_SUBMIT_ACCESS_CONTEXT_URI` và `S04_SUBMIT_ALLOW_INSECURE_HTTP`
-(HTTP chỉ cho local). API-038 là snapshot, chưa thay cho evaluator API-039;
-Submit chưa gọi current-SHA API-070. Không suy ra fresh/source guards chỉ cần trước Publish.
+(HTTP chỉ cho local). API-038 dùng chung transport/parser với Review; policy và mã lỗi vẫn riêng.
+Submit bắt buộc Service JWT/API-039 action DOCUMENT_AUTHOR, kể cả replay. Shared fresh client dùng
+cấu hình issuer URI/secret hiện có trong `livingdocs.review.*` cho cả hai action của cùng workload s04.
+Repository-free Submit trả 503 AUTHORIZATION_UNAVAILABLE vì S01 yêu cầu repository scope.
+Read transaction đóng trước HTTP; write transaction khóa/kiểm lại scope/revision/state, lưu audit authorization.
+Không có atomic revocation xuyên service. Submit chưa gọi current-SHA API-070.
 
 ## API và transaction
 

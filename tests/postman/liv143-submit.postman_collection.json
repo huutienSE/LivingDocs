@@ -2,7 +2,7 @@
   "info": {
     "name": "LIV-143 API-113 real Gateway S01 S04",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run via scripts/test_api113_s01_integration.py --gateway-newman. Real Gateway/S01/S04; Staff Return uses real Service JWT/API-039 with a CONTROLLED SQL VERIFIED-grant fixture. No production grant lifecycle or S02 binding proof. Submit remains API-038 pending its endpoint policy decision. Ephemeral credentials and raw reports remain in temporary files. Anonymous Gateway checks denial/challenge only; global LD-D11 conformance remains a dependency."
+    "description": "LIV-143 API-113 fresh authorization. Run all phases through scripts/test_api113_s01_integration.py --gateway-newman. Real Gateway/S01/S04, API-038 and Service JWT/API-039 for DOCUMENT_AUTHOR; controlled SQL VERIFIED grants only. No production onboarding or S02 proof. Repository-free Submit fails closed. Environments/raw credentials remain temporary."
   },
   "item": [
     {
@@ -690,6 +690,55 @@
               "script": {
                 "exec": [
                   "pm.test('Gateway requires authenticated identity', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('Bearer'); pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('liv143-newman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repository-free Submit fails closed",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{repositoryFreeVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{repositoryFreeVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-fresh-failure"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Fresh authorization fails closed', () => { pm.response.to.have.status(503); const b=pm.response.json(); pm.expect(b.code).to.eql('AUTHORIZATION_UNAVAILABLE'); pm.expect(b.status).to.eql(503); });",
+                  "pm.test('Problem media and correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().correlationId).to.eql('liv143-newman'); });"
                 ]
               }
             }
@@ -1489,6 +1538,104 @@
                 "exec": [
                   "pm.test('Expected review outcome', () => { pm.response.to.have.status(503); pm.expect(pm.response.json().code).to.eql('AUTHORIZATION_UNAVAILABLE'); });",
                   "pm.test('Problem contract and correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().status).to.eql(503); pm.expect(pm.response.json().correlationId).to.eql('liv143-newman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bad workload denies new Submit",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-3\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-fresh-failure"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Fresh authorization fails closed', () => { pm.response.to.have.status(503); const b=pm.response.json(); pm.expect(b.code).to.eql('AUTHORIZATION_UNAVAILABLE'); pm.expect(b.status).to.eql(503); });",
+                  "pm.test('Problem media and correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().correlationId).to.eql('liv143-newman'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bad workload denies Submit replay",
+          "request": {
+            "method": "POST",
+            "url": "{{gatewayUrl}}/api/v1/document-versions/{{newmanVersionId}}/submit",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "liv143-newman"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "If-Match",
+                "value": "\"{{newmanVersionId}}:revision-0\""
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "nm-first"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Fresh authorization fails closed', () => { pm.response.to.have.status(503); const b=pm.response.json(); pm.expect(b.code).to.eql('AUTHORIZATION_UNAVAILABLE'); pm.expect(b.status).to.eql(503); });",
+                  "pm.test('Problem media and correlation', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().correlationId).to.eql('liv143-newman'); });"
                 ]
               }
             }

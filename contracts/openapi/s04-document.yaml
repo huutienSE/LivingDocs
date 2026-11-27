@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LivingDocs S04 — Sprint 3 Contract Candidates
-  version: 0.2.0
+  version: 0.3.0
   description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
     thái. Domain owner phải duyệt request/response còn để CandidateObject. API-120 được quản lý tại s04-document-review.yaml
     của PR LIV-118 và không lặp lại ở đây.
@@ -559,11 +559,12 @@ paths:
       - S04 Public
       operationId: api113_post
       summary: Submit Staff Review
-      description: 'LIV-143 API-113: Developer submit with authoritative API-038 scope,
-        persisted evidence/binding, strong ETag, atomic audit and durable idempotency.
-        Submit validates persisted Draft evidence and source binding without live source validation.
-        API-038 is an authority snapshot, not API-039 fresh evaluation; mandatory API-039
-        for Submit remains a proposed policy pending the S01 evaluator contract.'
+      description: 'LIV-143 API-113: Developer submit requires API-038 context and a fresh
+        API-039 DOCUMENT_AUTHOR ALLOW using User JWT plus S01-issued Service JWT, including exact replay.
+        S01 HTTP executes outside database transactions; the write transaction rechecks scope/revision/state.
+        Persisted evidence/binding, strong ETag, atomic audit and durable idempotency remain required.
+        Repository-free Submit fails closed with 503 AUTHORIZATION_UNAVAILABLE under the current S01 contract.
+        No live current-source validation is performed by Submit. Fresh ALLOW is not atomic with S04 commit.'
       x-api-id: API-113
       x-contract-state: IN_PROGRESS
       x-gateway-exposure: public

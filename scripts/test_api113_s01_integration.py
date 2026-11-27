@@ -270,7 +270,7 @@ INSERT INTO document.document_versions(document_version_id,tenant_id,document_id
 INSERT INTO document.document_evidence_refs(document_evidence_id,tenant_id,document_version_id,evidence_type,source_ref) VALUES ('{evidence}','{tenant_id}','{version}','SOURCE','test://isolated');""")
             return version, evidence
 
-        first, evidence = fixture()
+        first, evidence = fixture(repo=repository)
         payload = {}
 
         def submit(version, body=payload, jwt=token, key="integration"):
@@ -290,16 +290,22 @@ INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membersh
         context = request(s01, "/api/v1/users/me/access-context", token)[2]["data"]
         check("API-038 returns real DB Developer permission, excludes PENDING repository", context["tenantId"] == tenant and
               "DOCUMENT_AUTHOR" in context["workspaceGrants"][0]["permissions"] and not context["workspaceGrants"][0]["repositoryIds"])
+        expected("PENDING grant denies fresh Submit", submit(first), 403, "FORBIDDEN_SCOPE")
+        sql(f"UPDATE identity.repository_grants SET verification_status='VERIFIED', verification_source='OPERATOR_ATTESTED', verified_at=now(), provenance='CONTROLLED SQL TEST FIXTURE: no operator or S02 binding workflow executed' WHERE repository_connection_id='{repository}';")
         original = submit(first)
         expected("API-113 Submit with real S01 JWT/context", original, 200, "DOCUMENT_SUBMITTED")
         check("Submit advances Staff Review with ETag", original[2]["data"]["reviewStage"] == "STAFF_REVIEW" and
               original[2]["data"]["revision"] == 1 and any(k.lower() == "etag" for k in original[1]))
         replay = submit(first)
         check("Exact replay preserves response", replay[0] == 200 and replay[2] == original[2])
-        blocked, _ = fixture()
+        blocked, _ = fixture(repo=repository)
         foreign, _ = fixture(str(uuid4()), str(uuid4()))
         wrong_workspace, _ = fixture(tenant, str(uuid4()))
-        repo_version, _ = fixture(repo=repository)
+        pending_repository = str(uuid4())
+        sql(f"INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membership_id,repository_connection_id,provenance,operator_identity_id) VALUES ('{tenant}','{workspace}','{workspace_member}','{pending_repository}','Isolated PENDING fixture','{actor}');")
+        repo_version, _ = fixture(repo=pending_repository)
+        free_version, _ = fixture()
+        expected("Repository-free Submit fails closed under API-039 contract", submit(free_version), 503, "AUTHORIZATION_UNAVAILABLE")
         reason = {"note": "Denied scope"}
         expected("Cross-tenant version hidden by RLS", submit(foreign, reason), 404, "DOCUMENT_VERSION_NOT_FOUND")
         expected("Cross-workspace denied", submit(wrong_workspace, reason), 403, "FORBIDDEN_SCOPE")
@@ -310,13 +316,13 @@ INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membersh
             verified_repository = str(uuid4())
             sql(f"INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membership_id,repository_connection_id,provenance,operator_identity_id,verification_status,verification_source,verified_at) VALUES ('{tenant}','{workspace}','{workspace_member}','{verified_repository}','CONTROLLED SQL TEST FIXTURE: no operator or S02 binding workflow executed','{actor}','VERIFIED','OPERATOR_ATTESTED',now());")
             newman_version, newman_evidence = fixture(repo=verified_repository)
-            missing_evidence, _ = fixture()
+            missing_evidence, _ = fixture(repo=verified_repository)
             sql(f"DELETE FROM document.document_evidence_refs WHERE document_version_id='{missing_evidence}';")
             newman_variables = {"gatewayUrl": gateway, "email": email, "password": password, "accessToken": token,
                                 "actorId": actor, "newmanVersionId": newman_version, "draftVersionId": blocked,
                                 "noEvidenceVersionId": missing_evidence, "foreignVersionId": foreign,
                                 "wrongWorkspaceVersionId": wrong_workspace, "pendingVersionId": repo_version,
-                                "repositoryFreeVersionId": first, "newmanEvidenceId": newman_evidence,
+                                "repositoryFreeVersionId": free_version, "newmanEvidenceId": newman_evidence,
                                 "newmanRepositoryId": verified_repository}
             report["newman"].append(run_newman("01 Scoped submit", newman_variables, args.newman_cli, temp))
             check("Newman Gateway positive/replay/negative phase", True)
@@ -328,15 +334,22 @@ INSERT INTO identity.repository_grants(tenant_id,workspace_id,workspace_membersh
             check("Newman Gateway Return/resubmit preserves workflow and receipts", sql(f"SELECT state || ':' || review_stage || ':' || revision || ':' || (SELECT count(*) FROM document.submit_requests WHERE document_version_id='{newman_version}') || ':' || (SELECT count(*) FROM document.review_decisions WHERE document_version_id='{newman_version}') || ':' || (SELECT count(*) FROM document.document_audits WHERE document_version_id='{newman_version}') FROM document.document_versions WHERE document_version_id='{newman_version}';") == "IN_REVIEW:STAFF_REVIEW:3:2:1:3")
             check("Gateway Staff Return records real fresh authorization", sql(f"SELECT metadata->'authorization'->>'action' FROM document.document_audits WHERE document_version_id='{newman_version}' AND action='STAFF_REVIEW_RETURN_FOR_REVISION';") == "DOCUMENT_STAFF_REVIEW"
                   and bool(sql(f"SELECT metadata->'authorization'->>'decisionId' FROM document.document_audits WHERE document_version_id='{newman_version}' AND action='STAFF_REVIEW_RETURN_FOR_REVISION';")))
-            check("Repository-free review denial preserves submitted version", sql(f"SELECT state || ':' || revision || ':' || (SELECT count(*) FROM document.review_decisions WHERE document_version_id='{first}') FROM document.document_versions WHERE document_version_id='{first}';") == "IN_REVIEW:1:0")
+            check("Repository-free denial preserves Draft", sql(f"SELECT state || ':' || revision || ':' || (SELECT count(*) FROM document.document_audits WHERE document_version_id='{free_version}') FROM document.document_versions WHERE document_version_id='{free_version}';") == "DRAFT:0:0")
             original_secret = workload_secret.read_text(encoding="ascii")
             workload_secret.write_text("incorrect-test-workload-secret", encoding="ascii")
             report["newman"].append(run_newman("05 Review workload unavailable", newman_variables, args.newman_cli, temp))
             workload_secret.write_text(original_secret, encoding="ascii")
             check("Newman workload authentication failure denies new review and replay", sql(f"SELECT revision || ':' || (SELECT count(*) FROM document.review_decisions WHERE document_version_id='{newman_version}') || ':' || (SELECT count(*) FROM document.document_audits WHERE document_version_id='{newman_version}') FROM document.document_versions WHERE document_version_id='{newman_version}';") == "3:1:3")
             report["dependencies"] = [{"id": "Gateway LD-D11", "status": "BLOCKED", "scope": "Global Gateway security error body; anonymous collection check verifies 401/challenge only, not RFC 9457 conformance"},
-                                      {"id": "S01 API-039", "status": "VERIFIED_FOR_API_120", "scope": "Real Service JWT/fresh decision for repository-bound Staff Return; mandatory API-039 for Submit remains a policy decision"},
+                                      {"id": "S01 API-039", "status": "VERIFIED_FOR_API_113_AND_API_120", "scope": "Real Service JWT/fresh decision for Submit and repository-bound Staff Return; fresh API-039 is required for Submit with DOCUMENT_AUTHOR"},
                                       {"id": "Production repository grants", "status": "NOT_VERIFIED", "scope": "Controlled SQL fixture, not Request/Verify/Activate or trusted S02 binding"}]
+        original_secret = workload_secret.read_text(encoding="ascii")
+        workload_secret.write_text("invalid-test-workload-secret", encoding="ascii")
+        expected("Bad workload denies new Submit", submit(blocked, reason), 503, "AUTHORIZATION_UNAVAILABLE")
+        expected("Bad workload denies Submit replay", submit(first), 503, "AUTHORIZATION_UNAVAILABLE")
+        workload_secret.write_text(original_secret, encoding="ascii")
+        check("Submit audit records real DOCUMENT_AUTHOR fresh decision", sql(f"SELECT metadata->'authorization'->>'action' FROM document.document_audits WHERE document_version_id='{first}';") == "DOCUMENT_AUTHOR"
+              and bool(sql(f"SELECT metadata->'authorization'->>'decisionId' FROM document.document_audits WHERE document_version_id='{first}';")))
         sql(f"UPDATE identity.workspace_role_assignments SET status='REVOKED', ended_at=now() WHERE workspace_membership_id='{workspace_member}';")
         expected("Same JWT denied after Developer role revoke", submit(blocked, reason), 403, "FORBIDDEN_SCOPE")
         expected("Exact replay denied after Developer role revoke", submit(first), 403, "FORBIDDEN_SCOPE")

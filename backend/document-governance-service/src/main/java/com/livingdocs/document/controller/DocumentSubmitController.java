@@ -50,7 +50,7 @@ public class DocumentSubmitController {
             @Parameter(hidden=true) @AuthenticationPrincipal Jwt jwt, HttpServletRequest request) {
         long revision=VersionEtags.require(versionId,etag);
         var actor=authority.resolve(jwt);
-        var result=service.submit(versionId,new SubmitCommand(body.getNote()),revision,key,actor,(String)request.getAttribute(RequestCorrelationFilter.ATTRIBUTE));
+        var result=service.submit(versionId,new SubmitCommand(body.getNote()),revision,key,actor,jwt.getTokenValue(),(String)request.getAttribute(RequestCorrelationFilter.ATTRIBUTE));
         return ResponseEntity.ok().eTag(VersionEtags.format(versionId,result.version().revision())).cacheControl(CacheControl.noStore()).body(SuccessResponse.of(result.code(),result.message(),mapper.toResponse(result)));
     }
 }

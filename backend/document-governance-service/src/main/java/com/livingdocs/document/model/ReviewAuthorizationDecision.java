@@ -8,7 +8,10 @@ import java.util.UUID;
 public record ReviewAuthorizationDecision(UUID decisionId, String action, UUID tenantId, UUID workspaceId,
                                           UUID repositoryConnectionId, long authzRevision, Instant evaluatedAt) {
     public boolean appliesTo(DocumentVersion version) {
-        return "DOCUMENT_STAFF_REVIEW".equals(action) && tenantId.equals(version.tenantId())
+        return appliesTo(version, "DOCUMENT_STAFF_REVIEW");
+    }
+    public boolean appliesTo(DocumentVersion version, String expectedAction) {
+        return expectedAction.equals(action) && tenantId.equals(version.tenantId())
                 && workspaceId.equals(version.workspaceId())
                 && Objects.equals(repositoryConnectionId, version.repositoryConnectionId());
     }

@@ -61,24 +61,24 @@ class SubmitApiIntegrationTest extends PostgresTestSupport {
     static void expect(HttpResponse<String> r,int status,String code){assertThat(r.statusCode()).as(r.body()).isEqualTo(status);assertThat(JSON.readTree(r.body()).path("code").asString()).isEqualTo(code);}
     static void unchanged(Draft f)throws Exception{assertThat(scalar("SELECT state FROM document.document_versions WHERE document_version_id=?",f.version)).isEqualTo("DRAFT");assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?",f.version)).isEqualTo(0L);assertThat(scalar("SELECT count(*) FROM document.submit_requests WHERE document_version_id=?",f.version)).isEqualTo(0L);assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(0L);}
     @Test void submitReplayAndConflicts()throws Exception{
-        var f=draft(false);var first=submit(f,"{}","one",0);expect(first,200,"DOCUMENT_SUBMITTED");assertThat(JSON.readTree(first.body()).path("data").path("reviewStage").asString()).isEqualTo("STAFF_REVIEW");assertThat(first.headers().firstValue("ETag")).contains(VersionEtags.format(f.version,1));assertThat(submit(f,"{}","one",0).body()).isEqualTo(first.body());expect(submit(f,"{\"note\":\"other\"}","one",0),409,"IDEMPOTENCY_CONFLICT");expect(submit(f,"{}","two",0),412,"REVISION_CONFLICT");expect(submit(f,"{}","two",1),409,"STATE_TRANSITION_FORBIDDEN");assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(1L);assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?",f.version)).isEqualTo(0L);
+        var f=draft(true);var first=submit(f,"{}","one",0);expect(first,200,"DOCUMENT_SUBMITTED");assertThat(JSON.readTree(first.body()).path("data").path("reviewStage").asString()).isEqualTo("STAFF_REVIEW");assertThat(first.headers().firstValue("ETag")).contains(VersionEtags.format(f.version,1));assertThat(submit(f,"{}","one",0).body()).isEqualTo(first.body());expect(submit(f,"{\"note\":\"other\"}","one",0),409,"IDEMPOTENCY_CONFLICT");expect(submit(f,"{}","two",0),412,"REVISION_CONFLICT");expect(submit(f,"{}","two",1),409,"STATE_TRANSITION_FORBIDDEN");assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(1L);assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?",f.version)).isEqualTo(0L);
     }
-    @Test void rolePermissionWorkspaceAndTenant()throws Exception{var f=draft(false);context(f,f.tenant,f.workspace,"STAFF",true);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,f.tenant,f.workspace,"DEVELOPER",false);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,f.tenant,UUID.randomUUID(),"DEVELOPER",true);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,UUID.randomUUID(),f.workspace,"DEVELOPER",true);expect(submit(f,"{}","a",0),404,"DOCUMENT_VERSION_NOT_FOUND");unchanged(f);}
-    @Test void evidenceAndPersistedSourceBindingAreRequired()throws Exception{var f=draft(false);sql("DELETE FROM document.document_evidence_refs WHERE document_version_id=?",f.version);expect(submit(f,"{}","a",0),422,"SUBMIT_EVIDENCE_REQUIRED");unchanged(f);var b=draft(true);sql("UPDATE document.document_versions SET source_target_ref=NULL WHERE document_version_id=?",b.version);expect(submit(b,"{}","a",0),422,"SOURCE_EVIDENCE_INSUFFICIENT");unchanged(b);var c=draft(true);var result=submit(c,"{}","a",0);expect(result,200,"DOCUMENT_SUBMITTED");assertThat(JSON.readTree(result.body()).path("data").path("sourceBinding").path("headSha").asString()).isEqualTo("a".repeat(40));}
-    @Test void headersAndBody()throws Exception{var f=draft(false);expect(post(port,f,token(f),"{}","a",null),428,"PRECONDITION_REQUIRED");expect(post(port,f,token(f),"{}",null,VersionEtags.format(f.version,0)),400,"INVALID_REQUEST");expect(post(port,f,null,"{}","a",VersionEtags.format(f.version,0)),401,"UNAUTHENTICATED");expect(submit(f,"{\"state\":\"APPROVED\"}","a",0),400,"INVALID_REQUEST");unchanged(f);}
+    @Test void rolePermissionWorkspaceAndTenant()throws Exception{var f=draft(true);context(f,f.tenant,f.workspace,"STAFF",true);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,f.tenant,f.workspace,"DEVELOPER",false);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,f.tenant,UUID.randomUUID(),"DEVELOPER",true);expect(submit(f,"{}","a",0),403,"FORBIDDEN_SCOPE");context(f,UUID.randomUUID(),f.workspace,"DEVELOPER",true);expect(submit(f,"{}","a",0),404,"DOCUMENT_VERSION_NOT_FOUND");unchanged(f);}
+    @Test void evidenceAndPersistedSourceBindingAreRequired()throws Exception{var f=draft(true);sql("DELETE FROM document.document_evidence_refs WHERE document_version_id=?",f.version);expect(submit(f,"{}","a",0),422,"SUBMIT_EVIDENCE_REQUIRED");unchanged(f);var b=draft(true);sql("UPDATE document.document_versions SET source_target_ref=NULL WHERE document_version_id=?",b.version);expect(submit(b,"{}","a",0),422,"SOURCE_EVIDENCE_INSUFFICIENT");unchanged(b);var c=draft(true);var result=submit(c,"{}","a",0);expect(result,200,"DOCUMENT_SUBMITTED");assertThat(JSON.readTree(result.body()).path("data").path("sourceBinding").path("headSha").asString()).isEqualTo("a".repeat(40));}
+    @Test void headersAndBody()throws Exception{var f=draft(true);expect(post(port,f,token(f),"{}","a",null),428,"PRECONDITION_REQUIRED");expect(post(port,f,token(f),"{}",null,VersionEtags.format(f.version,0)),400,"INVALID_REQUEST");expect(post(port,f,null,"{}","a",VersionEtags.format(f.version,0)),401,"UNAUTHENTICATED");expect(submit(f,"{\"state\":\"APPROVED\"}","a",0),400,"INVALID_REQUEST");unchanged(f);}
     @Test void jpaEvidenceQueryRejectsBlankAndForeignEvidenceButAcceptsSourceOnly() throws Exception {
-        var empty=draft(false);
+        var empty=draft(true);
         sql("UPDATE document.document_evidence_refs SET artifact_ref='   ' WHERE document_version_id=?",empty.version);
-        var foreign=draft(false);
+        var foreign=draft(true);
         expect(submit(empty,"{}","blank",0),422,"SUBMIT_EVIDENCE_REQUIRED"); unchanged(empty);
         sql("UPDATE document.document_evidence_refs SET artifact_ref=NULL,source_ref=' source://valid ' WHERE document_version_id=?",empty.version);
         expect(submit(empty,"{}","source",0),200,"DOCUMENT_SUBMITTED");
         unchanged(foreign);
     }
-    @Test void concurrentRetries()throws Exception{var f=draft(false);try(var pool=Executors.newVirtualThreadPerTaskExecutor()){var calls=new ArrayList<Callable<HttpResponse<String>>>();for(int i=0;i<4;i++)calls.add(()->submit(f,"{}","same",0));for(var r:pool.invokeAll(calls))expect(r.get(),200,"DOCUMENT_SUBMITTED");}assertThat(scalar("SELECT count(*) FROM document.submit_requests WHERE document_version_id=?",f.version)).isEqualTo(1L);}
-    @Test void auditFailureRollsBack()throws Exception{var f=draft(false);doThrow(new DataIntegrityViolationException("test failure")).when(audits).saveAndFlush(argThat((DocumentAuditEntity a)->a!=null&&a.getVersionId().equals(f.version)));expect(submit(f,"{}","a",0),500,"PERSISTENCE_ERROR");unchanged(f);}
+    @Test void concurrentRetries()throws Exception{var f=draft(true);try(var pool=Executors.newVirtualThreadPerTaskExecutor()){var calls=new ArrayList<Callable<HttpResponse<String>>>();for(int i=0;i<4;i++)calls.add(()->submit(f,"{}","same",0));for(var r:pool.invokeAll(calls))expect(r.get(),200,"DOCUMENT_SUBMITTED");}assertThat(scalar("SELECT count(*) FROM document.submit_requests WHERE document_version_id=?",f.version)).isEqualTo(1L);}
+    @Test void auditFailureRollsBack()throws Exception{var f=draft(true);doThrow(new DataIntegrityViolationException("test failure")).when(audits).saveAndFlush(argThat((DocumentAuditEntity a)->a!=null&&a.getVersionId().equals(f.version)));expect(submit(f,"{}","a",0),500,"PERSISTENCE_ERROR");unchanged(f);}
     @Test void upstreamAuthenticationFailureIncludesBearerChallenge() throws Exception {
-        var f=draft(false); AUTH_STATUS.put(f.actor,401);
+        var f=draft(true); AUTH_STATUS.put(f.actor,401);
         var response=submit(f,"{}","unauthenticated",0);
         expect(response,401,"UNAUTHENTICATED");
         assertThat(response.headers().firstValue("WWW-Authenticate")).contains("Bearer");
@@ -87,18 +87,18 @@ class SubmitApiIntegrationTest extends PostgresTestSupport {
     @Test void databaseLockFailuresUseConflictResponsesAndRollBack() throws Exception {
         com.livingdocs.document.repository.DocumentSubmitRepository target =
             org.springframework.test.util.AopTestUtils.getUltimateTargetObject(drafts);
-        var optimistic=draft(false);
+        var optimistic=draft(true);
         doThrow(new org.springframework.dao.OptimisticLockingFailureException("test-only revision conflict"))
             .when(target).submit(argThat(v -> v!=null && v.id().equals(optimistic.version)));
         expect(submit(optimistic,"{}","optimistic",0),412,"REVISION_CONFLICT"); unchanged(optimistic);
-        var pessimistic=draft(false);
+        var pessimistic=draft(true);
         doThrow(new org.springframework.dao.PessimisticLockingFailureException("test-only lock conflict"))
             .when(target).submit(argThat(v -> v!=null && v.id().equals(pessimistic.version)));
         expect(submit(pessimistic,"{}","pessimistic",0),409,"CONCURRENT_REVIEW"); unchanged(pessimistic);
     }
-    @Test void returnedDraftKeepsHistory()throws Exception{var f=draft(false);sql("INSERT INTO document.review_decisions(tenant_id,document_version_id,reviewer_identity_id,decision,reason,round_no) VALUES (?,?,?,'RETURN_FOR_REVISION','Revise',1)",f.tenant,f.version,UUID.randomUUID());expect(submit(f,"{}","resubmit",0),200,"DOCUMENT_SUBMITTED");assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?",f.version)).isEqualTo(1L);assertThat(scalar("SELECT count(*) FROM document.content_revisions WHERE document_version_id=?",f.version)).isEqualTo(1L);}
+    @Test void returnedDraftKeepsHistory()throws Exception{var f=draft(true);sql("INSERT INTO document.review_decisions(tenant_id,document_version_id,reviewer_identity_id,decision,reason,round_no) VALUES (?,?,?,'RETURN_FOR_REVISION','Revise',1)",f.tenant,f.version,UUID.randomUUID());expect(submit(f,"{}","resubmit",0),200,"DOCUMENT_SUBMITTED");assertThat(scalar("SELECT count(*) FROM document.review_decisions WHERE document_version_id=?",f.version)).isEqualTo(1L);assertThat(scalar("SELECT count(*) FROM document.content_revisions WHERE document_version_id=?",f.version)).isEqualTo(1L);}
     @Test void runtimeContract() throws Exception {
-        var f=draft(false);
+        var f=draft(true);
         var r=HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/v3/api-docs")).header("Authorization","Bearer "+token(f)).GET().build(),HttpResponse.BodyHandlers.ofString());
         assertThat(r.statusCode()).isEqualTo(200);
         var runtime=JSON.readTree(r.body());
@@ -140,24 +140,24 @@ class SubmitApiIntegrationTest extends PostgresTestSupport {
         return schema;
     }
     @Test void revokedPermissionDeniesReplayAndMalformedAuthorityDeniesNewRequest() throws Exception {
-        var f=draft(false); expect(submit(f,"{}","same",0),200,"DOCUMENT_SUBMITTED");
+        var f=draft(true); expect(submit(f,"{}","same",0),200,"DOCUMENT_SUBMITTED");
         context(f,f.tenant,f.workspace,"DEVELOPER",false);
         expect(submit(f,"{}","same",0),403,"FORBIDDEN_SCOPE");
         assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(1L);
-        var other=draft(false); CONTEXT.remove(other.actor);
+        var other=draft(true); CONTEXT.remove(other.actor);
         expect(submit(other,"{}","new",0),503,"AUTHORIZATION_UNAVAILABLE"); unchanged(other);
     }
     @Test void repositoryGrantIsRequiredAndPermissionsCannotBeCombinedAcrossWorkspaces() throws Exception {
         var f=draft(true);
         CONTEXT.put(f.actor,Map.of("code","ACCESS_CONTEXT_LOADED","data",Map.of("identityId",f.actor,"tenantId",f.tenant,"authzRevision",1,"evaluatedAt",Instant.now().toString(),"workspaceGrants",List.of(Map.of("workspaceId",f.workspace,"roles",List.of("DEVELOPER"),"permissions",List.of("WORKSPACE_VIEW","DOCUMENT_AUTHOR"),"repositoryIds",List.of())))));
         expect(submit(f,"{}","no-grant",0),403,"FORBIDDEN_SCOPE"); unchanged(f);
-        var other=draft(false);
+        var other=draft(true);
         var grants=List.of(Map.of("workspaceId",other.workspace,"roles",List.of("DEVELOPER"),"permissions",List.of("WORKSPACE_VIEW"),"repositoryIds",List.of()),Map.of("workspaceId",UUID.randomUUID(),"roles",List.of("DEVELOPER"),"permissions",List.of("WORKSPACE_VIEW","DOCUMENT_AUTHOR"),"repositoryIds",List.of()));
         CONTEXT.put(other.actor,Map.of("code","ACCESS_CONTEXT_LOADED","data",Map.of("identityId",other.actor,"tenantId",other.tenant,"authzRevision",1,"evaluatedAt",Instant.now().toString(),"workspaceGrants",grants)));
         expect(submit(other,"{}","split-grants",0),403,"FORBIDDEN_SCOPE"); unchanged(other);
     }
     @Test void requestValidationAndFutureOrMalformedSourceProvenanceDoNotMutate() throws Exception {
-        var f=draft(false);
+        var f=draft(true);
         expect(post(port,f,token(f),"{}","a","W/"+VersionEtags.format(f.version,0)),400,"INVALID_IF_MATCH");
         expect(post(port,f,token(f),"{}","a",VersionEtags.format(UUID.randomUUID(),0)),412,"REVISION_CONFLICT");
         expect(submit(f,"{\"note\":\""+"x".repeat(2001)+"\"}","a",0),400,"INVALID_REQUEST"); unchanged(f);
@@ -174,7 +174,7 @@ class SubmitApiIntegrationTest extends PostgresTestSupport {
             .header("Authorization","Bearer "+token(f)).header("Content-Type","application/json").header("Idempotency-Key","return").header("If-Match",VersionEtags.format(f.version,1))
             .POST(HttpRequest.BodyPublishers.ofString("{\"decision\":\"RETURN_FOR_REVISION\",\"feedback\":\"Revise\"}")).build(),HttpResponse.BodyHandlers.ofString());
         expect(returned,200,"STAFF_REVIEW_RECORDED");
-        assertThat(ReviewAuthorityTestServer.FRESH_CALLS.get(f.actor)).isEqualTo(1);
+        assertThat(ReviewAuthorityTestServer.FRESH_CALLS.get(f.actor)).isEqualTo(2);
         assertThat(scalar("SELECT metadata->'authorization'->>'action' FROM document.document_audits WHERE document_version_id=? AND action='STAFF_REVIEW_RETURN_FOR_REVISION'",f.version)).isEqualTo("DOCUMENT_STAFF_REVIEW");
         expect(submit(f,"{}","second",2),200,"DOCUMENT_SUBMITTED");
         assertThat(scalar("SELECT review_stage FROM document.document_versions WHERE document_version_id=?",f.version)).isEqualTo("STAFF_REVIEW");
@@ -186,4 +186,41 @@ class SubmitApiIntegrationTest extends PostgresTestSupport {
         assertThat(scalar("SELECT revision FROM document.document_versions WHERE document_version_id=?",f.version)).isEqualTo(3L);
     }
 
+
+    @Test void repositoryFreeSubmitFailsClosedUntilFreshContractSupportsIt() throws Exception {
+        var f=draft(false);
+        expect(submit(f,"{}","free",0),503,"AUTHORIZATION_UNAVAILABLE");
+        unchanged(f);
+    }
+
+    @Test void freshDenialAndOutageDenyBothNewSubmitAndReplay() throws Exception {
+        var f=draft(true);
+        expect(submit(f,"{}","same",0),200,"DOCUMENT_SUBMITTED");
+        ReviewAuthorityTestServer.FRESH_DECISIONS.put(f.actor,"DENY");
+        expect(submit(f,"{}","same",0),403,"FORBIDDEN_SCOPE");
+        ReviewAuthorityTestServer.FRESH_DECISIONS.put(f.actor,"ALLOW");
+        ReviewAuthorityTestServer.FRESH_STATUSES.put(f.actor,503);
+        expect(submit(f,"{}","same",0),503,"AUTHORIZATION_UNAVAILABLE");
+        assertThat(scalar("SELECT count(*) FROM document.submit_requests WHERE document_version_id=?",f.version)).isEqualTo(1L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(1L);
+        var n=draft(true);
+        ReviewAuthorityTestServer.FRESH_DECISIONS.put(n.actor,"DENY");
+        expect(submit(n,"{}","new",0),403,"FORBIDDEN_SCOPE"); unchanged(n);
+        ReviewAuthorityTestServer.FRESH_DECISIONS.put(n.actor,"ALLOW");
+        ReviewAuthorityTestServer.FRESH_STATUSES.put(n.actor,503);
+        expect(submit(n,"{}","new",0),503,"AUTHORIZATION_UNAVAILABLE"); unchanged(n);
+    }
+
+    @Test void freshEvaluationRunsOutsideTransactionAndRechecksRevisionBeforeWrite() throws Exception {
+        var f=draft(true);
+        ReviewAuthorityTestServer.AFTER_EVALUATION.put(f.actor,()->{
+            try { sql("UPDATE document.document_versions SET revision=revision+1 WHERE document_version_id=?",f.version); }
+            catch(Exception e){throw new RuntimeException(e);}
+        });
+        expect(submit(f,"{}","race",0),412,"REVISION_CONFLICT");
+        assertThat(scalar("SELECT count(*) FROM document.submit_requests WHERE document_version_id=?",f.version)).isEqualTo(0L);
+        assertThat(scalar("SELECT count(*) FROM document.document_audits WHERE document_version_id=?",f.version)).isEqualTo(0L);
+        var a=draft(true); expect(submit(a,"{}","audit",0),200,"DOCUMENT_SUBMITTED");
+        assertThat(scalar("SELECT metadata->'authorization'->>'action' FROM document.document_audits WHERE document_version_id=?",a.version)).isEqualTo("DOCUMENT_AUTHOR");
+    }
 }
