@@ -99,6 +99,21 @@ class GatewayRoutingIntegrationTest {
     }
 
     @Test
+    void routesRepositoryGrantLifecycleOnlyWithUserJwt() {
+        String path = "/api/v1/tenants/t-1/workspaces/w-1/repository-grants";
+        client.get().uri(path).exchange().expectStatus().isUnauthorized();
+        client.get().uri(path).header(HttpHeaders.AUTHORIZATION, "Bearer routing-token")
+                .header("X-Correlation-ID", "liv162-get")
+                .exchange().expectStatus().isOk().expectBody(String.class)
+                .isEqualTo("S01|GET|" + path + "|liv162-get");
+        client.post().uri(path + "/g-1/verify")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer routing-token")
+                .header("X-Correlation-ID", "liv162-verify")
+                .exchange().expectStatus().isOk().expectBody(String.class)
+                .isEqualTo("S01|POST|" + path + "/g-1/verify|liv162-verify");
+    }
+
+    @Test
     void routesRepositoryRequestToS02() {
         client.get()
                 .uri("/api/v1/repositories/repo-1/connection")

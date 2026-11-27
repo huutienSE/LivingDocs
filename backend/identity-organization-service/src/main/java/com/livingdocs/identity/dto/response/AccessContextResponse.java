@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 public class AccessContextResponse {
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private final UUID identityId;
-    @Schema(nullable = true)
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.REQUIRED)
     private final UUID tenantId;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private final long authzRevision;
@@ -36,5 +36,22 @@ public class AccessContextResponse {
         private final List<String> permissions;
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         private final List<UUID> repositoryIds;
+        private final List<RepositoryGrantStatus> repositoryGrantStatuses;
+
+        public WorkspaceGrant(UUID workspaceId, List<String> roles, List<String> permissions,
+                              List<UUID> repositoryIds) {
+            this(workspaceId, roles, permissions, repositoryIds, List.of());
+        }
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    public static class RepositoryGrantStatus {
+        private final UUID grantId;
+        private final UUID repositoryConnectionId;
+        private final String status;
+        private final String verificationStatus;
+        private final boolean effective;
+        private final String effectiveReason;
     }
 }

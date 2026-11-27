@@ -66,6 +66,8 @@ jobs:
           CREATE SCHEMA identity AUTHORIZATION ld_s01_migrator;
           GRANT USAGE ON SCHEMA identity TO ld_s01_app;
           SQL
+          docker compose exec -T postgres psql -U postgres -d livingdocs \
+            -v ON_ERROR_STOP=1 < http-writer-role.sql
 
       # 5. Build và chạy S01 cùng Gateway; Gateway dùng JWKS URL nội bộ Compose.
       - name: Start S01 and Gateway
@@ -96,11 +98,14 @@ jobs:
             -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='ld_s01_app'")"
           app_owns_tenants="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
             -c "SELECT pg_get_userbyid(relowner)='ld_s01_app' FROM pg_class WHERE oid='identity.tenants'::regclass")"
-          echo "S01 migrations=$migrations RLS tables=$rls_tables app BYPASSRLS=$app_bypassrls app owns tenants=$app_owns_tenants"
-          test "$migrations" = 4
-          test "$rls_tables" = 11
+          connect_roles="$(docker compose exec -T postgres psql -U postgres -d livingdocs -At \
+            -c "SELECT string_agg(role_code, ',' ORDER BY role_code) FROM identity.role_permissions WHERE permission_code='REPOSITORY_CONNECT'")"
+          echo "S01 migrations=$migrations RLS tables=$rls_tables app BYPASSRLS=$app_bypassrls app owns tenants=$app_owns_tenants connect roles=$connect_roles"
+          test "$migrations" = 7
+          test "$rls_tables" = 12
           test "$app_bypassrls" = f
           test "$app_owns_tenants" = f
+          test "$connect_roles" = DEVELOPER,TECHNICAL_LEAD
 
       # 7. Một lượt Newman kiểm tra Login, JWT/JWKS, Gateway và Redis rate limit.
       # Chỉ in báo cáo CLI; không lưu access token hoặc response thành artifact.
@@ -135,6 +140,11 @@ jobs:
           }
           console.log('PASS: LIV-138 baseline + Gateway, 9 requests and 9 assertions');
           JS
+
+      - name: Run LIV-162 Grant route fail-closed collection
+        run: |
+          npx --yes newman@6.2.3 run tests/postman/liv162-grant-route-smoke.postman_collection.json \
+            --env-var gatewayUrl=http://127.0.0.1:8080 --reporters cli
 
       # 8. In trạng thái container để hỗ trợ chẩn đoán, không in key/pepper.
       - name: Show container status

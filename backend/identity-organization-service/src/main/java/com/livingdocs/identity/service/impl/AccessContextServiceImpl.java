@@ -15,6 +15,7 @@ import com.livingdocs.identity.repository.WorkspaceMembershipRepository;
 import com.livingdocs.identity.repository.WorkspaceRoleAssignmentRepository;
 import com.livingdocs.identity.security.TenantContext;
 import com.livingdocs.identity.service.AccessContextService;
+import com.livingdocs.identity.service.RepositoryBindingClient;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,6 +39,7 @@ public class AccessContextServiceImpl implements AccessContextService {
     private final WorkspaceRoleAssignmentRepository workspaceRoles;
     private final RepositoryGrantRepository repositoryGrants;
     private final RolePermissionRepository rolePermissions;
+    private final RepositoryBindingClient bindings;
 
     //
     //Xác định Tenant hiện hành của Identity B thông qua TenantContext.
@@ -50,10 +52,56 @@ public class AccessContextServiceImpl implements AccessContextService {
             return new AccessContextResponse(verifiedIdentityId, null, 0, Instant.now(),
                     List.of(), List.of(), List.of());
         }
-        return context.readInTenant(tenantId, () -> load(verifiedIdentityId, tenantId));
+        Loaded loaded = context.readInTenant(tenantId, () -> load(verifiedIdentityId, tenantId));
+        List<AccessContextResponse.WorkspaceGrant> workspaces = new ArrayList<>();
+        for (var workspace : loaded.response().getWorkspaceGrants()) {
+            List<UUID> effectiveIds = new ArrayList<>();
+            List<AccessContextResponse.RepositoryGrantStatus> states = new ArrayList<>();
+            for (RepositoryGrant grant : loaded.grants()) {
+                if (!workspace.getWorkspaceId().equals(grant.getWorkspaceId())) continue;
+                boolean effective = false;
+                String reason = "GRANT_NOT_VERIFIED";
+                if (grant.isEffectiveCandidate()) {
+                    reason = "BINDING_UNVERIFIED";
+                    try {
+                        var evidence = bindings.lookup(tenantId, workspace.getWorkspaceId(),
+                                grant.getRepositoryConnectionId());
+                        effective = evidence != null && evidence.activeFor(tenantId, workspace.getWorkspaceId(),
+                                grant.getRepositoryConnectionId(), grant.getVerifiedBindingRevision())
+                                && evidence.revision() == grant.getVerifiedBindingRevision();
+                        if (effective) reason = null;
+                    } catch (RepositoryBindingClient.Unavailable ignored) {
+                        // API-038 is a UI snapshot. Missing S02 evidence never contributes access.
+                    }
+                }
+                if (effective) effectiveIds.add(grant.getRepositoryConnectionId());
+                states.add(new AccessContextResponse.RepositoryGrantStatus(grant.getGrantId(),
+                        grant.getRepositoryConnectionId(), grant.getStatus(), grant.getVerificationStatus(),
+                        effective, reason));
+            }
+            List<String> visiblePermissions = effectiveIds.isEmpty()
+                    ? workspace.getPermissions().stream().filter(p -> !p.startsWith("DOCUMENT_")).toList()
+                    : workspace.getPermissions();
+            workspaces.add(new AccessContextResponse.WorkspaceGrant(workspace.getWorkspaceId(),
+                    workspace.getRoles(), visiblePermissions, effectiveIds.stream().distinct().toList(), states));
+        }
+        AccessContextResponse base = loaded.response();
+        Long latestRevision = context.readInTenant(tenantId, () ->
+                tenants.findById(tenantId).map(t -> t.getAuthzRevision()).orElse(null));
+        if (!java.util.Objects.equals(base.getAuthzRevision(), latestRevision)) {
+            workspaces = workspaces.stream().map(w -> new AccessContextResponse.WorkspaceGrant(
+                    w.getWorkspaceId(), w.getRoles(),
+                    w.getPermissions().stream().filter(p -> !p.startsWith("DOCUMENT_")).toList(), List.of(),
+                    w.getRepositoryGrantStatuses().stream().map(s ->
+                            new AccessContextResponse.RepositoryGrantStatus(s.getGrantId(),
+                                    s.getRepositoryConnectionId(), s.getStatus(), s.getVerificationStatus(),
+                                    false, "BINDING_UNVERIFIED")).toList())).toList();
+        }
+        return new AccessContextResponse(base.getIdentityId(), base.getTenantId(), base.getAuthzRevision(),
+                base.getEvaluatedAt(), base.getTenantRoles(), base.getTenantPermissions(), workspaces);
     }
 
-    private AccessContextResponse load(UUID identityId, UUID tenantId) {
+    private Loaded load(UUID identityId, UUID tenantId) {
 
         // kiem tra tenant ACTIVE,
         // INACTIVE --> THROW AuthorityException
@@ -84,8 +132,8 @@ public class AccessContextServiceImpl implements AccessContextService {
 
         List<WorkspaceMembership> active = workspaceMemberships.findActiveForIdentity(tenantId, identityId);
         if (active.isEmpty()) {
-            return new AccessContextResponse(identityId, tenantId, tenant.getAuthzRevision(), Instant.now(),
-                    tenantRoleCodes, List.copyOf(tenantPermissions), List.of());
+            return new Loaded(new AccessContextResponse(identityId, tenantId, tenant.getAuthzRevision(), Instant.now(),
+                    tenantRoleCodes, List.copyOf(tenantPermissions), List.of()), List.of());
         }
         Set<UUID> memberIds = active.stream().map(WorkspaceMembership::getWorkspaceMembershipId)
                 .collect(java.util.stream.Collectors.toSet());
@@ -103,11 +151,7 @@ public class AccessContextServiceImpl implements AccessContextService {
                         .add(permission.getId().getPermissionCode());
             }
         }
-        Map<UUID, Set<UUID>> reposByMember = new HashMap<>();
-        for (RepositoryGrant grant : repositoryGrants.findEffective(tenantId, memberIds)) {
-            reposByMember.computeIfAbsent(grant.getWorkspaceMembershipId(), ignored -> new TreeSet<>())
-                    .add(grant.getRepositoryConnectionId());
-        }
+        List<RepositoryGrant> candidateGrants = repositoryGrants.findForMembers(tenantId, memberIds);
         List<AccessContextResponse.WorkspaceGrant> grants = new ArrayList<>();
         for (WorkspaceMembership member : active) {
             UUID memberId = member.getWorkspaceMembershipId();
@@ -119,10 +163,12 @@ public class AccessContextServiceImpl implements AccessContextService {
             }
             grants.add(new AccessContextResponse.WorkspaceGrant(member.getWorkspaceId(),
                     List.copyOf(roles), List.copyOf(permissions),
-                    List.copyOf(reposByMember.getOrDefault(memberId, Set.of()))));
+                    List.of()));
         }
         grants.sort(Comparator.comparing(g -> g.getWorkspaceId().toString()));
-        return new AccessContextResponse(identityId, tenantId, tenant.getAuthzRevision(), Instant.now(),
-                tenantRoleCodes, List.copyOf(tenantPermissions), List.copyOf(grants));
+        return new Loaded(new AccessContextResponse(identityId, tenantId, tenant.getAuthzRevision(), Instant.now(),
+                tenantRoleCodes, List.copyOf(tenantPermissions), List.copyOf(grants)), candidateGrants);
     }
+
+    private record Loaded(AccessContextResponse response, List<RepositoryGrant> grants) {}
 }

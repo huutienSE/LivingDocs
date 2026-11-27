@@ -1,9 +1,13 @@
 openapi: 3.0.3
 info:
-  title: LivingDocs S01 — Sprint 3 Contract Candidates
+  title: LivingDocs S01 — Implemented APIs and Contract Candidates
   version: 0.2.0
-  description: LD-API-001 v0.4 + LIV-133. CANDIDATE/PLANNED không phải API đã chạy; x-contract-state thể hiện trạng
-    thái. Domain owner phải duyệt request/response còn để CandidateObject.
+  description: >-
+    LD-API-001 v0.4 + LIV-133. S01 :8081/v3/api-docs chỉ liệt kê controller đang chạy:
+    Register, Login, API-038, API-039, Service Token và JWKS. YAML này còn có
+    CANDIDATE/BLOCKED từ API inventory để thiết kế; những path đó chưa có controller.
+    x-contract-state thể hiện trạng thái contract; các UUID/JWT trong example chỉ
+    minh họa wire shape, không phải fixture hoặc bằng chứng API đã chạy.
 x-livingdocs-source: LD-API-001 v0.4 / LIV-133
 x-livingdocs-jwks-path: /.well-known/jwks.json
 paths:
@@ -297,7 +301,7 @@ paths:
       tags:
         - S01 Public
       operationId: api003_post
-      summary: Đăng xuất có CSRF/session revocation
+      summary: '[BLOCKED] Đăng xuất có CSRF/session revocation'
       description: 'LD-API-001 API-003. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
         có controller/CI và xác nhận owner. Chưa đưa qua Gateway khi cookie/CSRF và refresh rotation chưa được nghiệm
         thu.'
@@ -326,7 +330,7 @@ paths:
       tags:
         - S01 Public
       operationId: api004_post
-      summary: Refresh rotation + CSRF
+      summary: '[BLOCKED] Refresh rotation + CSRF'
       description: 'LD-API-001 API-004. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
         có controller/CI và xác nhận owner. Chưa đưa qua Gateway khi cookie/CSRF và refresh rotation chưa được nghiệm
         thu.'
@@ -359,7 +363,7 @@ paths:
       tags:
         - S01 Public
       operationId: api005_get
-      summary: GitHub OAuth start
+      summary: '[BLOCKED] GitHub OAuth start'
       description: 'LD-API-001 API-005. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
         có controller/CI và xác nhận owner.'
       x-api-id: API-005
@@ -384,7 +388,7 @@ paths:
       tags:
         - S01 Public
       operationId: api006_get
-      summary: GitHub OAuth callback
+      summary: '[BLOCKED] GitHub OAuth callback'
       description: 'LD-API-001 API-006. Trạng thái: BLOCKED_SECURITY. Không coi đây là endpoint hoạt động khi chưa
         có controller/CI và xác nhận owner.'
       x-api-id: API-006
@@ -409,7 +413,7 @@ paths:
       tags:
         - S01 Public
       operationId: api007_get
-      summary: Hồ sơ người dùng
+      summary: '[CANDIDATE] Hồ sơ người dùng'
       description: 'LD-API-001 API-007. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-007
@@ -434,7 +438,7 @@ paths:
       tags:
         - S01 Public
       operationId: api008_patch
-      summary: Sửa hồ sơ
+      summary: '[CANDIDATE] Sửa hồ sơ'
       description: 'LD-API-001 API-008. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-008
@@ -466,7 +470,7 @@ paths:
       tags:
         - S01 Public
       operationId: api016_get
-      summary: Tenant hiện hành
+      summary: '[CANDIDATE] Tenant hiện hành'
       description: 'LD-API-001 API-016. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-016
@@ -492,7 +496,7 @@ paths:
       tags:
         - S01 Public
       operationId: api017_get
-      summary: Chi tiết tenant
+      summary: '[CANDIDATE] Chi tiết tenant'
       description: 'LD-API-001 API-017. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-017
@@ -525,7 +529,7 @@ paths:
       tags:
         - S01 Public
       operationId: api018_patch
-      summary: Cập nhật tenant
+      summary: '[CANDIDATE] Cập nhật tenant'
       description: 'LD-API-001 API-018. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-018
@@ -565,7 +569,7 @@ paths:
       tags:
         - S01 Public
       operationId: api019_post
-      summary: Mời thành viên
+      summary: '[CANDIDATE] Mời thành viên'
       description: 'LD-API-001 API-019. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-019
@@ -605,7 +609,7 @@ paths:
       tags:
         - S01 Public
       operationId: api023_get
-      summary: Tenant memberships
+      summary: '[CANDIDATE] Tenant memberships'
       description: 'LD-API-001 API-023. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-023
@@ -639,7 +643,7 @@ paths:
       tags:
         - S01 Public
       operationId: api024_patch
-      summary: Sửa membership
+      summary: '[CANDIDATE] Sửa membership'
       description: 'LD-API-001 API-024. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-024
@@ -686,7 +690,7 @@ paths:
       tags:
         - S01 Public
       operationId: api028_get
-      summary: Danh sách workspaces
+      summary: '[CANDIDATE] Danh sách workspaces'
       description: 'LD-API-001 API-028. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-028
@@ -719,7 +723,7 @@ paths:
       tags:
         - S01 Public
       operationId: api029_post
-      summary: Tạo workspace
+      summary: '[CANDIDATE] Tạo workspace'
       description: 'LD-API-001 API-029. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-029
@@ -759,7 +763,7 @@ paths:
       tags:
         - S01 Public
       operationId: api030_get
-      summary: Chi tiết workspace
+      summary: '[CANDIDATE] Chi tiết workspace'
       description: 'LD-API-001 API-030. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-030
@@ -792,7 +796,7 @@ paths:
       tags:
         - S01 Public
       operationId: api031_patch
-      summary: Sửa workspace
+      summary: '[CANDIDATE] Sửa workspace'
       description: 'LD-API-001 API-031. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-031
@@ -832,7 +836,7 @@ paths:
       tags:
         - S01 Public
       operationId: api033_get
-      summary: Thành viên workspace
+      summary: '[CANDIDATE] Thành viên workspace'
       description: 'LD-API-001 API-033. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-033
@@ -865,7 +869,7 @@ paths:
       tags:
         - S01 Public
       operationId: api034_post
-      summary: Gán thành viên
+      summary: '[CANDIDATE] Gán thành viên'
       description: 'LD-API-001 API-034. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-034
@@ -905,7 +909,7 @@ paths:
       tags:
         - S01 Public
       operationId: api035_delete
-      summary: Gỡ thành viên
+      summary: '[CANDIDATE] Gỡ thành viên'
       description: 'LD-API-001 API-035. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-035
@@ -942,7 +946,7 @@ paths:
       tags:
         - S01 Public
       operationId: api036_put
-      summary: Gán roles
+      summary: '[CANDIDATE] Gán roles'
       description: 'LD-API-001 API-036. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-036
@@ -989,7 +993,7 @@ paths:
       tags:
         - S01 Public
       operationId: api037_get
-      summary: Danh mục roles
+      summary: '[CANDIDATE] Danh mục roles'
       description: 'LD-API-001 API-037. Trạng thái: CANDIDATE. Không coi đây là endpoint hoạt động khi chưa có controller/CI
         và xác nhận owner.'
       x-api-id: API-037
@@ -1018,6 +1022,174 @@ paths:
             type: string
             format: uuid
             description: 'CANDIDATE: xác nhận format với owner từng service.'
+  /internal/v1/auth/service-tokens:
+    post:
+      tags: [S01 Internal]
+      operationId: issueServiceToken
+      x-api-id: S01-SERVICE-TOKEN
+      x-contract-state: IN_PROGRESS
+      x-gateway-exposure: not-enabled
+      summary: Issue scoped short-lived workload JWT
+      security: [{workloadBasic: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ServiceTokenRequest'}
+            examples:
+              s02Authorization:
+                summary: S02 requests API-039 assertion; replace actor hash with SHA-256 of the raw User JWT
+                value:
+                  audience: livingdocs-s01-internal
+                  operation: authorization:evaluate
+                  method: POST
+                  path: /internal/v1/authorization/evaluate
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+                  action: REPOSITORY_CONNECT
+                  actorTokenSha256: '0000000000000000000000000000000000000000000000000000000000000000'
+              s03SourceResolve:
+                summary: S03 service-only source resolution
+                value:
+                  audience: livingdocs-s02-internal
+                  operation: source:resolve
+                  method: POST
+                  path: /internal/v1/source/resolve
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+                  repositoryConnectionId: 33333333-3333-4333-8333-333333333333
+              s04SourceValidate:
+                summary: S04 service-only source validation
+                value:
+                  audience: livingdocs-s02-internal
+                  operation: source:validate
+                  method: POST
+                  path: /internal/v1/source/validate
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+                  repositoryConnectionId: 33333333-3333-4333-8333-333333333333
+              s04Document:
+                summary: S04 requests API-039 Document assertion with repository scope
+                value:
+                  audience: livingdocs-s01-internal
+                  operation: authorization:evaluate
+                  method: POST
+                  path: /internal/v1/authorization/evaluate
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+                  repositoryConnectionId: 33333333-3333-4333-8333-333333333333
+                  action: DOCUMENT_PUBLISH
+                  actorTokenSha256: '0000000000000000000000000000000000000000000000000000000000000000'
+      responses:
+        '200':
+          description: Token issued; Cache-Control no-store.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ServiceTokenApiResponse'}
+              example:
+                code: SERVICE_TOKEN_ISSUED
+                message: Service token issued
+                data: {accessToken: '<signed-service-jwt>', tokenType: Bearer, expiresIn: 60}
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Invalid request, status: 400, detail: Internal request is invalid, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: INVALID_REQUEST, correlationId: example-correlation-id}
+        '401':
+          description: Invalid workload credential.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Unauthenticated, status: 401, detail: Invalid workload credential, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: INVALID_WORKLOAD_CREDENTIAL, correlationId: example-correlation-id}
+        '403':
+          description: Workload scope denied.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Forbidden, status: 403, detail: Workload scope is not authorized, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: WORKLOAD_SCOPE_DENIED, correlationId: example-correlation-id}
+        '503':
+          description: Credential registry unavailable.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Service unavailable, status: 503, detail: Authority is temporarily unavailable, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: AUTHORITY_UNAVAILABLE, correlationId: example-correlation-id}
+  /internal/v1/authorization/evaluate:
+    post:
+      tags: [S01 Internal]
+      operationId: api039_post
+      x-api-id: API-039
+      x-contract-state: IN_PROGRESS
+      x-gateway-exposure: not-enabled
+      summary: Fresh scoped human authorization
+      description: >-
+        REPOSITORY_CONNECT requires workspace scope and omits repositoryConnectionId.
+        Every DOCUMENT_* action requires repositoryConnectionId and an active VERIFIED grant
+        in the same workspace. DENY is a successful authority decision; transport or
+        database failure is HTTP 503 and must fail closed at the caller.
+      security: [{bearerAuth: [], serviceAssertion: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorizationEvaluationRequest'}
+            examples:
+              repositoryConnect:
+                summary: S02 checks Workspace authority before connection creation; omit repositoryConnectionId
+                value:
+                  action: REPOSITORY_CONNECT
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+              documentPublish:
+                summary: S04 checks a Document action with repository scope
+                value:
+                  action: DOCUMENT_PUBLISH
+                  tenantId: 11111111-1111-4111-8111-111111111111
+                  workspaceId: 22222222-2222-4222-8222-222222222222
+                  repositoryConnectionId: 33333333-3333-4333-8333-333333333333
+      responses:
+        '200':
+          description: ALLOW or DENY from current S01 PostgreSQL authority; Cache-Control no-store.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorizationEvaluationApiResponse'}
+              examples:
+                allow:
+                  summary: Illustrative ALLOW; IDs, revision and time vary per request
+                  value:
+                    code: AUTHORIZATION_EVALUATED
+                    message: Authorization evaluated
+                    data: {decision: ALLOW, reasonCode: null, action: REPOSITORY_CONNECT, tenantId: 11111111-1111-4111-8111-111111111111, workspaceId: 22222222-2222-4222-8222-222222222222, repositoryConnectionId: null, authzRevision: 8, evaluatedAt: '2026-11-24T10:00:00Z', decisionId: 44444444-4444-4444-8444-444444444444}
+                deny:
+                  summary: DENY is an HTTP 200 authority decision
+                  value:
+                    code: AUTHORIZATION_EVALUATED
+                    message: Authorization evaluated
+                    data: {decision: DENY, reasonCode: NOT_AUTHORIZED, action: REPOSITORY_CONNECT, tenantId: 11111111-1111-4111-8111-111111111111, workspaceId: 22222222-2222-4222-8222-222222222222, repositoryConnectionId: null, authzRevision: 8, evaluatedAt: '2026-11-24T10:00:00Z', decisionId: 44444444-4444-4444-8444-444444444444}
+        '400':
+          description: Invalid action or scope.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Invalid request, status: 400, detail: Internal request is invalid, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: INVALID_REQUEST, correlationId: example-correlation-id}
+        '401':
+          description: Invalid human or service JWT; this example shows an invalid Service JWT.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Unauthenticated, status: 401, detail: Invalid service assertion, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: INVALID_SERVICE_ASSERTION, correlationId: example-correlation-id}
+        '403':
+          description: Transport denied.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Forbidden, status: 403, detail: Workload scope is not authorized, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: WORKLOAD_SCOPE_DENIED, correlationId: example-correlation-id}
+        '503':
+          description: Authority unavailable.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+              example: {type: 'about:blank', title: Service unavailable, status: 503, detail: Authority is temporarily unavailable, instance: 'urn:uuid:44444444-4444-4444-8444-444444444444', code: AUTHORITY_UNAVAILABLE, correlationId: example-correlation-id}
   /api/v1/users/me/access-context:
     get:
       tags:
@@ -1053,15 +1225,105 @@ paths:
                   workspaceGrants:
                     - workspaceId: 33333333-3333-4333-8333-333333333333
                       roles: [MANAGER, STAFF]
-                      permissions: [DOCUMENT_FINAL_APPROVE, DOCUMENT_PUBLISH, DOCUMENT_READ, DOCUMENT_STAFF_REVIEW, WORKSPACE_VIEW]
+                      permissions: [WORKSPACE_VIEW]
                       repositoryIds: []
+                      repositoryGrantStatuses: []
         '401': *id001
         '403': *id001
         '500': *id001
       security:
         - bearerAuth: []
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_request
+      x-api-id: LIV-162-GRANT-REQUEST
+      x-contract-state: IN_PROGRESS
+      summary: Request a PENDING Repository Grant
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RepositoryGrantRequest'}
+      responses:
+        '201': {description: PENDING grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    get:
+      operationId: liv162_grant_list
+      x-api-id: LIV-162-GRANT-LIST
+      x-contract-state: IN_PROGRESS
+      summary: List scoped Repository Grants
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Scoped grants, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantListApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: liv162_grant_get
+      x-api-id: LIV-162-GRANT-GET
+      x-contract-state: IN_PROGRESS
+      summary: Get a scoped Repository Grant
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Grant detail, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/verify:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_verify
+      x-api-id: LIV-162-GRANT-VERIFY
+      x-contract-state: IN_PROGRESS
+      summary: Verify a pending Grant against authoritative S02 binding
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Verified Grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /api/v1/tenants/{tenantId}/workspaces/{workspaceId}/repository-grants/{grantId}/revoke:
+    parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: workspaceId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: grantId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: liv162_grant_revoke
+      x-api-id: LIV-162-GRANT-REVOKE
+      x-contract-state: IN_PROGRESS
+      summary: Revoke a scoped Repository Grant
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Revoked Grant, content: {application/json: {schema: {$ref: '#/components/schemas/RepositoryGrantApiResponse'}}}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
+    workloadBasic:
+      type: http
+      scheme: basic
+      description: Workload ID and dedicated high-entropy secret; internal TLS only.
+    serviceAssertion:
+      type: apiKey
+      in: header
+      name: X-LD-Service-Assertion
+      description: Bearer Service JWT bound to actor token and exact action/scope.
     bearerAuth:
       type: http
       scheme: bearer
@@ -1080,6 +1342,91 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    RepositoryGrantRequest:
+      type: object
+      required: [workspaceMembershipId, repositoryConnectionId, provenance]
+      properties:
+        workspaceMembershipId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        provenance: {type: string, minLength: 10, maxLength: 2000}
+    RepositoryGrantView:
+      type: object
+      required: [grantId, tenantId, workspaceId, workspaceMembershipId, repositoryConnectionId, status, verificationStatus, effective]
+      properties:
+        grantId: {type: string, format: uuid}
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        workspaceMembershipId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE, REVOKED]}
+        verificationStatus: {type: string, enum: [PENDING, VERIFIED, REJECTED]}
+        verificationSource: {type: string, nullable: true}
+        effective: {type: boolean}
+        effectiveReason: {type: string, nullable: true}
+        verifiedBindingRevision: {type: integer, format: int64, nullable: true}
+        verifiedAt: {type: string, format: date-time, nullable: true}
+        endedAt: {type: string, format: date-time, nullable: true}
+    RepositoryGrantApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ApiResponseBase'}
+        - {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/RepositoryGrantView'}}}
+    RepositoryGrantListApiResponse:
+      allOf:
+        - {$ref: '#/components/schemas/ApiResponseBase'}
+        - {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/RepositoryGrantView'}}}}
+    ServiceTokenRequest:
+      type: object
+      required: [audience, operation, method, path, tenantId]
+      properties:
+        audience: {type: string}
+        operation: {type: string}
+        method: {type: string, enum: [POST]}
+        path: {type: string}
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid, nullable: true}
+        repositoryConnectionId: {type: string, format: uuid, nullable: true, description: Required for DOCUMENT_* and source operations; forbidden for REPOSITORY_CONNECT.}
+        action: {type: string, nullable: true}
+        actorTokenSha256: {type: string, pattern: '^[0-9a-f]{64}$', nullable: true}
+    ServiceTokenApiResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: {type: string, enum: [SERVICE_TOKEN_ISSUED]}
+        message: {type: string}
+        data:
+          type: object
+          required: [accessToken, tokenType, expiresIn]
+          properties:
+            accessToken: {type: string}
+            tokenType: {type: string, enum: [Bearer]}
+            expiresIn: {type: integer, enum: [60]}
+    AuthorizationEvaluationRequest:
+      type: object
+      required: [action, tenantId, workspaceId]
+      properties:
+        action: {type: string, enum: [REPOSITORY_CONNECT, DOCUMENT_AUTHOR, DOCUMENT_STAFF_REVIEW, DOCUMENT_FINAL_APPROVE, DOCUMENT_PUBLISH]}
+        tenantId: {type: string, format: uuid}
+        workspaceId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid, nullable: true, description: Required for DOCUMENT_*; forbidden for REPOSITORY_CONNECT.}
+    AuthorizationEvaluationApiResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: {type: string, enum: [AUTHORIZATION_EVALUATED]}
+        message: {type: string}
+        data:
+          type: object
+          required: [decision, action, tenantId, workspaceId, authzRevision, evaluatedAt, decisionId]
+          properties:
+            decision: {type: string, enum: [ALLOW, DENY]}
+            reasonCode: {type: string, nullable: true}
+            action: {type: string}
+            tenantId: {type: string, format: uuid}
+            workspaceId: {type: string, format: uuid}
+            repositoryConnectionId: {type: string, format: uuid, nullable: true}
+            authzRevision: {type: integer, format: int64, nullable: true}
+            evaluatedAt: {type: string, format: date-time}
+            decisionId: {type: string, format: uuid}
     ApiResponseBase:
       type: object
       description: LivingDocs JSON success envelope; errors use RFC 9457 Problem instead.
@@ -1315,7 +1662,7 @@ components:
               $ref: '#/components/schemas/AccessContextView'
     AccessContextView:
       type: object
-      description: Current effective navigation snapshot; pending repository grants never appear.
+      description: Current navigation snapshot; pending grants may appear in status detail but never in effective repositoryIds.
       required: [identityId, tenantId, authzRevision, evaluatedAt, tenantRoles, tenantPermissions, workspaceGrants]
       properties:
         identityId: {type: string, format: uuid}
@@ -1341,7 +1688,21 @@ components:
           items: {type: string, enum: [DEVELOPER, STAFF, MANAGER, TECHNICAL_LEAD]}
         permissions:
           type: array
-          items: {type: string, enum: [WORKSPACE_VIEW, DOCUMENT_READ, DOCUMENT_AUTHOR, DOCUMENT_STAFF_REVIEW, DOCUMENT_FINAL_APPROVE, DOCUMENT_PUBLISH]}
+          items: {type: string, enum: [WORKSPACE_VIEW, REPOSITORY_CONNECT, DOCUMENT_READ, DOCUMENT_AUTHOR, DOCUMENT_STAFF_REVIEW, DOCUMENT_FINAL_APPROVE, DOCUMENT_PUBLISH]}
         repositoryIds:
           type: array
           items: {type: string, format: uuid}
+        repositoryGrantStatuses:
+          type: array
+          description: UI snapshot; binding failures yield effective false and BINDING_UNVERIFIED.
+          items: {$ref: '#/components/schemas/RepositoryGrantStatus'}
+    RepositoryGrantStatus:
+      type: object
+      required: [grantId, repositoryConnectionId, status, verificationStatus, effective]
+      properties:
+        grantId: {type: string, format: uuid}
+        repositoryConnectionId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE, REVOKED]}
+        verificationStatus: {type: string, enum: [PENDING, VERIFIED, REJECTED]}
+        effective: {type: boolean}
+        effectiveReason: {type: string, nullable: true}

@@ -7,6 +7,8 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.SignedJWT;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
@@ -36,7 +38,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @ConditionalOnWebApplication
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
+@SecurityScheme(name = "workloadBasic", type = SecuritySchemeType.HTTP, scheme = "basic")
+@SecurityScheme(name = "serviceAssertion", type = SecuritySchemeType.APIKEY, in = io.swagger.v3.oas.annotations.enums.SecuritySchemeIn.HEADER,
+        paramName = "X-LD-Service-Assertion")
 public class S01SecurityConfig {
+    @Bean
+    OpenApiCustomizer internalDualTokenContract() {
+        return api -> api.getPaths().get("/internal/v1/authorization/evaluate").getPost()
+                .setSecurity(java.util.List.of(new SecurityRequirement()
+                        .addList("bearerAuth").addList("serviceAssertion")));
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         ObjectMapper json = new ObjectMapper();
@@ -44,11 +56,18 @@ public class S01SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(routes -> routes
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/internal/v1/auth/service-tokens").permitAll() // Service Token API: không yêu cầu User JWT tại Spring Security; Controller/Service sẽ xác thực Basic workload credential riêng.
+                        .requestMatchers(HttpMethod.POST, "/internal/v1/authorization/evaluate").authenticated() //API-039: bắt buộc User JWT hợp lệ trước khi vào Controller.
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/actuator/health",
                                 "/actuator/health/**", "/v3/api-docs", "/v3/api-docs/**",
                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/me",
                                 "/api/v1/users/me/access-context").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tenants/*/workspaces/*/repository-grants",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tenants/*/workspaces/*/repository-grants",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*/verify",
+                                "/api/v1/tenants/*/workspaces/*/repository-grants/*/revoke").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, ignored) -> {
@@ -65,6 +84,38 @@ public class S01SecurityConfig {
                 .build();
     }
 
+
+    /*
+     *
+     /*
+     * Xác minh User JWT tại các endpoint được Spring Security bảo vệ.
+     *
+     * VÍ DỤ FLOW B:
+     * S02 gọi API-039 với Authorization: Bearer <User JWT của An>.
+     * Spring Security sử dụng JwtDecoder trước khi vào Controller.
+     *
+     * LUỒNG XỬ LÝ:
+     * 1. Parse JWT, kiểm thuật toán RS256 và Key ID.
+     * 2. Lấy public key tương ứng từ JwtKeyManager.
+     * 3. Xác minh chữ ký và các JWT claims bắt buộc.
+     * 4. Kiểm issuer, audience, subject UUID và thời gian hiệu lực.
+     * 5. Từ chối Service JWT dùng thay User JWT.
+     *
+     * INPUT:
+     * - token: chuỗi User JWT lấy từ Authorization Bearer header.
+     * - keys: nguồn public keys của S01.
+     * - issuer/audience: cấu hình JWT được chấp nhận.
+     *
+     * OUTPUT:
+     * - Jwt đã xác minh -> Spring Security tạo authenticated principal.
+     * - Nếu sai -> authentication thất bại, request không vào
+     *   AuthorizationEvaluationController.
+     *
+     * KHÔNG LÀM:
+     * - Không kiểm An có role Developer hay REPOSITORY_CONNECT.
+     * - Không xác minh Service JWT tại X-LD-Service-Assertion.
+     * - Không kiểm Repository Grant hoặc GitHub access.
+     */
     // xác minh chữ ký RS256, key ID, issuer, audience, subject và thời gian
     @Bean
     JwtDecoder jwtDecoder(JwtKeyManager keys,
@@ -88,9 +139,11 @@ public class S01SecurityConfig {
                     try {
                         UUID.fromString(jwt.getSubject());
                         Instant issued = jwt.getIssuedAt();
-                        if (!jwt.getAudience().contains(audience) || issued == null
+                        if (!java.util.List.of(audience).equals(jwt.getAudience())
+                                || jwt.getClaims().containsKey("token_use") || issued == null
                                 || jwt.getNotBefore() == null || jwt.getExpiresAt() == null
                                 || issued.isAfter(Instant.now().plusSeconds(30))
+                                || !jwt.getExpiresAt().isAfter(Instant.now())
                                 || jwt.getExpiresAt().isAfter(issued.plusSeconds(930))) {
                             return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token"));
                         }

@@ -617,3 +617,9 @@ Newman từng folder chạy độc lập bằng `--folder 'Revoked access (requi
 Ghi `PASS` khi có output/assertions của gate tương ứng, `FAIL` khi assertion/build sai, `SKIPPED` khi request bị flag skip, `BLOCKED` khi dependency thật (S02 verification/S04 hoặc PR chưa push) chưa sẵn, `NOT RUN` khi chưa thực thi. Local Java PASS không đồng nghĩa Postman/Gateway/CI PASS. Recovery container dùng `docker compose up -d` với cùng volume/password hiện hữu; không reset dữ liệu.
 
 Regression bổ sung: LIV-136 dùng `tests/postman/liv136-register.postman_collection.json` và `setup-liv136-env.sh`; LIV-137 dùng `tests/postman/liv137-login.postman_collection.json` và `setup-liv137-env.sh` (đều đã có trong working tree). Chuẩn bị environment riêng theo tài liệu Register/Login trước khi chạy Newman, không tái sử dụng secret hoặc số liệu PASS của LIV-138. S01 `RegistrationIntegrationTest` và `LoginIntegrationTest` đã nằm trong Gate 2; Gateway JWT tests nằm trong Gate 7. S02/S04 Golden Flow, S02 verified binding và CI remote không thuộc kết quả PASS của runbook này.
+
+## PR2 — S01 internal authority contract
+
+PR2 thêm Service JWT issuer, API-039 fresh authorization và V5/V6. Mô tả task, contract bàn giao S02/S03/S04, đường chạy lần đầu/chạy lại, macOS/Windows, evidence và giới hạn E2E nằm trong [LIV-138 PR2 — Service JWT và API-039](LIV-138-pr2-service-jwt-fresh-authorization.md).
+
+Runbook PR1 ở trên vẫn là nguồn dựng Identity/Tenant/Workspace và named Operator. Không dùng PR2 để tạo Verified Grant, giả Repository Connection hoặc tuyên bố S01→S02→S04 Golden Flow PASS.

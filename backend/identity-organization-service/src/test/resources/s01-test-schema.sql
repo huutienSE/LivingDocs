@@ -1,4 +1,6 @@
 CREATE ROLE ld_s01_app LOGIN PASSWORD 'test_app_password';
+CREATE ROLE ld_s01_http_writer NOLOGIN NOBYPASSRLS;
+GRANT ld_s01_http_writer TO ld_s01_app WITH INHERIT FALSE, SET TRUE, ADMIN FALSE;
 CREATE ROLE ld_s01_provisioner NOLOGIN NOBYPASSRLS;
 CREATE ROLE ld_operator_test LOGIN NOBYPASSRLS PASSWORD 'test_operator_password';
 GRANT ld_s01_provisioner TO ld_operator_test WITH INHERIT TRUE, SET FALSE;
